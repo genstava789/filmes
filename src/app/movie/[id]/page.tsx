@@ -1,64 +1,99 @@
-'use client';
-
-import React, { useState, useEffect } from 'react';
+import React from 'react';
 import Image from 'next/image';
 import Link from 'next/link';
-import { useParams } from 'next/navigation';
+import { Metadata } from 'next';
+import { notFound } from 'next/navigation';
 import {
   Play,
-  Star,
-  Clock,
   Calendar,
+  Clock,
   Globe,
   ArrowLeft,
-  Bookmark,
-  ExternalLink,
+  Sparkles,
 } from 'lucide-react';
-import { MovieDetail } from '@/types/tmdb';
-import { getMovieDetails, getImageUrl } from '@/lib/tmdb';
+import { getImageUrl } from '@/lib/tmdb';
+import {
+  getMovieDetailsWithCustomOverride,
+  getAllCustomMovieSlugs,
+} from '@/lib/markdownMovies';
 import MovieRow from '@/components/MovieRow';
 import CastCard from '@/components/CastCard';
-import TrailerModal from '@/components/TrailerModal';
 import RatingBadge from '@/components/RatingBadge';
-import { PageLoader } from '@/components/LoadingSpinner';
+import VideoPlayer from '@/components/VideoPlayer';
+import MarkdownRenderer from '@/components/MarkdownRenderer';
+import MovieDetailClient from '@/components/MovieDetailClient';
 
-export default function MovieDetailPage() {
-  const params = useParams();
-  const id = Number(params.id);
+export const dynamicParams = true;
+export const revalidate = 3600;
 
-  const [movie, setMovie] = useState<MovieDetail | null>(null);
-  const [loading, setLoading] = useState(true);
-  const [error, setError] = useState<string | null>(null);
-  const [trailerKey, setTrailerKey] = useState<string | null>(null);
-  const [showTrailer, setShowTrailer] = useState(false);
-  const [bookmarked, setBookmarked] = useState(false);
-  const [imgLoaded, setImgLoaded] = useState(false);
+interface PageProps {
+  params: {
+    id: string;
+  };
+}
 
-  useEffect(() => {
-    if (!id) return;
-    setLoading(true);
-    setError(null);
-    getMovieDetails(id)
-      .then((data) => {
-        setMovie(data);
-        const trailer = data.videos?.results?.find(
-          (v) => v.type === 'Trailer' && v.site === 'YouTube' && v.official
-        ) || data.videos?.results?.find(
-          (v) => v.type === 'Trailer' && v.site === 'YouTube'
-        ) || data.videos?.results?.[0];
-        if (trailer) setTrailerKey(trailer.key);
-      })
-      .catch(() => setError('Failed to load movie details.'))
-      .finally(() => setLoading(false));
-  }, [id]);
+/**
+ * Pre-generates static params for all custom markdown files in video/
+ */
+export async function generateStaticParams() {
+  const customSlugs = getAllCustomMovieSlugs();
+  return customSlugs.map((slug) => ({
+    id: slug,
+  }));
+}
 
-  if (loading) return <PageLoader />;
-  if (error || !movie) {
+/**
+ * Dynamic metadata generation for SEO
+ */
+export async function generateMetadata({ params }: PageProps): Promise<Metadata> {
+  const movie = await getMovieDetailsWithCustomOverride(params.id).catch(() => null);
+
+  if (!movie) {
+    return {
+      title: 'Movie Not Found - Filmanesia',
+    };
+  }
+
+  const title = `${movie.title} ${movie.release_date ? `(${new Date(movie.release_date).getFullYear()})` : ''} - Filmanesia`;
+  const description = movie.overview ? movie.overview.slice(0, 160) : 'Watch movies and stream online on Filmanesia.';
+
+  return {
+    title,
+    description,
+    openGraph: {
+      title,
+      description,
+      images: movie.backdrop_path
+        ? [getImageUrl(movie.backdrop_path, 'w1280')]
+        : movie.poster_path
+        ? [getImageUrl(movie.poster_path, 'w500')]
+        : [],
+    },
+  };
+}
+
+export default async function MovieDetailPage({ params }: PageProps) {
+  const movie = await getMovieDetailsWithCustomOverride(params.id).catch(() => null);
+
+  if (!movie) {
     return (
       <div className="min-h-screen flex items-center justify-center" style={{ background: '#050816' }}>
-        <div className="text-center">
-          <p className="text-neo-text-secondary text-lg mb-4">{error || 'Movie not found.'}</p>
-          <Link href="/" className="text-neo-cyan hover:underline">← Back to Home</Link>
+        <div className="text-center px-4">
+          <h2 className="text-2xl font-bold text-white mb-2">Film Tidak Ditemukan</h2>
+          <p className="text-neo-text-secondary text-sm mb-6">
+            Data untuk movie ID atau file markdown &ldquo;{params.id}&rdquo; tidak ditemukan.
+          </p>
+          <Link
+            href="/"
+            className="inline-flex items-center gap-2 px-5 py-2.5 rounded-xl font-medium text-sm transition-all duration-200"
+            style={{
+              background: 'linear-gradient(135deg, #06b6d4, #7c3aed)',
+              color: 'white',
+            }}
+          >
+            <ArrowLeft size={16} />
+            Kembali ke Beranda
+          </Link>
         </div>
       </div>
     );
@@ -72,9 +107,16 @@ export default function MovieDetailPage() {
     : null;
   const year = movie.release_date ? new Date(movie.release_date).getFullYear() : '';
 
+  // Extract official trailer if available
+  const trailer =
+    movie.videos?.results?.find((v) => v.type === 'Trailer' && v.site === 'YouTube' && v.official) ||
+    movie.videos?.results?.find((v) => v.type === 'Trailer' && v.site === 'YouTube') ||
+    movie.videos?.results?.[0];
+  const trailerKey = trailer?.key || null;
+
   return (
-    <div className="min-h-screen" style={{ background: '#050816' }}>
-      {/* Backdrop */}
+    <div className="min-h-screen pb-16" style={{ background: '#050816' }}>
+      {/* Backdrop Section */}
       <div className="relative w-full" style={{ height: 'clamp(400px, 70vh, 700px)' }}>
         {movie.backdrop_path && (
           <div className="absolute inset-0">
@@ -83,10 +125,8 @@ export default function MovieDetailPage() {
               alt={movie.title}
               fill
               priority
-              className="object-cover transition-opacity duration-700"
-              style={{ opacity: imgLoaded ? 1 : 0 }}
+              className="object-cover"
               sizes="100vw"
-              onLoad={() => setImgLoaded(true)}
             />
           </div>
         )}
@@ -100,13 +140,12 @@ export default function MovieDetailPage() {
         <div
           className="absolute inset-0"
           style={{
-            background:
-              'linear-gradient(to right, rgba(5,8,22,0.8) 0%, transparent 60%)',
+            background: 'linear-gradient(to right, rgba(5,8,22,0.85) 0%, transparent 60%)',
           }}
         />
 
         {/* Back button */}
-        <div className="absolute top-20 left-4 sm:left-8">
+        <div className="absolute top-20 left-4 sm:left-8 z-20">
           <Link
             href="/"
             className="flex items-center gap-2 px-4 py-2 rounded-xl text-sm font-medium transition-all duration-200 hover:scale-105"
@@ -123,17 +162,20 @@ export default function MovieDetailPage() {
         </div>
       </div>
 
-      {/* Main content */}
-      <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8" style={{ marginTop: '-200px', position: 'relative', zIndex: 10 }}>
+      {/* Main Movie Info Details */}
+      <div
+        className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8"
+        style={{ marginTop: '-200px', position: 'relative', zIndex: 10 }}
+      >
         <div className="flex flex-col lg:flex-row gap-8">
-          {/* Poster */}
+          {/* Poster Card */}
           <div className="flex-shrink-0 mx-auto lg:mx-0">
             <div
               className="relative rounded-2xl overflow-hidden"
               style={{
                 width: '220px',
                 height: '330px',
-                border: '2px solid rgba(6,182,212,0.3)',
+                border: '2px solid rgba(6,182,212,0.35)',
                 boxShadow: '0 0 40px rgba(6,182,212,0.2), 0 20px 60px rgba(0,0,0,0.6)',
               }}
             >
@@ -156,8 +198,22 @@ export default function MovieDetailPage() {
             </div>
           </div>
 
-          {/* Info */}
+          {/* Info Details */}
           <div className="flex-1 min-w-0">
+            {/* Custom Static Badge */}
+            {movie.isCustomMarkdown && (
+              <div className="inline-flex items-center gap-1.5 px-3 py-1 rounded-full text-xs font-bold uppercase tracking-wider mb-3"
+                style={{
+                  background: 'linear-gradient(135deg, rgba(6,182,212,0.2), rgba(124,58,237,0.2))',
+                  border: '1px solid rgba(6,182,212,0.5)',
+                  color: '#06b6d4',
+                }}
+              >
+                <Sparkles size={12} />
+                Static Custom Edition
+              </div>
+            )}
+
             {/* Title */}
             <h1
               className="text-3xl sm:text-4xl lg:text-5xl font-black leading-tight mb-2"
@@ -173,7 +229,7 @@ export default function MovieDetailPage() {
               </p>
             )}
 
-            {/* Meta */}
+            {/* Meta badges */}
             <div className="flex flex-wrap items-center gap-3 mb-5">
               <RatingBadge rating={movie.vote_average} size="lg" />
               {year && (
@@ -229,58 +285,19 @@ export default function MovieDetailPage() {
               </p>
             )}
 
-            {/* Action buttons */}
-            <div className="flex flex-wrap gap-3">
-              {trailerKey && (
-                <button
-                  onClick={() => setShowTrailer(true)}
-                  className="flex items-center gap-2 px-6 py-3 rounded-xl font-semibold text-sm transition-all duration-300 hover:scale-105"
-                  style={{
-                    background: 'linear-gradient(135deg, #06b6d4, #7c3aed)',
-                    color: 'white',
-                    boxShadow: '0 0 20px rgba(6,182,212,0.4)',
-                  }}
-                >
-                  <Play size={18} fill="white" />
-                  Watch Trailer
-                </button>
-              )}
-              <button
-                onClick={() => setBookmarked(!bookmarked)}
-                className="flex items-center gap-2 px-6 py-3 rounded-xl font-semibold text-sm transition-all duration-300 hover:scale-105"
-                style={{
-                  background: bookmarked ? 'rgba(6,182,212,0.15)' : 'rgba(255,255,255,0.08)',
-                  backdropFilter: 'blur(8px)',
-                  border: bookmarked ? '1px solid rgba(6,182,212,0.5)' : '1px solid rgba(255,255,255,0.15)',
-                  color: bookmarked ? '#06b6d4' : '#f1f5f9',
-                }}
-              >
-                <Bookmark size={18} fill={bookmarked ? 'currentColor' : 'none'} />
-                {bookmarked ? 'Saved' : 'Watchlist'}
-              </button>
-              {movie.homepage && (
-                <a
-                  href={movie.homepage}
-                  target="_blank"
-                  rel="noopener noreferrer"
-                  className="flex items-center gap-2 px-6 py-3 rounded-xl font-semibold text-sm transition-all duration-300 hover:scale-105"
-                  style={{
-                    background: 'rgba(255,255,255,0.06)',
-                    border: '1px solid rgba(255,255,255,0.1)',
-                    color: '#94a3b8',
-                  }}
-                >
-                  <ExternalLink size={18} />
-                  Official Site
-                </a>
-              )}
-            </div>
+            {/* Action buttons (Client interactive) */}
+            <MovieDetailClient
+              movieTitle={movie.title}
+              trailerKey={trailerKey}
+              homepage={movie.homepage}
+              hasCustomVideo={Boolean(movie.customVideoUrl)}
+            />
 
             {/* Stats */}
             <div className="grid grid-cols-2 sm:grid-cols-4 gap-4 mt-8">
               {[
-                { label: 'Vote Count', value: movie.vote_count?.toLocaleString() },
-                { label: 'Popularity', value: Math.round(movie.popularity).toLocaleString() },
+                { label: 'Vote Count', value: movie.vote_count?.toLocaleString() || '1,000+' },
+                { label: 'Popularity', value: Math.round(movie.popularity || 100).toLocaleString() },
                 { label: 'Budget', value: movie.budget ? `$${(movie.budget / 1e6).toFixed(1)}M` : 'N/A' },
                 { label: 'Revenue', value: movie.revenue ? `$${(movie.revenue / 1e6).toFixed(1)}M` : 'N/A' },
               ].map(({ label, value }) => (
@@ -299,40 +316,50 @@ export default function MovieDetailPage() {
             </div>
           </div>
         </div>
-
-        {/* Cast */}
-        {cast.length > 0 && (
-          <section className="mt-16">
-            <h2 className="section-title text-2xl font-bold text-neo-text-primary mb-6">
-              Cast
-            </h2>
-            <div className="flex gap-4 overflow-x-auto hide-scrollbar pb-2">
-              {cast.map((member) => (
-                <CastCard key={member.id} cast={member} />
-              ))}
-            </div>
-          </section>
-        )}
-
-        {/* Similar Movies */}
-        {similarMovies.length > 0 && (
-          <section className="mt-16">
-            <MovieRow
-              title="Similar Movies"
-              items={similarMovies}
-              type="movie"
-            />
-          </section>
-        )}
       </div>
 
-      {/* Trailer Modal */}
-      {showTrailer && trailerKey && (
-        <TrailerModal
-          videoKey={trailerKey}
-          title={`${movie.title} - Trailer`}
-          onClose={() => setShowTrailer(false)}
+      {/* Video Player Section (Rendered if videourl is provided) */}
+      {movie.customVideoUrl && (
+        <div className="mt-14">
+          <VideoPlayer
+            videoUrl={movie.customVideoUrl}
+            title={movie.title}
+            poster={getImageUrl(movie.backdrop_path || movie.poster_path, 'w1280')}
+          />
+        </div>
+      )}
+
+      {/* Custom Markdown Body Rendered Section */}
+      {movie.customContentHtml && (
+        <MarkdownRenderer
+          contentHtml={movie.customContentHtml}
+          title={movie.title}
         />
+      )}
+
+      {/* Cast Section */}
+      {cast.length > 0 && (
+        <section className="mt-16 max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
+          <h2 className="section-title text-2xl font-bold text-neo-text-primary mb-6">
+            Cast
+          </h2>
+          <div className="flex gap-4 overflow-x-auto hide-scrollbar pb-2">
+            {cast.map((member) => (
+              <CastCard key={member.id} cast={member} />
+            ))}
+          </div>
+        </section>
+      )}
+
+      {/* Similar Movies Section */}
+      {similarMovies.length > 0 && (
+        <section className="mt-16 max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
+          <MovieRow
+            title="Similar Movies"
+            items={similarMovies}
+            type="movie"
+          />
+        </section>
       )}
     </div>
   );
