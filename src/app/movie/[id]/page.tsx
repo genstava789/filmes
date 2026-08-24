@@ -113,17 +113,21 @@ export default async function MovieDetailPage({ params }: PageProps) {
     movie.videos?.results?.[0];
   const trailerKey = trailer?.key || null;
 
+  const thumbnailImage =
+    movie.customImageUrl ||
+    (movie.backdrop_path
+      ? getImageUrl(movie.backdrop_path, 'w1280')
+      : movie.poster_path
+      ? getImageUrl(movie.poster_path, 'w500')
+      : '/placeholder-poster.jpg');
+
   // Build JSON-LD Structured Data for SEO & Video Content
   const movieSchema: Record<string, any> = {
     '@context': 'https://schema.org',
     '@type': 'Movie',
     name: movie.title,
     description: movie.overview,
-    image: movie.backdrop_path
-      ? getImageUrl(movie.backdrop_path, 'w1280')
-      : movie.poster_path
-      ? getImageUrl(movie.poster_path, 'w500')
-      : undefined,
+    image: thumbnailImage,
     datePublished: movie.release_date || undefined,
     genre: movie.genres?.map((g) => g.name) || [],
     aggregateRating: movie.vote_average
@@ -153,10 +157,7 @@ export default async function MovieDetailPage({ params }: PageProps) {
         '@type': 'VideoObject',
         name: `${movie.title} - Stream Video`,
         description: movie.overview || `Watch ${movie.title} full stream online.`,
-        thumbnailUrl: [
-          getImageUrl(movie.backdrop_path || movie.poster_path, 'w1280'),
-          getImageUrl(movie.poster_path, 'w500'),
-        ],
+        thumbnailUrl: [thumbnailImage],
         uploadDate: movie.release_date ? `${movie.release_date}T00:00:00Z` : new Date().toISOString(),
         contentUrl: movie.customVideoUrl,
         embedUrl: movie.customVideoUrl,

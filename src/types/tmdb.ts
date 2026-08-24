@@ -126,6 +126,7 @@ export interface TVShowDetail extends TVShow {
   number_of_seasons: number;
   status: string;
   tagline: string | null;
+  homepage?: string | null;
   runtime?: number;
   episode_run_time: number[];
   videos: {

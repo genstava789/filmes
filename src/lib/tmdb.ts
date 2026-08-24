@@ -5,6 +5,7 @@ import {
   Genre,
   GenreListResponse,
   TVShow,
+  TVShowDetail,
 } from '@/types/tmdb';
 
 const API_KEY = process.env.NEXT_PUBLIC_TMDB_API_KEY || 'ea0c8bc1b7235d9e19b457c965b658ad';
@@ -107,3 +108,10 @@ export async function getTVGenres(): Promise<Genre[]> {
   const data = await fetchTMDB<GenreListResponse>('/genre/tv/list');
   return data.genres;
 }
+
+export async function getTVShowDetails(id: number): Promise<TVShowDetail> {
+  return fetchTMDB<TVShowDetail>(`/tv/${id}`, {
+    append_to_response: 'videos,credits,similar',
+  });
+}
+
