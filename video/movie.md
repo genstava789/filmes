@@ -14,3 +14,21 @@ videourl: "https://huggingface.co/buckets/nexus33rd/cloud/resolve/BLEACH.Thousan
 
 ---
 
+### 📋 Spesifikasi Rilis & Informasi Streaming
+
+| Parameter | Detail Informasi |
+| :--- | :--- |
+| **Kualitas Video** | 4K Ultra HD (2160p) HDR / 60 FPS |
+| **Format Audio** | Dolby Atmos 7.1 / DTS-HD Master Audio |
+| **Subtitle** | Bahasa Indonesia, English, Spanish |
+| **Server Streaming** | High Speed Ultra CDN (Edge Latency < 15ms) |
+
+> *"Di tengah badai pengkhianatan, satu-satunya jalan keluar adalah menghadapi mereka secara langsung tanpa rasa takut."*
+
+### 📌 Panduan Menambah Video Baru
+Untuk menambahkan film custom lainnya, cukup buat file `.md` baru di dalam folder `video/` (misalnya `video/avatar.md` atau `video/12345.md`), lalu tentukan `tmdb_id` film yang diinginkan pada frontmatter. Halaman akan otomatis tersedia di `/movie/nama-file.md` dan `/movie/nama-file`!
+---
+
+# 🎬 Mutiny - Halaman Eksklusif & Pemutar Video Statis
+
+Halaman ini merupakan contoh implementasi **Static Site Generation 
