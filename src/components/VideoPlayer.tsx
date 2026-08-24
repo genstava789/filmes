@@ -48,7 +48,7 @@ export default function VideoPlayer({ videoUrl, title, poster }: VideoPlayerProp
   const [showShortcuts, setShowShortcuts] = useState(false);
   const [hasError, setHasError] = useState(false);
 
-  const videoRef = useRef<HTMLVideoElement>(null);
+  const playerContainerRef = useRef<HTMLDivElement>(null);
   const playerInstanceRef = useRef<any>(null);
   const hlsInstanceRef = useRef<any>(null);
 
@@ -63,82 +63,143 @@ export default function VideoPlayer({ videoUrl, title, poster }: VideoPlayerProp
   useEffect(() => {
     if (typeof window === 'undefined') return;
 
-    let isMounted = true;
+    const container = playerContainerRef.current;
+    if (!container) return;
+
+    let isCancelled = false;
     setHasError(false);
+    container.innerHTML = '';
 
-    async function init() {
-      if (!directVideo || !videoRef.current) return;
+    // If YouTube embed
+    if (youtubeId) {
+      const iframe = document.createElement('iframe');
+      iframe.src = `https://www.youtube-nocookie.com/embed/${youtubeId}?autoplay=0&rel=0&modestbranding=1`;
+      iframe.title = title || 'Movie Video Player';
+      iframe.className = 'w-full h-full border-0';
+      iframe.allow =
+        'accelerometer; autoplay; clipboard-write; encrypted-media; gyroscope; picture-in-picture; web-share';
+      iframe.allowFullscreen = true;
+      container.appendChild(iframe);
 
-      const videoElement = videoRef.current;
-      const isHls = videoUrl.includes('.m3u8');
-
-      try {
-        if (isHls) {
-          const HlsModule = (await import('hls.js')).default;
-          if (HlsModule.isSupported()) {
-            const hls = new HlsModule({
-              enableWorker: true,
-              lowLatencyMode: true,
-            });
-            hls.loadSource(videoUrl);
-            hls.attachMedia(videoElement);
-            hlsInstanceRef.current = hls;
-          }
-        }
-
-        const PlyrModule = (await import('plyr')).default;
-        if (!isMounted) return;
-
-        const player = new PlyrModule(videoElement, {
-          controls: [
-            'play-large',
-            'restart',
-            'rewind',
-            'play',
-            'fast-forward',
-            'progress',
-            'current-time',
-            'duration',
-            'mute',
-            'volume',
-            'captions',
-            'settings',
-            'pip',
-            'airplay',
-            'fullscreen',
-          ],
-          settings: ['speed', 'quality', 'loop'],
-          speed: { selected: 1, options: [0.5, 0.75, 1, 1.25, 1.5, 2] },
-          seekTime: 10,
-          keyboard: { focused: true, global: true },
-          tooltips: { controls: true, seek: true },
-          fullscreen: { enabled: true, fallback: true, iosNative: true },
-        });
-
-        playerInstanceRef.current = player;
-      } catch (err) {
-        console.error('Error loading video player modules:', err);
-      }
+      return () => {
+        container.innerHTML = '';
+      };
     }
 
-    init();
+    // If Vimeo embed
+    if (vimeoId) {
+      const iframe = document.createElement('iframe');
+      iframe.src = `https://player.vimeo.com/video/${vimeoId}`;
+      iframe.title = title || 'Movie Video Player';
+      iframe.className = 'w-full h-full border-0';
+      iframe.allow = 'autoplay; fullscreen; picture-in-picture';
+      iframe.allowFullscreen = true;
+      container.appendChild(iframe);
+
+      return () => {
+        container.innerHTML = '';
+      };
+    }
+
+    // If Direct Video Stream (MP4, MKV, M3U8, HuggingFace, etc.)
+    if (directVideo) {
+      const videoElement = document.createElement('video');
+      videoElement.src = videoUrl;
+      if (poster) videoElement.poster = poster;
+      videoElement.playsInline = true;
+      videoElement.crossOrigin = 'anonymous';
+      videoElement.preload = 'metadata';
+      videoElement.className = 'w-full h-full object-contain';
+      videoElement.onerror = () => {
+        if (!isCancelled) setHasError(true);
+      };
+      container.appendChild(videoElement);
+
+      const initModules = async () => {
+        const isHls = videoUrl.includes('.m3u8');
+        try {
+          if (isHls) {
+            const HlsModule = (await import('hls.js')).default;
+            if (HlsModule.isSupported() && !isCancelled) {
+              const hls = new HlsModule({
+                enableWorker: true,
+                lowLatencyMode: true,
+              });
+              hls.loadSource(videoUrl);
+              hls.attachMedia(videoElement);
+              hlsInstanceRef.current = hls;
+            }
+          }
+
+          const PlyrModule = (await import('plyr')).default;
+          if (isCancelled) return;
+
+          const player = new PlyrModule(videoElement, {
+            controls: [
+              'play-large',
+              'restart',
+              'rewind',
+              'play',
+              'fast-forward',
+              'progress',
+              'current-time',
+              'duration',
+              'mute',
+              'volume',
+              'captions',
+              'settings',
+              'pip',
+              'airplay',
+              'fullscreen',
+            ],
+            settings: ['speed', 'quality', 'loop'],
+            speed: { selected: 1, options: [0.5, 0.75, 1, 1.25, 1.5, 2] },
+            seekTime: 10,
+            keyboard: { focused: true, global: true },
+            tooltips: { controls: true, seek: true },
+            fullscreen: { enabled: true, fallback: true, iosNative: true },
+          });
+
+          playerInstanceRef.current = player;
+        } catch (err) {
+          console.error('Error loading video player modules:', err);
+        }
+      };
+
+      initModules();
+
+      return () => {
+        isCancelled = true;
+        if (playerInstanceRef.current) {
+          try {
+            playerInstanceRef.current.destroy();
+          } catch (e) {}
+          playerInstanceRef.current = null;
+        }
+        if (hlsInstanceRef.current) {
+          try {
+            hlsInstanceRef.current.destroy();
+          } catch (e) {}
+          hlsInstanceRef.current = null;
+        }
+        container.innerHTML = '';
+      };
+    }
+
+    // Generic Stream Iframe Fallback
+    const iframe = document.createElement('iframe');
+    iframe.src = videoUrl;
+    iframe.title = title || 'Movie Stream';
+    iframe.className = 'w-full h-full border-0';
+    iframe.allow =
+      'accelerometer; autoplay; clipboard-write; encrypted-media; gyroscope; picture-in-picture; web-share; fullscreen';
+    iframe.allowFullscreen = true;
+    container.appendChild(iframe);
 
     return () => {
-      isMounted = false;
-      if (playerInstanceRef.current) {
-        try {
-          playerInstanceRef.current.destroy();
-        } catch (e) {}
-        playerInstanceRef.current = null;
-      }
-      if (hlsInstanceRef.current) {
-        try {
-          hlsInstanceRef.current.destroy();
-        } catch (e) {}
-        hlsInstanceRef.current = null;
-      }
+      container.innerHTML = '';
     };
-  }, [videoUrl, directVideo]);
+  }, [videoUrl, title, poster, youtubeId, vimeoId, directVideo]);
 
   return (
     <div
@@ -271,7 +332,6 @@ export default function VideoPlayer({ videoUrl, title, poster }: VideoPlayerProp
 
         {/* Video Canvas Container */}
         <div
-          key={videoUrl}
           className="relative w-full overflow-hidden bg-black flex items-center justify-center plyr-custom-wrapper"
           style={{
             aspectRatio: '16/9',
@@ -299,43 +359,8 @@ export default function VideoPlayer({ videoUrl, title, poster }: VideoPlayerProp
                 Buka / Download Sumber Langsung
               </a>
             </div>
-          ) : youtubeId ? (
-            <iframe
-              src={`https://www.youtube-nocookie.com/embed/${youtubeId}?autoplay=0&rel=0&modestbranding=1`}
-              title={title || 'Movie Video Player'}
-              className="w-full h-full border-0"
-              allow="accelerometer; autoplay; clipboard-write; encrypted-media; gyroscope; picture-in-picture; web-share"
-              allowFullScreen
-            />
-          ) : vimeoId ? (
-            <iframe
-              src={`https://player.vimeo.com/video/${vimeoId}`}
-              title={title || 'Movie Video Player'}
-              className="w-full h-full border-0"
-              allow="autoplay; fullscreen; picture-in-picture"
-              allowFullScreen
-            />
-          ) : directVideo ? (
-            <video
-              ref={videoRef}
-              src={videoUrl}
-              poster={poster}
-              playsInline
-              crossOrigin="anonymous"
-              preload="metadata"
-              onError={() => setHasError(true)}
-              className="w-full h-full object-contain"
-            />
           ) : (
-            // Generic iframe fallback for other stream embed providers
-            <iframe
-              src={videoUrl}
-              title={title || 'Movie Stream'}
-              className="w-full h-full border-0"
-              allow="accelerometer; autoplay; clipboard-write; encrypted-media; gyroscope; picture-in-picture; web-share; fullscreen"
-              allowFullScreen
-              onError={() => setHasError(true)}
-            />
+            <div ref={playerContainerRef} className="w-full h-full flex items-center justify-center" />
           )}
         </div>
 

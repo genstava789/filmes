@@ -110,56 +110,8 @@ export default async function TVShowPage({ params }: PageProps) {
   const defaultBackdrop = data.customImageUrl || (data.backdrop_path ? getImageUrl(data.backdrop_path, 'w1280') : undefined);
   const thumbnailImage = data.activeEpisode?.imageUrl || data.customImageUrl || (data.backdrop_path ? getImageUrl(data.backdrop_path, 'w1280') : data.poster_path ? getImageUrl(data.poster_path, 'w500') : '/placeholder-poster.jpg');
 
-  // Build JSON-LD Structured Data for Google TVSeries & VideoObject Indexing
-  const seriesSchema: Record<string, any> = {
-    '@context': 'https://schema.org',
-    '@type': 'TVSeries',
-    name: data.name,
-    description: data.overview,
-    image: thumbnailImage,
-    datePublished: data.first_air_date || undefined,
-    genre: data.genres?.map((g) => g.name) || [],
-    numberOfSeasons: data.number_of_seasons || 1,
-    numberOfEpisodes: data.number_of_episodes || (data.allEpisodes ? data.allEpisodes.length : 1),
-    aggregateRating: data.vote_average
-      ? {
-          '@type': 'AggregateRating',
-          ratingValue: data.vote_average,
-          bestRating: 10,
-          worstRating: 1,
-          ratingCount: data.vote_count || 100,
-        }
-      : undefined,
-    actor: cast.slice(0, 5).map((c) => ({
-      '@type': 'Person',
-      name: c.name,
-    })),
-  };
-
-  const episodeSchema = data.activeEpisode?.videoUrl
-    ? {
-        '@context': 'https://schema.org',
-        '@type': 'VideoObject',
-        name: `${data.name} - ${data.activeEpisode.episodeLabel}: ${data.activeEpisode.title}`,
-        description: data.activeEpisode.overview || data.overview || `Watch ${data.name} episode full video stream.`,
-        thumbnailUrl: [thumbnailImage],
-        uploadDate: data.first_air_date ? `${data.first_air_date}T00:00:00Z` : new Date().toISOString(),
-        contentUrl: data.activeEpisode.videoUrl,
-        embedUrl: data.activeEpisode.videoUrl,
-        inLanguage: data.original_language || 'id',
-      }
-    : null;
-
-  const jsonLdData = episodeSchema ? [seriesSchema, episodeSchema] : seriesSchema;
-
   return (
     <div className="min-h-screen pb-16" style={{ background: '#050816' }}>
-      {/* Schema.org JSON-LD Structured Data */}
-      <script
-        type="application/ld+json"
-        dangerouslySetInnerHTML={{ __html: JSON.stringify(jsonLdData) }}
-      />
-
       {/* Backdrop Section */}
       <div className="relative w-full" style={{ height: 'clamp(400px, 70vh, 700px)' }}>
         {(data.customImageUrl || data.backdrop_path) && (
