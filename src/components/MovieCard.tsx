@@ -110,20 +110,20 @@ export default function MovieCard({ item, type = 'movie' }: MovieCardProps) {
               zIndex: 3,
               display: 'flex',
               alignItems: 'center',
-              gap: '3px',
-              padding: '3px 7px',
-              borderRadius: '6px',
-              background: 'rgba(8,12,28,0.75)',
+              gap: '3.5px',
+              padding: '3px 7.5px',
+              borderRadius: '7px',
+              background: 'rgba(8,12,28,0.8)',
               backdropFilter: 'blur(8px)',
               WebkitBackdropFilter: 'blur(8px)',
-              border: `1px solid ${getRatingColor(rating)}35`,
+              border: `1px solid ${getRatingColor(rating)}40`,
               color: getRatingColor(rating),
               fontSize: '11px',
               fontWeight: 700,
-              letterSpacing: '0.02em',
+              letterSpacing: '0.01em',
             }}
           >
-            <Star size={9} fill="currentColor" />
+            <Star size={11} fill="currentColor" />
             {rating.toFixed(1)}
           </div>
 
@@ -136,21 +136,21 @@ export default function MovieCard({ item, type = 'movie' }: MovieCardProps) {
               zIndex: 3,
               display: 'flex',
               alignItems: 'center',
-              gap: '3px',
-              padding: '3px 7px',
-              borderRadius: '6px',
-              background: 'rgba(8,12,28,0.75)',
+              gap: '3.5px',
+              padding: '3px 7.5px',
+              borderRadius: '7px',
+              background: 'rgba(8,12,28,0.8)',
               backdropFilter: 'blur(8px)',
               WebkitBackdropFilter: 'blur(8px)',
-              border: '1px solid rgba(255,255,255,0.1)',
+              border: '1px solid rgba(255,255,255,0.12)',
               color: '#94a3b8',
-              fontSize: '9px',
+              fontSize: '10px',
               fontWeight: 700,
-              letterSpacing: '0.08em',
+              letterSpacing: '0.06em',
               textTransform: 'uppercase' as const,
             }}
           >
-            {type === 'tv' ? <Tv size={8} /> : <Film size={8} />}
+            {type === 'tv' ? <Tv size={11} /> : <Film size={11} />}
             {type === 'tv' ? 'Series' : 'Film'}
           </div>
 
@@ -171,7 +171,7 @@ export default function MovieCard({ item, type = 'movie' }: MovieCardProps) {
               title={title}
               style={{
                 color: '#f1f5f9',
-                fontSize: '12.5px',
+                fontSize: '13px',
                 fontWeight: 700,
                 lineHeight: 1.35,
                 display: '-webkit-box',
@@ -186,10 +186,10 @@ export default function MovieCard({ item, type = 'movie' }: MovieCardProps) {
             {year && (
               <span
                 style={{
-                  color: '#64748b',
-                  fontSize: '10.5px',
+                  color: '#94a3b8',
+                  fontSize: '11px',
                   fontWeight: 500,
-                  letterSpacing: '0.04em',
+                  letterSpacing: '0.02em',
                 }}
               >
                 {year}

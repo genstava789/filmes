@@ -13,24 +13,10 @@ export default function Footer() {
         borderTop: '1px solid rgba(255, 255, 255, 0.06)',
       }}
     >
-      <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
-        <div className="flex flex-col sm:flex-row items-center justify-between gap-3 text-center sm:text-left">
-          <p className="text-neo-text-muted text-xs">
-            © {currentYear} <span className="font-semibold text-slate-300">Filmanesia</span>. All rights reserved.
-          </p>
-          <p className="text-neo-text-muted text-xs">
-            Powered by{' '}
-            <span className="text-neo-cyan font-medium">Next.js</span> &{' '}
-            <a
-              href="https://www.themoviedb.org"
-              target="_blank"
-              rel="noopener noreferrer"
-              className="text-neo-violet hover:text-neo-cyan transition-colors font-medium"
-            >
-              TMDB API
-            </a>
-          </p>
-        </div>
+      <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 text-center">
+        <p className="text-neo-text-muted text-xs text-center">
+          © {currentYear} <span className="font-semibold text-slate-300">Filmanesia</span>. All rights reserved.
+        </p>
       </div>
     </footer>
   );

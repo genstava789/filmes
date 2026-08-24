@@ -241,46 +241,27 @@ export default function EpisodeSelector({
                       ref={isActive ? activeBadgeRef : null}
                       onClick={() => handleEpisodeClick(ep)}
                       title={`${badgeText}: ${ep.title}`}
-                      className={`group relative flex-shrink-0 flex items-center justify-center rounded-xl font-bold transition-all duration-200 ${
+                      className={`flex-shrink-0 flex items-center justify-center rounded-xl font-bold transition-all duration-200 ${
                         isActive
-                          ? 'scale-105'
-                          : 'hover:scale-105'
+                          ? 'text-cyan-400'
+                          : 'text-slate-400 hover:text-white hover:border-cyan-400/50 hover:shadow-[0_0_12px_rgba(6,182,212,0.25)]'
                       }`}
                       style={{
-                        minWidth: '58px',
-                        height: '44px',
+                        minWidth: '56px',
+                        height: '42px',
                         padding: '0 14px',
-                        background: isActive
-                          ? 'linear-gradient(135deg, rgba(6, 182, 212, 0.3) 0%, rgba(124, 58, 237, 0.3) 100%)'
-                          : 'rgba(255, 255, 255, 0.04)',
+                        background: 'rgba(255, 255, 255, 0.03)',
                         border: isActive
-                          ? '1.5px solid rgba(6, 182, 212, 0.85)'
+                          ? '1.5px solid #06b6d4'
                           : '1px solid rgba(255, 255, 255, 0.1)',
                         boxShadow: isActive
-                          ? '0 0 22px rgba(6, 182, 212, 0.45), inset 0 0 10px rgba(6, 182, 212, 0.2)'
+                          ? '0 0 16px rgba(6, 182, 212, 0.45)'
                           : 'none',
-                        color: isActive ? '#38bdf8' : '#cbd5e1',
                       }}
                     >
-                      <div className="flex items-center gap-1.5">
-                        {isActive && (
-                          <div className="w-2 h-2 rounded-full bg-cyan-400 animate-pulse" />
-                        )}
-                        <span className="text-xs sm:text-sm tracking-wider font-black">
-                          {badgeText}
-                        </span>
-                      </div>
-
-                      {/* Active playing indicator badge */}
-                      {isActive && (
-                        <span
-                          className="absolute -top-1 -right-1 w-2.5 h-2.5 rounded-full"
-                          style={{
-                            background: '#06b6d4',
-                            boxShadow: '0 0 8px #06b6d4',
-                          }}
-                        />
-                      )}
+                      <span className="text-xs sm:text-sm tracking-wider font-extrabold">
+                        {badgeText}
+                      </span>
                     </button>
                   );
                 })}
