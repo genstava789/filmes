@@ -302,7 +302,7 @@ export default async function MovieDetailPage({ params }: PageProps) {
 
             {/* Meta badges */}
             <div className="flex flex-wrap items-center gap-3 mb-5">
-              <RatingBadge rating={movie.vote_average} size="lg" />
+              <RatingBadge rating={movie.vote_average} size="md" />
               {year && (
                 <div className="flex items-center gap-1.5 text-sm" style={{ color: '#94a3b8' }}>
                   <Calendar size={14} />

@@ -32,74 +32,25 @@ function getVimeoId(url: string): string | null {
 }
 
 export default function VideoPlayer({ videoUrl, title, poster }: VideoPlayerProps) {
-  const [isTheater, setIsTheater] = useState(false);
   const [showShortcuts, setShowShortcuts] = useState(false);
   const [hasError, setHasError] = useState(false);
 
-  const playerContainerRef = useRef<HTMLDivElement>(null);
+  const videoRef = useRef<HTMLVideoElement>(null);
   const playerInstanceRef = useRef<any>(null);
   const hlsInstanceRef = useRef<any>(null);
 
   const youtubeId = getYouTubeId(videoUrl);
   const vimeoId = getVimeoId(videoUrl);
 
-  const toggleTheater = () => {
-    setIsTheater((prev) => !prev);
-  };
-
   useEffect(() => {
     if (typeof window === 'undefined') return;
-
-    const container = playerContainerRef.current;
-    if (!container) return;
+    if (youtubeId || vimeoId) return;
 
     let isCancelled = false;
     setHasError(false);
-    container.innerHTML = '';
 
-    // If YouTube embed
-    if (youtubeId) {
-      const iframe = document.createElement('iframe');
-      iframe.src = `https://www.youtube-nocookie.com/embed/${youtubeId}?autoplay=0&rel=0&modestbranding=1`;
-      iframe.title = title || 'Stream Video Player';
-      iframe.className = 'w-full h-full border-0';
-      iframe.allow =
-        'accelerometer; autoplay; clipboard-write; encrypted-media; gyroscope; picture-in-picture; web-share';
-      iframe.allowFullscreen = true;
-      container.appendChild(iframe);
-
-      return () => {
-        container.innerHTML = '';
-      };
-    }
-
-    // If Vimeo embed
-    if (vimeoId) {
-      const iframe = document.createElement('iframe');
-      iframe.src = `https://player.vimeo.com/video/${vimeoId}`;
-      iframe.title = title || 'Stream Video Player';
-      iframe.className = 'w-full h-full border-0';
-      iframe.allow = 'autoplay; fullscreen; picture-in-picture';
-      iframe.allowFullscreen = true;
-      container.appendChild(iframe);
-
-      return () => {
-        container.innerHTML = '';
-      };
-    }
-
-    // DIRECT NATIVE VIDEO TAG INJECTION (for all direct links, .mp4, .mkv, .m3u8, huggingface, github.io, etc.)
-    const videoElement = document.createElement('video');
-    videoElement.src = videoUrl;
-    if (poster) videoElement.poster = poster;
-    videoElement.playsInline = true;
-    videoElement.crossOrigin = 'anonymous';
-    videoElement.preload = 'metadata';
-    videoElement.className = 'w-full h-full object-contain';
-    videoElement.onerror = () => {
-      if (!isCancelled) setHasError(true);
-    };
-    container.appendChild(videoElement);
+    const videoElement = videoRef.current;
+    if (!videoElement) return;
 
     const initModules = async () => {
       const isHls = videoUrl.includes('.m3u8');
@@ -123,10 +74,7 @@ export default function VideoPlayer({ videoUrl, title, poster }: VideoPlayerProp
         const player = new PlyrModule(videoElement, {
           controls: [
             'play-large',
-            'restart',
-            'rewind',
             'play',
-            'fast-forward',
             'progress',
             'current-time',
             'duration',
@@ -135,7 +83,6 @@ export default function VideoPlayer({ videoUrl, title, poster }: VideoPlayerProp
             'captions',
             'settings',
             'pip',
-            'airplay',
             'fullscreen',
           ],
           settings: ['speed', 'quality', 'loop'],
@@ -168,16 +115,13 @@ export default function VideoPlayer({ videoUrl, title, poster }: VideoPlayerProp
         } catch (e) {}
         hlsInstanceRef.current = null;
       }
-      container.innerHTML = '';
     };
-  }, [videoUrl, title, poster, youtubeId, vimeoId]);
+  }, [videoUrl, youtubeId, vimeoId]);
 
   return (
     <div
       id="video-player-section"
-      className={`w-full transition-all duration-500 ease-in-out ${
-        isTheater ? 'max-w-full px-2 sm:px-4' : 'max-w-7xl mx-auto px-4 sm:px-6 lg:px-8'
-      }`}
+      className="w-full max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 transition-all duration-500 ease-in-out"
     >
       {/* Netflix Ambient Backlight Glow */}
       <div className="relative group">
@@ -198,7 +142,7 @@ export default function VideoPlayer({ videoUrl, title, poster }: VideoPlayerProp
             boxShadow: '0 25px 60px -15px rgba(0, 0, 0, 0.9), 0 0 35px rgba(6, 182, 212, 0.18)',
           }}
         >
-          {/* Netflix Style Streaming Header Bar */}
+          {/* Netflix Style Streaming Header Bar (without top fullscreen button) */}
           <div
             className="flex items-center justify-between px-4 sm:px-6 py-3.5 border-b"
             style={{
@@ -234,15 +178,14 @@ export default function VideoPlayer({ videoUrl, title, poster }: VideoPlayerProp
                     <Sparkles size={11} className="text-neo-cyan" /> 4K Ultra HD
                   </span>
                 </div>
-                <h3 className="text-sm sm:text-base font-bold text-white truncate max-w-xs sm:max-w-md md:max-w-lg mt-0.5 tracking-wide">
+                <h3 className="text-sm sm:text-base font-bold text-white truncate max-w-xs sm:max-w-md md:max-w-xl mt-0.5 tracking-wide">
                   {title || 'Video Player'}
                 </h3>
               </div>
             </div>
 
-            {/* Action buttons */}
+            {/* Action buttons (Shortcuts toggle only) */}
             <div className="flex items-center gap-2 flex-shrink-0">
-              {/* Keyboard shortcuts toggle */}
               <button
                 onClick={() => setShowShortcuts((prev) => !prev)}
                 title="Keyboard Shortcuts"
@@ -257,32 +200,6 @@ export default function VideoPlayer({ videoUrl, title, poster }: VideoPlayerProp
               >
                 <Keyboard size={14} />
                 <span>Keys</span>
-              </button>
-
-              {/* Theater Mode toggle */}
-              <button
-                onClick={toggleTheater}
-                title={isTheater ? 'Default View' : 'Theater Mode'}
-                className="flex items-center gap-1.5 px-3 py-1.5 rounded-lg text-xs font-medium transition-all duration-200 hover:scale-105"
-                style={{
-                  background: isTheater ? 'rgba(6, 182, 212, 0.25)' : 'rgba(255, 255, 255, 0.06)',
-                  border: isTheater
-                    ? '1px solid rgba(6, 182, 212, 0.6)'
-                    : '1px solid rgba(255, 255, 255, 0.12)',
-                  color: isTheater ? '#38bdf8' : '#94a3b8',
-                }}
-              >
-                {isTheater ? (
-                  <>
-                    <Minimize2 size={14} />
-                    <span className="hidden sm:inline">Normal</span>
-                  </>
-                ) : (
-                  <>
-                    <Maximize2 size={14} />
-                    <span className="hidden sm:inline">Theater</span>
-                  </>
-                )}
               </button>
             </div>
           </div>
@@ -313,12 +230,12 @@ export default function VideoPlayer({ videoUrl, title, poster }: VideoPlayerProp
             </div>
           )}
 
-          {/* Video Canvas Container (Full Fit 16:9 Aspect Ratio) */}
+          {/* Video Canvas Container (Direct Video Tag Rendered in JSX) */}
           <div
             className="relative w-full overflow-hidden bg-black flex items-center justify-center plyr-custom-wrapper"
             style={{
               aspectRatio: '16/9',
-              maxHeight: isTheater ? '88vh' : '720px',
+              maxHeight: '720px',
             }}
           >
             {hasError ? (
@@ -342,8 +259,42 @@ export default function VideoPlayer({ videoUrl, title, poster }: VideoPlayerProp
                   Buka Sumber Video Langsung
                 </a>
               </div>
+            ) : youtubeId ? (
+              <iframe
+                src={`https://www.youtube-nocookie.com/embed/${youtubeId}?autoplay=0&rel=0&modestbranding=1`}
+                title={title || 'Stream Video Player'}
+                className="w-full h-full border-0"
+                allow="accelerometer; autoplay; clipboard-write; encrypted-media; gyroscope; picture-in-picture; web-share"
+                allowFullScreen
+              />
+            ) : vimeoId ? (
+              <iframe
+                src={`https://player.vimeo.com/video/${vimeoId}`}
+                title={title || 'Stream Video Player'}
+                className="w-full h-full border-0"
+                allow="autoplay; fullscreen; picture-in-picture"
+                allowFullScreen
+              />
             ) : (
-              <div ref={playerContainerRef} className="w-full h-full flex items-center justify-center" />
+              <div key={videoUrl} className="w-full h-full flex items-center justify-center">
+                <video
+                  ref={videoRef}
+                  src={videoUrl}
+                  poster={poster}
+                  playsInline
+                  crossOrigin="anonymous"
+                  preload="metadata"
+                  controls
+                  onError={() => setHasError(true)}
+                  className="w-full h-full object-contain"
+                >
+                  <source
+                    src={videoUrl}
+                    type={videoUrl.includes('.m3u8') ? 'application/x-mpegURL' : 'video/mp4'}
+                  />
+                  Your browser does not support the video tag.
+                </video>
+              </div>
             )}
           </div>
 
