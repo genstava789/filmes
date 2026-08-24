@@ -3,7 +3,6 @@ import Image from 'next/image';
 import Link from 'next/link';
 import { Metadata } from 'next';
 import {
-  Play,
   Calendar,
   Clock,
   ArrowLeft,
@@ -19,7 +18,7 @@ import MovieRow from '@/components/MovieRow';
 import CastCard from '@/components/CastCard';
 import RatingBadge from '@/components/RatingBadge';
 import MarkdownRenderer from '@/components/MarkdownRenderer';
-import TVDetailClient from '@/components/TVDetailClient';
+import TVDetailClient, { TVDetailHeaderActions } from '@/components/TVDetailClient';
 
 export const dynamicParams = true;
 export const revalidate = 3600;
@@ -162,7 +161,7 @@ export default async function TVShowPage({ params }: PageProps) {
       />
 
       {/* Backdrop Section */}
-      <div className="relative w-full" style={{ height: 'clamp(400px, 65vh, 650px)' }}>
+      <div className="relative w-full" style={{ height: 'clamp(400px, 70vh, 700px)' }}>
         {(data.customImageUrl || data.backdrop_path) && (
           <div className="absolute inset-0">
             <Image
@@ -210,7 +209,7 @@ export default async function TVShowPage({ params }: PageProps) {
       {/* Main TV Show Info Details */}
       <div
         className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8"
-        style={{ marginTop: '-180px', position: 'relative', zIndex: 10 }}
+        style={{ marginTop: '-200px', position: 'relative', zIndex: 10 }}
       >
         <div className="flex flex-col lg:flex-row gap-8">
           {/* Poster Card */}
@@ -218,8 +217,8 @@ export default async function TVShowPage({ params }: PageProps) {
             <div
               className="relative rounded-2xl overflow-hidden"
               style={{
-                width: '210px',
-                height: '315px',
+                width: '220px',
+                height: '330px',
                 border: '2px solid rgba(6,182,212,0.35)',
                 boxShadow: '0 0 40px rgba(6,182,212,0.2), 0 20px 60px rgba(0,0,0,0.6)',
               }}
@@ -230,7 +229,7 @@ export default async function TVShowPage({ params }: PageProps) {
                   alt={data.name}
                   fill
                   className="object-cover"
-                  sizes="210px"
+                  sizes="220px"
                 />
               ) : (
                 <div className="w-full h-full flex items-center justify-center" style={{ background: '#0f172a' }}>
@@ -264,7 +263,7 @@ export default async function TVShowPage({ params }: PageProps) {
 
             {/* Tagline */}
             {data.tagline && (
-              <p className="text-lg italic mb-4" style={{ color: '#ec4899' }}>
+              <p className="text-lg italic mb-4" style={{ color: '#7c3aed' }}>
                 &ldquo;{data.tagline}&rdquo;
               </p>
             )}
@@ -334,29 +333,28 @@ export default async function TVShowPage({ params }: PageProps) {
               {data.overview}
             </p>
 
-            {/* Client Interactive Area (Buttons, Player, Episode Selector) */}
-            <TVDetailClient
+            {/* Action Buttons in Header */}
+            <TVDetailHeaderActions
               showTitle={data.name}
+              activeEpisodeLabel={data.activeEpisode?.episodeLabel}
+              activeEpisodeTitle={data.activeEpisode?.title}
+              hasVideo={Boolean(data.activeEpisode?.videoUrl)}
               trailerKey={trailerKey}
               homepage={data.homepage}
-              seasons={data.seasonsList || []}
-              hasSeasons={Boolean(data.hasSeasons)}
-              initialActiveEpisode={data.activeEpisode || null}
-              defaultBackdrop={defaultBackdrop}
-              isCustomTV={data.isCustomTV}
             />
 
             {/* Stats */}
-            <div className="grid grid-cols-2 sm:grid-cols-3 gap-4 mt-8">
+            <div className="grid grid-cols-2 sm:grid-cols-4 gap-4 mt-8">
               {[
                 { label: 'Status', value: data.status || 'Ongoing' },
                 {
                   label: 'Seasons',
                   value: data.hasSeasons
                     ? (data.number_of_seasons?.toString() || '1')
-                    : '1 Season (Flat)',
+                    : '1 Season',
                 },
                 { label: 'Total Episodes', value: data.number_of_episodes?.toString() || 'N/A' },
+                { label: 'Vote Count', value: data.vote_count?.toLocaleString() || '1,000+' },
               ].map(({ label, value }) => (
                 <div
                   key={label}
@@ -372,13 +370,14 @@ export default async function TVShowPage({ params }: PageProps) {
         </div>
       </div>
 
-      {/* Active Episode Markdown Content */}
-      {data.activeEpisode?.contentHtml && (
-        <MarkdownRenderer
-          contentHtml={data.activeEpisode.contentHtml}
-          title={`${data.name} - ${data.activeEpisode.episodeLabel}: ${data.activeEpisode.title}`}
-        />
-      )}
+      {/* Full-Width Interactive Player & Bilibili Episode Selector Section */}
+      <TVDetailClient
+        showTitle={data.name}
+        seasons={data.seasonsList || []}
+        hasSeasons={Boolean(data.hasSeasons)}
+        initialActiveEpisode={data.activeEpisode || null}
+        defaultBackdrop={defaultBackdrop}
+      />
 
       {/* Show Overview Markdown Content */}
       {data.customContentHtml && (

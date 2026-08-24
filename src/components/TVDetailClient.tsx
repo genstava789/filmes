@@ -5,32 +5,28 @@ import { Play, Bookmark, ExternalLink, Film } from 'lucide-react';
 import TrailerModal from '@/components/TrailerModal';
 import VideoPlayer from '@/components/VideoPlayer';
 import EpisodeSelector from '@/components/EpisodeSelector';
+import MarkdownRenderer from '@/components/MarkdownRenderer';
 import { CustomSeason, CustomEpisode } from '@/lib/markdownTV';
 
-interface TVDetailClientProps {
-  showTitle: string;
+interface TVDetailHeaderActionsProps {
+  activeEpisodeLabel?: string;
+  activeEpisodeTitle?: string;
+  hasVideo?: boolean;
   trailerKey?: string | null;
   homepage?: string | null;
-  seasons: CustomSeason[];
-  hasSeasons: boolean;
-  initialActiveEpisode: CustomEpisode | null;
-  defaultBackdrop?: string;
-  isCustomTV?: boolean;
+  showTitle: string;
 }
 
-export default function TVDetailClient({
-  showTitle,
+export function TVDetailHeaderActions({
+  activeEpisodeLabel,
+  activeEpisodeTitle,
+  hasVideo = true,
   trailerKey,
   homepage,
-  seasons,
-  hasSeasons,
-  initialActiveEpisode,
-  defaultBackdrop,
-  isCustomTV = false,
-}: TVDetailClientProps) {
+  showTitle,
+}: TVDetailHeaderActionsProps) {
   const [showTrailer, setShowTrailer] = useState(false);
   const [bookmarked, setBookmarked] = useState(false);
-  const [activeEpisode, setActiveEpisode] = useState<CustomEpisode | null>(initialActiveEpisode);
 
   const scrollToPlayer = () => {
     const playerEl = document.getElementById('video-player-section');
@@ -39,15 +35,10 @@ export default function TVDetailClient({
     }
   };
 
-  const handleSelectEpisode = (ep: CustomEpisode) => {
-    setActiveEpisode(ep);
-  };
-
   return (
     <>
-      {/* Action Buttons Row */}
       <div className="flex flex-wrap gap-3">
-        {activeEpisode?.videoUrl && (
+        {hasVideo && (
           <button
             onClick={scrollToPlayer}
             className="flex items-center gap-2 px-6 py-3 rounded-xl font-semibold text-sm transition-all duration-300 hover:scale-105"
@@ -58,7 +49,11 @@ export default function TVDetailClient({
             }}
           >
             <Play size={18} fill="white" />
-            <span>Play {activeEpisode.episodeLabel}: {activeEpisode.title}</span>
+            <span>
+              {activeEpisodeLabel
+                ? `Play ${activeEpisodeLabel}: ${activeEpisodeTitle || 'Watch Now'}`
+                : 'Watch Episode Now'}
+            </span>
           </button>
         )}
 
@@ -67,12 +62,12 @@ export default function TVDetailClient({
             onClick={() => setShowTrailer(true)}
             className="flex items-center gap-2 px-6 py-3 rounded-xl font-semibold text-sm transition-all duration-300 hover:scale-105"
             style={{
-              background: activeEpisode?.videoUrl
+              background: hasVideo
                 ? 'rgba(255,255,255,0.08)'
                 : 'linear-gradient(135deg, #ec4899, #7c3aed)',
               color: 'white',
-              border: activeEpisode?.videoUrl ? '1px solid rgba(255,255,255,0.15)' : 'none',
-              boxShadow: activeEpisode?.videoUrl ? 'none' : '0 0 20px rgba(236,72,153,0.4)',
+              border: hasVideo ? '1px solid rgba(255,255,255,0.15)' : 'none',
+              boxShadow: hasVideo ? 'none' : '0 0 20px rgba(236,72,153,0.4)',
             }}
           >
             <Film size={18} />
@@ -113,10 +108,45 @@ export default function TVDetailClient({
         )}
       </div>
 
-      {/* Video Player Section */}
+      {showTrailer && trailerKey && (
+        <TrailerModal
+          videoKey={trailerKey}
+          title={`${showTitle} - Trailer`}
+          onClose={() => setShowTrailer(false)}
+        />
+      )}
+    </>
+  );
+}
+
+interface TVDetailPlayerSectionProps {
+  showTitle: string;
+  seasons: CustomSeason[];
+  hasSeasons: boolean;
+  initialActiveEpisode: CustomEpisode | null;
+  defaultBackdrop?: string;
+}
+
+export default function TVDetailClient({
+  showTitle,
+  seasons,
+  hasSeasons,
+  initialActiveEpisode,
+  defaultBackdrop,
+}: TVDetailPlayerSectionProps) {
+  const [activeEpisode, setActiveEpisode] = useState<CustomEpisode | null>(initialActiveEpisode);
+
+  const handleSelectEpisode = (ep: CustomEpisode) => {
+    setActiveEpisode(ep);
+  };
+
+  return (
+    <div className="w-full">
+      {/* Video Player Section (Rendered if active episode has video URL) */}
       {activeEpisode?.videoUrl && (
         <div className="mt-14">
           <VideoPlayer
+            key={activeEpisode.slug}
             videoUrl={activeEpisode.videoUrl}
             title={`${showTitle} - ${activeEpisode.episodeLabel}: ${activeEpisode.title}`}
             poster={activeEpisode.imageUrl || defaultBackdrop}
@@ -124,7 +154,7 @@ export default function TVDetailClient({
         </div>
       )}
 
-      {/* Episode Selector UI with Season Dropdown and Episode Badges */}
+      {/* Bilibili.tv Horizontal Episode Selector */}
       {seasons.length > 0 && (
         <EpisodeSelector
           seasons={seasons}
@@ -136,14 +166,13 @@ export default function TVDetailClient({
         />
       )}
 
-      {/* Trailer Modal */}
-      {showTrailer && trailerKey && (
-        <TrailerModal
-          videoKey={trailerKey}
-          title={`${showTitle} - Trailer`}
-          onClose={() => setShowTrailer(false)}
+      {/* Active Episode Markdown Content / Notes */}
+      {activeEpisode?.contentHtml && (
+        <MarkdownRenderer
+          contentHtml={activeEpisode.contentHtml}
+          title={`${showTitle} - ${activeEpisode.episodeLabel}: ${activeEpisode.title}`}
         />
       )}
-    </>
+    </div>
   );
 }

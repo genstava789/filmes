@@ -271,6 +271,7 @@ export default function VideoPlayer({ videoUrl, title, poster }: VideoPlayerProp
 
         {/* Video Canvas Container */}
         <div
+          key={videoUrl}
           className="relative w-full overflow-hidden bg-black flex items-center justify-center plyr-custom-wrapper"
           style={{
             aspectRatio: '16/9',
@@ -288,7 +289,7 @@ export default function VideoPlayer({ videoUrl, title, poster }: VideoPlayerProp
                 href={videoUrl}
                 target="_blank"
                 rel="noopener noreferrer"
-                className="mt-4 inline-flex items-center gap-2 px-4 py-2 rounded-lg text-xs font-semibold"
+                className="mt-4 inline-flex items-center gap-2 px-4 py-2 rounded-lg text-xs font-semibold transition-transform hover:scale-105"
                 style={{
                   background: 'linear-gradient(135deg, #06b6d4, #7c3aed)',
                   color: 'white',
@@ -324,10 +325,7 @@ export default function VideoPlayer({ videoUrl, title, poster }: VideoPlayerProp
               preload="metadata"
               onError={() => setHasError(true)}
               className="w-full h-full object-contain"
-            >
-              <source src={videoUrl} type="video/mp4" />
-              Browser Anda tidak mendukung pemutar video.
-            </video>
+            />
           ) : (
             // Generic iframe fallback for other stream embed providers
             <iframe
