@@ -158,45 +158,45 @@ export default function VideoPlayer({ videoUrl, poster }: VideoPlayerProps) {
             }}
           >
             {hasError ? (
-              <div className="flex flex-col items-center justify-center p-6 sm:p-10 text-center text-slate-300 max-w-md mx-auto animate-fadeIn">
+              <div className="w-full h-full flex flex-col items-center justify-center p-4 sm:p-6 text-center text-slate-300 max-w-sm mx-auto animate-fadeIn">
                 <div
-                  className="w-14 h-14 rounded-2xl flex items-center justify-center mb-4"
+                  className="w-10 h-10 rounded-xl flex items-center justify-center mb-2"
                   style={{
                     background: 'rgba(239, 68, 68, 0.15)',
                     border: '1px solid rgba(239, 68, 68, 0.35)',
-                    boxShadow: '0 0 25px rgba(239, 68, 68, 0.2)',
+                    boxShadow: '0 0 15px rgba(239, 68, 68, 0.2)',
                   }}
                 >
-                  <AlertCircle size={28} className="text-red-400" />
+                  <AlertCircle size={20} className="text-red-400" />
                 </div>
-                <h3 className="text-base sm:text-lg font-bold text-white mb-1.5">
+                <h3 className="text-sm sm:text-base font-bold text-white mb-1">
                   Gagal Memuat Video
                 </h3>
-                <p className="text-xs text-slate-400 leading-relaxed mb-6">
-                  Video sedang tidak dapat diputar saat ini. Server streaming mungkin sedang mengalami gangguan atau pembatasan jaringan.
+                <p className="text-[11px] sm:text-xs text-slate-400 leading-relaxed mb-3 max-w-xs">
+                  Video sedang tidak dapat diputar saat ini. Server streaming mungkin sedang mengalami gangguan jaringan.
                 </p>
                 <button
                   type="button"
                   onClick={() => setReported(true)}
                   disabled={reported}
-                  className="inline-flex items-center gap-2 px-5 py-2.5 rounded-xl text-xs font-bold transition-all duration-200 hover:scale-105"
+                  className="inline-flex items-center gap-1.5 px-4 py-1.5 rounded-lg text-xs font-bold transition-all duration-200 hover:scale-105"
                   style={{
                     background: reported
                       ? 'rgba(34, 197, 94, 0.2)'
                       : 'linear-gradient(135deg, #06b6d4, #7c3aed)',
                     border: reported ? '1px solid rgba(34, 197, 94, 0.5)' : 'none',
                     color: reported ? '#4ade80' : 'white',
-                    boxShadow: reported ? 'none' : '0 0 20px rgba(6, 182, 212, 0.4)',
+                    boxShadow: reported ? 'none' : '0 0 15px rgba(6, 182, 212, 0.4)',
                   }}
                 >
                   {reported ? (
                     <>
-                      <CheckCircle2 size={14} />
+                      <CheckCircle2 size={13} />
                       <span>Laporan Terkirim</span>
                     </>
                   ) : (
                     <>
-                      <Flag size={14} />
+                      <Flag size={13} />
                       <span>Laporkan Masalah</span>
                     </>
                   )}

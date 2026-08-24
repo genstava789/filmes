@@ -412,10 +412,10 @@ export default async function MovieDetailPage({ params }: PageProps) {
       {/* Cast Section */}
       {cast.length > 0 && (
         <section className="mt-16 max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
-          <h2 className="section-title text-2xl font-bold text-neo-text-primary mb-6">
+          <h2 className="section-title text-xl sm:text-2xl font-bold text-neo-text-primary mb-4">
             Cast
           </h2>
-          <div className="flex gap-4 overflow-x-auto hide-scrollbar pb-2">
+          <div className="flex gap-3 sm:gap-4 overflow-x-auto hide-scrollbar pb-2">
             {cast.map((member) => (
               <CastCard key={member.id} cast={member} />
             ))}
@@ -430,6 +430,7 @@ export default async function MovieDetailPage({ params }: PageProps) {
             title="Similar Movies"
             items={similarMovies}
             type="movie"
+            noPadding
           />
         </section>
       )}

@@ -242,9 +242,13 @@ export default async function TVShowPage({ params }: PageProps) {
                 boxShadow: '0 0 40px rgba(6,182,212,0.2), 0 20px 60px rgba(0,0,0,0.6)',
               }}
             >
-              {data.customImageUrl || data.poster_path ? (
+              {data.poster_path || data.customImageUrl ? (
                 <Image
-                  src={data.customImageUrl || getImageUrl(data.poster_path, 'w500')}
+                  src={
+                    data.poster_path
+                      ? getImageUrl(data.poster_path, 'w500')
+                      : (data.customImageUrl || '/placeholder-poster.jpg')
+                  }
                   alt={data.name}
                   fill
                   className="object-cover"
@@ -263,20 +267,23 @@ export default async function TVShowPage({ params }: PageProps) {
             {/* Custom Static Badge */}
             {data.isCustomTV && (
               <div
-                className="inline-flex items-center gap-1.5 px-3 py-1 rounded-full text-xs font-bold uppercase tracking-wider mb-3"
+                className="inline-flex items-center gap-1.5 px-3 py-1 rounded-full text-xs font-semibold mb-3"
                 style={{
-                  background: 'linear-gradient(135deg, rgba(6,182,212,0.2), rgba(124,58,237,0.2))',
-                  border: '1px solid rgba(6,182,212,0.5)',
+                  background: 'rgba(6,182,212,0.15)',
+                  border: '1px solid rgba(6,182,212,0.4)',
                   color: '#06b6d4',
                 }}
               >
                 <Sparkles size={12} />
-                Static Custom Series Edition
+                Static Custom Serial
               </div>
             )}
 
             {/* Title */}
-            <h1 className="text-3xl sm:text-4xl lg:text-5xl font-black leading-tight mb-2" style={{ color: '#f1f5f9' }}>
+            <h1
+              className="text-3xl sm:text-4xl lg:text-5xl font-black leading-tight mb-2"
+              style={{ color: '#f1f5f9' }}
+            >
               {data.name}
             </h1>
 
@@ -332,9 +339,10 @@ export default async function TVShowPage({ params }: PageProps) {
             {data.genres && data.genres.length > 0 && (
               <div className="flex flex-wrap gap-2 mb-5">
                 {data.genres.map((genre) => (
-                  <span
+                  <Link
                     key={genre.id}
-                    className="px-3 py-1 rounded-full text-xs font-medium"
+                    href={`/genre/${genre.id}`}
+                    className="px-3 py-1 rounded-full text-xs font-medium transition-all duration-200 hover:scale-105"
                     style={{
                       background: 'rgba(124,58,237,0.15)',
                       border: '1px solid rgba(124,58,237,0.4)',
@@ -342,7 +350,7 @@ export default async function TVShowPage({ params }: PageProps) {
                     }}
                   >
                     {genre.name}
-                  </span>
+                  </Link>
                 ))}
               </div>
             )}
@@ -352,14 +360,14 @@ export default async function TVShowPage({ params }: PageProps) {
               {data.overview}
             </p>
 
-            {/* Action Buttons in Header */}
+            {/* Action Buttons */}
             <TVDetailHeaderActions
-              showTitle={data.name}
               activeEpisodeLabel={data.activeEpisode?.episodeLabel}
               activeEpisodeTitle={data.activeEpisode?.title}
               hasVideo={Boolean(data.activeEpisode?.videoUrl)}
               trailerKey={trailerKey}
               homepage={data.homepage}
+              showTitle={data.name}
             />
 
             {/* Stats */}
@@ -409,8 +417,8 @@ export default async function TVShowPage({ params }: PageProps) {
       {/* Cast Section */}
       {cast.length > 0 && (
         <section className="mt-16 max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
-          <h2 className="section-title text-2xl font-bold text-neo-text-primary mb-6">Cast & Karakter</h2>
-          <div className="flex gap-4 overflow-x-auto hide-scrollbar pb-2">
+          <h2 className="section-title text-xl sm:text-2xl font-bold text-neo-text-primary mb-4">Cast & Karakter</h2>
+          <div className="flex gap-3 sm:gap-4 overflow-x-auto hide-scrollbar pb-2">
             {cast.map((member) => (
               <CastCard key={member.id} cast={member} />
             ))}
@@ -425,6 +433,7 @@ export default async function TVShowPage({ params }: PageProps) {
             title="Serial TV Serupa"
             items={similarShows}
             type="tv"
+            noPadding
           />
         </section>
       )}

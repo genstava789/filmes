@@ -11,9 +11,16 @@ interface MovieRowProps {
   items: (Movie | TVShow)[];
   seeAllHref?: string;
   type?: 'movie' | 'tv';
+  noPadding?: boolean;
 }
 
-export default function MovieRow({ title, items, seeAllHref, type = 'movie' }: MovieRowProps) {
+export default function MovieRow({
+  title,
+  items,
+  seeAllHref,
+  type = 'movie',
+  noPadding = false,
+}: MovieRowProps) {
   const scrollRef = useRef<HTMLDivElement>(null);
   const [canScrollLeft, setCanScrollLeft] = useState(false);
   const [canScrollRight, setCanScrollRight] = useState(true);
@@ -39,7 +46,7 @@ export default function MovieRow({ title, items, seeAllHref, type = 'movie' }: M
   return (
     <section className="relative">
       {/* Header */}
-      <div className="flex items-center justify-between mb-4 px-4 sm:px-6">
+      <div className={`flex items-center justify-between mb-4 ${noPadding ? 'px-0' : 'px-4 sm:px-6'}`}>
         <h2 className="section-title text-xl sm:text-2xl font-bold text-neo-text-primary">
           {title}
         </h2>
@@ -114,10 +121,10 @@ export default function MovieRow({ title, items, seeAllHref, type = 'movie' }: M
         <div
           ref={scrollRef}
           onScroll={handleScroll}
-          className="flex gap-3 overflow-x-auto hide-scrollbar px-4 sm:px-6 lg:px-8 pb-2"
+          className={`flex gap-3 sm:gap-4 overflow-x-auto hide-scrollbar ${noPadding ? 'px-0' : 'px-4 sm:px-6 lg:px-8'} pb-2`}
         >
           {items.map((item) => (
-            <div key={item.id} className="flex-shrink-0 w-36 sm:w-40 md:w-44">
+            <div key={item.id} className="flex-shrink-0 w-40 sm:w-44 md:w-48">
               <MovieCard item={item} type={type} />
             </div>
           ))}
