@@ -44,7 +44,7 @@ export const siteConfig = {
   // Auto-slide interval for Featured Hero (in seconds)
   heroIntervalSeconds: 6,
 
-  // 3 Customizable Featured Hero items for the carousel
+  // 3 Customizable Featured Hero items for the carousel (1920x1080 horizontal landscape)
   featuredItems: [
     {
       id: 'mutiny-custom',
@@ -60,7 +60,7 @@ export const siteConfig = {
       type: 'movie',
       genres: ['Action', 'Thriller', 'Crime'],
       link: '/movie/movie',
-      badge: '🔥 Trending #1 Edition',
+      badge: 'Featured',
     },
     {
       id: 'lanterns-dc',
@@ -76,7 +76,7 @@ export const siteConfig = {
       type: 'tv',
       genres: ['Sci-Fi', 'Mystery', 'Crime'],
       link: '/tv/lanterns/s1/e1',
-      badge: '⚡ DC Universe Exclusive',
+      badge: 'Featured',
     },
     {
       id: 'bleach-thousand-year',
@@ -88,11 +88,11 @@ export const siteConfig = {
         'https://image.tmdb.org/t/p/w1280/7zpM6zQGg6w3x0N9x0w7Z4q04N0.jpg',
       rating: 9.5,
       year: '2025',
-      duration: 'Part 3 (Conflict)',
+      duration: 'Part 3',
       type: 'tv',
       genres: ['Animation', 'Action', 'Fantasy'],
       link: '/tv/lanterns/s1/e1',
-      badge: '✦ Anime Hit Series',
+      badge: 'Featured',
     },
   ] as FeaturedItem[],
 

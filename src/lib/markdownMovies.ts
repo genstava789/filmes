@@ -15,6 +15,7 @@ export interface CustomMovieFrontmatter {
   video_url?: string;
   image_url?: string;
   tagline?: string;
+  featured?: boolean | string;
   [key: string]: any;
 }
 
@@ -232,4 +233,43 @@ export async function getMovieDetailsWithCustomOverride(
     customImageUrl: imageUrl,
     customContentHtml: contentHtml && contentHtml.trim().length > 0 ? contentHtml : null,
   };
+}
+
+/**
+ * Returns all custom markdown movies that have `featured: true` in their frontmatter.
+ */
+export async function getAllFeaturedCustomMovies(): Promise<any[]> {
+  const files = getAllCustomMovieFiles();
+  const featuredMovies: any[] = [];
+
+  for (const file of files) {
+    try {
+      const baseSlug = file.replace(/\.(md|markdown)$/i, '');
+      const detail = await getMovieDetailsWithCustomOverride(baseSlug);
+      const customData = await getCustomMovieBySlug(baseSlug);
+
+      if (customData && (customData.frontmatter.featured === true || customData.frontmatter.featured === 'true')) {
+        if (detail) {
+          featuredMovies.push({
+            id: `movie-${detail.customSlug || detail.id}`,
+            title: detail.title,
+            tagline: detail.tagline || undefined,
+            overview: detail.overview,
+            backdropUrl: detail.customImageUrl || (detail.backdrop_path ? `https://image.tmdb.org/t/p/w1280${detail.backdrop_path}` : '/placeholder-poster.jpg'),
+            rating: Math.round(detail.vote_average * 10) / 10,
+            year: detail.release_date ? new Date(detail.release_date).getFullYear() : '2025',
+            duration: detail.runtime ? `${Math.floor(detail.runtime / 60)}h ${detail.runtime % 60}m` : undefined,
+            type: 'movie' as const,
+            genres: detail.genres?.map((g) => g.name) || [],
+            link: `/movie/${detail.customSlug || detail.id}`,
+            badge: 'Featured',
+          });
+        }
+      }
+    } catch (err) {
+      console.error(`Error loading featured custom movie for ${file}:`, err);
+    }
+  }
+
+  return featuredMovies;
 }

@@ -16,7 +16,7 @@ interface HeroProps {
 }
 
 export default function Hero({ movie, movies = [], genres = [], customFeaturedItems }: HeroProps) {
-  // Build 3 items list: prioritize siteConfig.featuredItems or custom items or mapped TMDB movies
+  // Build items list: prioritize customFeaturedItems -> siteConfig.featuredItems -> mapped TMDB movies
   const items: FeaturedItem[] = React.useMemo(() => {
     if (customFeaturedItems && customFeaturedItems.length > 0) {
       return customFeaturedItems;
@@ -27,7 +27,7 @@ export default function Hero({ movie, movies = [], genres = [], customFeaturedIt
 
     // Fallback using incoming movies
     const sourceMovies = movies.length > 0 ? movies.slice(0, 3) : movie ? [movie] : [];
-    return sourceMovies.map((m, idx) => {
+    return sourceMovies.map((m) => {
       const itemGenres = genres.filter((g) => m.genre_ids?.includes(g.id)).map((g) => g.name);
       return {
         id: m.id,
@@ -39,7 +39,7 @@ export default function Hero({ movie, movies = [], genres = [], customFeaturedIt
         type: 'movie' as const,
         genres: itemGenres.slice(0, 3),
         link: `/movie/${m.id}`,
-        badge: idx === 0 ? '🔥 Trending #1' : idx === 1 ? '⚡ Popular Pick' : '✦ Top Rated',
+        badge: 'Featured',
       };
     });
   }, [customFeaturedItems, movies, movie, genres]);
@@ -47,6 +47,10 @@ export default function Hero({ movie, movies = [], genres = [], customFeaturedIt
   const [currentIndex, setCurrentIndex] = useState(0);
   const [isHovered, setIsHovered] = useState(false);
   const timerRef = useRef<NodeJS.Timeout | null>(null);
+
+  // Touch Swipe Gesture Tracking
+  const touchStartX = useRef<number>(0);
+  const touchEndX = useRef<number>(0);
 
   const total = items.length;
   const currentItem = items[currentIndex] || items[0];
@@ -60,6 +64,31 @@ export default function Hero({ movie, movies = [], genres = [], customFeaturedIt
     if (total <= 1) return;
     setCurrentIndex((prev) => (prev - 1 + total) % total);
   }, [total]);
+
+  // Touch handlers for mobile swipe
+  const handleTouchStart = (e: React.TouchEvent) => {
+    touchStartX.current = e.targetTouches[0].clientX;
+    touchEndX.current = e.targetTouches[0].clientX;
+  };
+
+  const handleTouchMove = (e: React.TouchEvent) => {
+    touchEndX.current = e.targetTouches[0].clientX;
+  };
+
+  const handleTouchEnd = () => {
+    if (!touchStartX.current || !touchEndX.current) return;
+    const diff = touchStartX.current - touchEndX.current;
+    const minSwipeDistance = 45; // Min swipe distance in px
+
+    if (diff > minSwipeDistance) {
+      nextSlide(); // Swiped left -> next
+    } else if (diff < -minSwipeDistance) {
+      prevSlide(); // Swiped right -> prev
+    }
+
+    touchStartX.current = 0;
+    touchEndX.current = 0;
+  };
 
   // Auto-slide effect
   useEffect(() => {
@@ -78,11 +107,14 @@ export default function Hero({ movie, movies = [], genres = [], customFeaturedIt
 
   return (
     <section
-      className="relative w-full overflow-hidden select-none"
+      className="relative w-full overflow-hidden select-none touch-pan-y"
       onMouseEnter={() => setIsHovered(true)}
       onMouseLeave={() => setIsHovered(false)}
+      onTouchStart={handleTouchStart}
+      onTouchMove={handleTouchMove}
+      onTouchEnd={handleTouchEnd}
       style={{
-        /* Horizontal landscape scale on mobile (aspect 16:9 / min-h 250px), expansive wide scale on desktop */
+        /* Horizontal landscape scale on mobile (min 260px, aspect 16:9 feel), expansive wide banner on desktop */
         height: 'clamp(260px, 48vw, 750px)',
       }}
     >
@@ -140,27 +172,25 @@ export default function Hero({ movie, movies = [], genres = [], customFeaturedIt
       />
 
       {/* ── Hero Content (Responsive Horizontal Fit on Mobile, Expansive on Desktop) ── */}
-      <div className="relative z-20 h-full flex items-end sm:items-center pb-6 sm:pb-0">
+      <div className="relative z-20 h-full flex items-end sm:items-center pb-5 sm:pb-0">
         <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 w-full">
           <div className="max-w-xl lg:max-w-2xl">
 
-            {/* Badge */}
-            {currentItem.badge && (
-              <div className="flex items-center gap-2 mb-2 sm:mb-3">
-                <span
-                  className="inline-flex items-center gap-1 px-2.5 py-0.5 sm:px-3 sm:py-1 rounded-full text-[10px] sm:text-xs font-extrabold uppercase tracking-wider"
-                  style={{
-                    background: 'linear-gradient(135deg, rgba(6,182,212,0.25), rgba(124,58,237,0.25))',
-                    border: '1px solid rgba(6,182,212,0.45)',
-                    color: '#06b6d4',
-                    boxShadow: '0 0 12px rgba(6,182,212,0.25)',
-                  }}
-                >
-                  <Sparkles size={11} />
-                  {currentItem.badge}
-                </span>
-              </div>
-            )}
+            {/* Badge - Always "Featured" */}
+            <div className="flex items-center gap-2 mb-1.5 sm:mb-3">
+              <span
+                className="inline-flex items-center gap-1 px-2.5 py-0.5 sm:px-3 sm:py-1 rounded-full text-[10px] sm:text-xs font-extrabold uppercase tracking-wider"
+                style={{
+                  background: 'linear-gradient(135deg, rgba(6,182,212,0.25), rgba(124,58,237,0.25))',
+                  border: '1px solid rgba(6,182,212,0.45)',
+                  color: '#06b6d4',
+                  boxShadow: '0 0 12px rgba(6,182,212,0.25)',
+                }}
+              >
+                <Sparkles size={11} />
+                Featured
+              </span>
+            </div>
 
             {/* Title */}
             <h1
@@ -280,14 +310,14 @@ export default function Hero({ movie, movies = [], genres = [], customFeaturedIt
         </div>
       </div>
 
-      {/* ── Slide Arrows & Progress Dots Controls ── */}
+      {/* ── Slide Arrows & Full Circle Indicator Dots ── */}
       {total > 1 && (
         <>
           {/* Left Arrow */}
           <button
             onClick={prevSlide}
             title="Previous Slide"
-            className="hidden sm:flex absolute left-4 top-1/2 -translate-y-1/2 z-30 w-10 h-10 rounded-xl items-center justify-center transition-all duration-200 opacity-60 hover:opacity-100 hover:scale-110 active:scale-95"
+            className="hidden sm:flex absolute left-4 top-1/2 -translate-y-1/2 z-30 w-10 h-10 rounded-xl items-center justify-center transition-all duration-200 opacity-60 hover:opacity-100 hover:scale-110 active:scale-95 cursor-pointer"
             style={{
               background: 'rgba(11, 16, 32, 0.75)',
               backdropFilter: 'blur(10px)',
@@ -302,7 +332,7 @@ export default function Hero({ movie, movies = [], genres = [], customFeaturedIt
           <button
             onClick={nextSlide}
             title="Next Slide"
-            className="hidden sm:flex absolute right-4 top-1/2 -translate-y-1/2 z-30 w-10 h-10 rounded-xl items-center justify-center transition-all duration-200 opacity-60 hover:opacity-100 hover:scale-110 active:scale-95"
+            className="hidden sm:flex absolute right-4 top-1/2 -translate-y-1/2 z-30 w-10 h-10 rounded-xl items-center justify-center transition-all duration-200 opacity-60 hover:opacity-100 hover:scale-110 active:scale-95 cursor-pointer"
             style={{
               background: 'rgba(11, 16, 32, 0.75)',
               backdropFilter: 'blur(10px)',
@@ -313,8 +343,8 @@ export default function Hero({ movie, movies = [], genres = [], customFeaturedIt
             <ChevronRight size={20} />
           </button>
 
-          {/* Bottom Right Slide Indicators */}
-          <div className="absolute right-4 sm:right-8 bottom-4 sm:bottom-6 z-30 flex items-center gap-1.5 sm:gap-2">
+          {/* Full Circle Indicator Dots (Circle instead of width) */}
+          <div className="absolute right-4 sm:right-8 bottom-3 sm:bottom-6 z-30 flex items-center gap-2">
             {items.map((_, idx) => {
               const isCurrent = idx === currentIndex;
               return (
@@ -322,14 +352,15 @@ export default function Hero({ movie, movies = [], genres = [], customFeaturedIt
                   key={idx}
                   onClick={() => setCurrentIndex(idx)}
                   title={`Go to slide ${idx + 1}`}
-                  className="transition-all duration-300 rounded-full cursor-pointer focus:outline-none"
+                  className={`rounded-full transition-all duration-300 cursor-pointer focus:outline-none ${
+                    isCurrent
+                      ? 'w-3 h-3 sm:w-3.5 sm:h-3.5 scale-110 ring-2 ring-cyan-400/50 shadow-[0_0_10px_#06b6d4]'
+                      : 'w-2 h-2 sm:w-2.5 sm:h-2.5 bg-white/35 hover:bg-white/70 hover:scale-125'
+                  }`}
                   style={{
-                    width: isCurrent ? '24px' : '6px',
-                    height: '6px',
                     background: isCurrent
-                      ? 'linear-gradient(90deg, #06b6d4, #7c3aed)'
-                      : 'rgba(255,255,255,0.3)',
-                    boxShadow: isCurrent ? '0 0 10px rgba(6,182,212,0.6)' : 'none',
+                      ? 'linear-gradient(135deg, #06b6d4, #7c3aed)'
+                      : undefined,
                   }}
                 />
               );

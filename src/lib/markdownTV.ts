@@ -13,6 +13,7 @@ export interface CustomTVFrontmatter {
   description?: string;
   image_url?: string;
   tagline?: string;
+  featured?: boolean | string;
   [key: string]: any;
 }
 
@@ -506,4 +507,43 @@ export async function getTVShowDetailsWithCustomOverride(
     allEpisodes,
     activeEpisode,
   };
+}
+
+/**
+ * Returns all custom markdown TV shows that have `featured: true` in their _index.md.
+ */
+export async function getAllFeaturedCustomTV(): Promise<any[]> {
+  const showSlugs = getAllCustomTVShowDirs();
+  const featuredShows: any[] = [];
+
+  for (const slug of showSlugs) {
+    try {
+      const customData = await getCustomTVShowBySlug(slug);
+      if (customData && (customData.frontmatter.featured === true || customData.frontmatter.featured === 'true')) {
+        const detail = await getTVShowDetailsWithCustomOverride([slug]);
+        if (detail) {
+          const firstEp = detail.allEpisodes?.[0];
+          const link = firstEp?.urlPath || `/tv/${detail.customSlug || detail.id}`;
+          featuredShows.push({
+            id: `tv-${detail.customSlug || detail.id}`,
+            title: detail.name,
+            tagline: detail.tagline || undefined,
+            overview: detail.overview,
+            backdropUrl: detail.customImageUrl || (detail.backdrop_path ? `https://image.tmdb.org/t/p/w1280${detail.backdrop_path}` : '/placeholder-poster.jpg'),
+            rating: Math.round(detail.vote_average * 10) / 10,
+            year: detail.first_air_date ? new Date(detail.first_air_date).getFullYear() : '2025',
+            duration: detail.number_of_episodes ? `${detail.number_of_episodes} Episodes` : undefined,
+            type: 'tv' as const,
+            genres: detail.genres?.map((g) => g.name) || [],
+            link,
+            badge: 'Featured',
+          });
+        }
+      }
+    } catch (err) {
+      console.error(`Error loading featured custom TV for ${slug}:`, err);
+    }
+  }
+
+  return featuredShows;
 }

@@ -10,6 +10,9 @@ import {
   getTrendingTV,
   getGenres,
 } from '@/lib/tmdb';
+import { getAllFeaturedCustomMovies } from '@/lib/markdownMovies';
+import { getAllFeaturedCustomTV } from '@/lib/markdownTV';
+import siteConfig, { FeaturedItem } from '@/config';
 
 export const revalidate = 3600;
 
@@ -21,6 +24,8 @@ export default async function HomePage() {
     topRatedData,
     trendingTVData,
     genres,
+    customFeaturedMovies,
+    customFeaturedTV,
   ] = await Promise.allSettled([
     getTrending('movie', 'week'),
     getPopularMovies(1),
@@ -28,6 +33,8 @@ export default async function HomePage() {
     getTopRatedMovies(1),
     getTrendingTV('week'),
     getGenres(),
+    getAllFeaturedCustomMovies(),
+    getAllFeaturedCustomTV(),
   ]);
 
   const trending = trendingData.status === 'fulfilled' ? trendingData.value.results : [];
@@ -37,12 +44,41 @@ export default async function HomePage() {
   const trendingTV = trendingTVData.status === 'fulfilled' ? trendingTVData.value.results : [];
   const genreList = genres.status === 'fulfilled' ? genres.value : [];
 
+  const mdFeaturedMovies: FeaturedItem[] =
+    customFeaturedMovies.status === 'fulfilled' ? customFeaturedMovies.value : [];
+  const mdFeaturedTV: FeaturedItem[] =
+    customFeaturedTV.status === 'fulfilled' ? customFeaturedTV.value : [];
+
+  // Combine custom markdown featured items (from video/ and tv/) with siteConfig.featuredItems
+  const combinedFeatured: FeaturedItem[] = [
+    ...mdFeaturedMovies,
+    ...mdFeaturedTV,
+    ...(siteConfig.featuredItems || []),
+  ];
+
+  // Deduplicate by title or id
+  const uniqueFeatured: FeaturedItem[] = [];
+  const seenIds = new Set<string>();
+
+  for (const item of combinedFeatured) {
+    const key = `${item.type || 'item'}-${item.title}`.toLowerCase();
+    if (!seenIds.has(key)) {
+      seenIds.add(key);
+      uniqueFeatured.push(item);
+    }
+  }
+
   const featuredMovie = trending[0] || popular[0];
 
   return (
     <div className="min-h-screen" style={{ background: '#050816' }}>
       {/* Hero with 3 Featured Items Carousel */}
-      <Hero movie={featuredMovie} movies={trending} genres={genreList} />
+      <Hero
+        movie={featuredMovie}
+        movies={trending}
+        genres={genreList}
+        customFeaturedItems={uniqueFeatured.length > 0 ? uniqueFeatured.slice(0, 5) : undefined}
+      />
 
       {/* Content sections */}
       <div className="relative z-10 space-y-12 pb-16 pt-2 sm:pt-4">
