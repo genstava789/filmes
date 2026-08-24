@@ -2,14 +2,10 @@
 
 import React, { useState, useEffect, useRef } from 'react';
 import {
-  Play,
-  Maximize2,
-  Minimize2,
-  Tv,
-  Sparkles,
   AlertCircle,
-  ExternalLink,
-  Keyboard,
+  Flag,
+  Tv,
+  CheckCircle2,
 } from 'lucide-react';
 import 'plyr/dist/plyr.css';
 
@@ -31,9 +27,10 @@ function getVimeoId(url: string): string | null {
   return match && match[1] ? match[1] : null;
 }
 
-export default function VideoPlayer({ videoUrl, title, poster }: VideoPlayerProps) {
-  const [showShortcuts, setShowShortcuts] = useState(false);
+export default function VideoPlayer({ videoUrl, poster }: VideoPlayerProps) {
   const [hasError, setHasError] = useState(false);
+  const [reported, setReported] = useState(false);
+  const [resolution, setResolution] = useState<string>('1080p FHD');
 
   const videoRef = useRef<HTMLVideoElement>(null);
   const playerInstanceRef = useRef<any>(null);
@@ -48,6 +45,7 @@ export default function VideoPlayer({ videoUrl, title, poster }: VideoPlayerProp
 
     let isCancelled = false;
     setHasError(false);
+    setReported(false);
 
     const videoElement = videoRef.current;
     if (!videoElement) return;
@@ -118,6 +116,15 @@ export default function VideoPlayer({ videoUrl, title, poster }: VideoPlayerProp
     };
   }, [videoUrl, youtubeId, vimeoId]);
 
+  const handleLoadedMetadata = (e: React.SyntheticEvent<HTMLVideoElement>) => {
+    const v = e.currentTarget;
+    if (v.videoHeight >= 2160) setResolution('4K UHD');
+    else if (v.videoHeight >= 1440) setResolution('2K QHD');
+    else if (v.videoHeight >= 1080) setResolution('1080p FHD');
+    else if (v.videoHeight >= 720) setResolution('720p HD');
+    else if (v.videoHeight >= 480) setResolution('480p SD');
+  };
+
   return (
     <div
       id="video-player-section"
@@ -133,7 +140,7 @@ export default function VideoPlayer({ videoUrl, title, poster }: VideoPlayerProp
           }}
         />
 
-        {/* Outer Player Frame */}
+        {/* Clean Outer Player Frame */}
         <div
           className="relative rounded-2xl overflow-hidden shadow-2xl transition-all duration-300"
           style={{
@@ -142,94 +149,6 @@ export default function VideoPlayer({ videoUrl, title, poster }: VideoPlayerProp
             boxShadow: '0 25px 60px -15px rgba(0, 0, 0, 0.9), 0 0 35px rgba(6, 182, 212, 0.18)',
           }}
         >
-          {/* Netflix Style Streaming Header Bar (without top fullscreen button) */}
-          <div
-            className="flex items-center justify-between px-4 sm:px-6 py-3.5 border-b"
-            style={{
-              borderColor: 'rgba(255, 255, 255, 0.08)',
-              background: 'rgba(7, 11, 26, 0.9)',
-              backdropFilter: 'blur(12px)',
-            }}
-          >
-            <div className="flex items-center gap-3 min-w-0">
-              <div
-                className="flex items-center justify-center w-8 h-8 rounded-lg flex-shrink-0"
-                style={{
-                  background: 'linear-gradient(135deg, #06b6d4, #7c3aed)',
-                  boxShadow: '0 0 15px rgba(6, 182, 212, 0.45)',
-                }}
-              >
-                <Play size={15} fill="white" className="text-white ml-0.5" />
-              </div>
-              <div className="min-w-0">
-                <div className="flex items-center gap-2 flex-wrap">
-                  <span
-                    className="text-[11px] font-extrabold uppercase tracking-wider px-2 py-0.5 rounded-full flex items-center gap-1.5"
-                    style={{
-                      background: 'linear-gradient(135deg, rgba(6, 182, 212, 0.25), rgba(124, 58, 237, 0.25))',
-                      border: '1px solid rgba(6, 182, 212, 0.5)',
-                      color: '#38bdf8',
-                    }}
-                  >
-                    <span className="w-1.5 h-1.5 rounded-full bg-cyan-400 animate-ping" />
-                    Now Streaming
-                  </span>
-                  <span className="text-[11px] font-bold px-2 py-0.5 rounded bg-white/10 text-neo-text-primary hidden sm:inline-flex items-center gap-1">
-                    <Sparkles size={11} className="text-neo-cyan" /> 4K Ultra HD
-                  </span>
-                </div>
-                <h3 className="text-sm sm:text-base font-bold text-white truncate max-w-xs sm:max-w-md md:max-w-xl mt-0.5 tracking-wide">
-                  {title || 'Video Player'}
-                </h3>
-              </div>
-            </div>
-
-            {/* Action buttons (Shortcuts toggle only) */}
-            <div className="flex items-center gap-2 flex-shrink-0">
-              <button
-                onClick={() => setShowShortcuts((prev) => !prev)}
-                title="Keyboard Shortcuts"
-                className="hidden md:flex items-center gap-1.5 px-3 py-1.5 rounded-lg text-xs font-medium transition-all duration-200 hover:scale-105"
-                style={{
-                  background: showShortcuts ? 'rgba(124, 58, 237, 0.25)' : 'rgba(255, 255, 255, 0.06)',
-                  border: showShortcuts
-                    ? '1px solid rgba(124, 58, 237, 0.6)'
-                    : '1px solid rgba(255, 255, 255, 0.12)',
-                  color: showShortcuts ? '#c4b5fd' : '#94a3b8',
-                }}
-              >
-                <Keyboard size={14} />
-                <span>Keys</span>
-              </button>
-            </div>
-          </div>
-
-          {/* Shortcuts info banner */}
-          {showShortcuts && (
-            <div
-              className="px-4 sm:px-6 py-2.5 flex flex-wrap items-center justify-between text-xs border-b gap-2 animate-fadeIn"
-              style={{
-                background: 'rgba(12, 18, 36, 0.98)',
-                borderColor: 'rgba(124, 58, 237, 0.35)',
-                color: '#94a3b8',
-              }}
-            >
-              <div className="flex flex-wrap items-center gap-4">
-                <span><kbd className="px-1.5 py-0.5 bg-white/10 rounded text-neo-cyan">Space</kbd> / <kbd className="px-1.5 py-0.5 bg-white/10 rounded text-neo-cyan">K</kbd> Play/Pause</span>
-                <span><kbd className="px-1.5 py-0.5 bg-white/10 rounded text-neo-cyan">←</kbd> / <kbd className="px-1.5 py-0.5 bg-white/10 rounded text-neo-cyan">→</kbd> Seek 10s</span>
-                <span><kbd className="px-1.5 py-0.5 bg-white/10 rounded text-neo-cyan">↑</kbd> / <kbd className="px-1.5 py-0.5 bg-white/10 rounded text-neo-cyan">↓</kbd> Volume</span>
-                <span><kbd className="px-1.5 py-0.5 bg-white/10 rounded text-neo-cyan">F</kbd> Fullscreen</span>
-                <span><kbd className="px-1.5 py-0.5 bg-white/10 rounded text-neo-cyan">M</kbd> Mute</span>
-              </div>
-              <button
-                onClick={() => setShowShortcuts(false)}
-                className="text-xs text-neo-text-muted hover:text-white"
-              >
-                ✕ Tutup
-              </button>
-            </div>
-          )}
-
           {/* Video Canvas Container (Direct Video Tag Rendered in JSX) */}
           <div
             className="relative w-full overflow-hidden bg-black flex items-center justify-center plyr-custom-wrapper"
@@ -239,30 +158,54 @@ export default function VideoPlayer({ videoUrl, title, poster }: VideoPlayerProp
             }}
           >
             {hasError ? (
-              <div className="flex flex-col items-center justify-center p-6 text-center text-neo-text-secondary">
-                <AlertCircle size={40} className="text-red-400 mb-2" />
-                <p className="font-semibold text-white">Gagal memuat video stream</p>
-                <p className="text-xs mt-1 text-neo-text-muted max-w-md">
-                  URL video tidak dapat diakses atau dibatasi oleh CORS server: {videoUrl}
-                </p>
-                <a
-                  href={videoUrl}
-                  target="_blank"
-                  rel="noopener noreferrer"
-                  className="mt-4 inline-flex items-center gap-2 px-4 py-2 rounded-lg text-xs font-semibold transition-transform hover:scale-105"
+              <div className="flex flex-col items-center justify-center p-6 sm:p-10 text-center text-slate-300 max-w-md mx-auto animate-fadeIn">
+                <div
+                  className="w-14 h-14 rounded-2xl flex items-center justify-center mb-4"
                   style={{
-                    background: 'linear-gradient(135deg, #06b6d4, #7c3aed)',
-                    color: 'white',
+                    background: 'rgba(239, 68, 68, 0.15)',
+                    border: '1px solid rgba(239, 68, 68, 0.35)',
+                    boxShadow: '0 0 25px rgba(239, 68, 68, 0.2)',
                   }}
                 >
-                  <ExternalLink size={14} />
-                  Buka Sumber Video Langsung
-                </a>
+                  <AlertCircle size={28} className="text-red-400" />
+                </div>
+                <h3 className="text-base sm:text-lg font-bold text-white mb-1.5">
+                  Gagal Memuat Video
+                </h3>
+                <p className="text-xs text-slate-400 leading-relaxed mb-6">
+                  Video sedang tidak dapat diputar saat ini. Server streaming mungkin sedang mengalami gangguan atau pembatasan jaringan.
+                </p>
+                <button
+                  type="button"
+                  onClick={() => setReported(true)}
+                  disabled={reported}
+                  className="inline-flex items-center gap-2 px-5 py-2.5 rounded-xl text-xs font-bold transition-all duration-200 hover:scale-105"
+                  style={{
+                    background: reported
+                      ? 'rgba(34, 197, 94, 0.2)'
+                      : 'linear-gradient(135deg, #06b6d4, #7c3aed)',
+                    border: reported ? '1px solid rgba(34, 197, 94, 0.5)' : 'none',
+                    color: reported ? '#4ade80' : 'white',
+                    boxShadow: reported ? 'none' : '0 0 20px rgba(6, 182, 212, 0.4)',
+                  }}
+                >
+                  {reported ? (
+                    <>
+                      <CheckCircle2 size={14} />
+                      <span>Laporan Terkirim</span>
+                    </>
+                  ) : (
+                    <>
+                      <Flag size={14} />
+                      <span>Laporkan Masalah</span>
+                    </>
+                  )}
+                </button>
               </div>
             ) : youtubeId ? (
               <iframe
                 src={`https://www.youtube-nocookie.com/embed/${youtubeId}?autoplay=0&rel=0&modestbranding=1`}
-                title={title || 'Stream Video Player'}
+                title="Stream Video Player"
                 className="w-full h-full border-0"
                 allow="accelerometer; autoplay; clipboard-write; encrypted-media; gyroscope; picture-in-picture; web-share"
                 allowFullScreen
@@ -270,7 +213,7 @@ export default function VideoPlayer({ videoUrl, title, poster }: VideoPlayerProp
             ) : vimeoId ? (
               <iframe
                 src={`https://player.vimeo.com/video/${vimeoId}`}
-                title={title || 'Stream Video Player'}
+                title="Stream Video Player"
                 className="w-full h-full border-0"
                 allow="autoplay; fullscreen; picture-in-picture"
                 allowFullScreen
@@ -285,6 +228,7 @@ export default function VideoPlayer({ videoUrl, title, poster }: VideoPlayerProp
                   crossOrigin="anonymous"
                   preload="metadata"
                   controls
+                  onLoadedMetadata={handleLoadedMetadata}
                   onError={() => setHasError(true)}
                   className="w-full h-full object-contain"
                 >
@@ -298,35 +242,22 @@ export default function VideoPlayer({ videoUrl, title, poster }: VideoPlayerProp
             )}
           </div>
 
-          {/* Player Bottom Info Ribbon */}
+          {/* Player Bottom Info Ribbon (Clean View) */}
           <div
-            className="flex flex-wrap items-center justify-between px-4 sm:px-6 py-2.5 text-xs border-t"
+            className="flex items-center justify-between px-4 sm:px-6 py-2.5 text-xs border-t"
             style={{
               borderColor: 'rgba(255, 255, 255, 0.05)',
               background: 'rgba(6, 9, 24, 0.85)',
               color: '#64748b',
             }}
           >
-            <div className="flex items-center gap-3">
-              <div className="flex items-center gap-1.5 text-neo-cyan">
-                <Tv size={13} />
-                <span className="font-semibold">HTML5 Stream Engine</span>
-              </div>
-              <span className="hidden sm:inline text-slate-600">•</span>
-              <span className="hidden sm:inline text-slate-400">Direct Video Injected</span>
+            <div className="flex items-center gap-2 text-neo-cyan">
+              <Tv size={13} />
+              <span className="font-semibold text-slate-300">HTML5 Stream Engine</span>
             </div>
-            <div className="flex items-center gap-3">
-              <a
-                href={videoUrl}
-                target="_blank"
-                rel="noopener noreferrer"
-                className="flex items-center gap-1 text-neo-text-muted hover:text-neo-cyan transition-colors font-medium"
-              >
-                <ExternalLink size={12} />
-                <span>Source Link</span>
-              </a>
-              <span className="px-2 py-0.5 rounded bg-cyan-500/10 text-cyan-400 border border-cyan-500/30 text-[10px] font-bold uppercase">
-                Ultra HD
+            <div className="flex items-center gap-2">
+              <span className="px-2.5 py-0.5 rounded-full bg-cyan-500/10 text-cyan-400 border border-cyan-500/30 text-[10px] font-bold uppercase tracking-wider">
+                {resolution}
               </span>
             </div>
           </div>

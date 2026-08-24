@@ -216,19 +216,20 @@ export default async function MovieDetailPage({ params }: PageProps) {
         />
 
         {/* Back button */}
-        <div className="absolute top-20 left-4 sm:left-8 z-20">
+        <div className="absolute top-4 sm:top-6 left-4 sm:left-8 z-30">
           <Link
             href="/"
-            className="flex items-center gap-2 px-4 py-2 rounded-xl text-sm font-medium transition-all duration-200 hover:scale-105"
+            className="flex items-center gap-2 px-3.5 py-2 rounded-xl text-xs sm:text-sm font-semibold transition-all duration-200 hover:scale-105"
             style={{
-              background: 'rgba(5,8,22,0.7)',
-              backdropFilter: 'blur(8px)',
-              border: '1px solid rgba(255,255,255,0.1)',
-              color: '#94a3b8',
+              background: 'rgba(5, 8, 22, 0.85)',
+              backdropFilter: 'blur(12px)',
+              border: '1px solid rgba(255, 255, 255, 0.15)',
+              color: '#f1f5f9',
+              boxShadow: '0 4px 20px rgba(0, 0, 0, 0.5)',
             }}
           >
             <ArrowLeft size={16} />
-            Back
+            <span>Kembali</span>
           </Link>
         </div>
       </div>

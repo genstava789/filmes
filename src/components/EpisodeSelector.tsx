@@ -133,13 +133,13 @@ export default function EpisodeSelector({
             </div>
           </div>
 
-          {/* Controls: Mode Switcher, Season Tabs & Quick Navigation */}
+          {/* Controls: View Mode Switcher & Season Selector Tabs */}
           <div className="flex items-center gap-2 sm:gap-3 flex-wrap">
             {/* View Mode Toggle (Grid vs List) */}
             <div className="flex items-center bg-white/5 p-1 rounded-xl border border-white/10">
               <button
                 onClick={() => setViewMode('grid')}
-                title="Grid / Badge View (Bilibili Style)"
+                title="Grid / Badge View"
                 className={`flex items-center gap-1.5 px-3 py-1 rounded-lg text-xs font-bold transition-all duration-200 ${
                   viewMode === 'grid'
                     ? 'text-white shadow-md'
@@ -158,7 +158,7 @@ export default function EpisodeSelector({
 
               <button
                 onClick={() => setViewMode('list')}
-                title="List View (Netflix Style)"
+                title="List View"
                 className={`flex items-center gap-1.5 px-3 py-1 rounded-lg text-xs font-bold transition-all duration-200 ${
                   viewMode === 'list'
                     ? 'text-white shadow-md'
@@ -202,49 +202,6 @@ export default function EpisodeSelector({
                 })}
               </div>
             )}
-
-            {/* Quick Prev / Next Buttons */}
-            <div className="flex items-center gap-1.5">
-              <button
-                onClick={() => prevEpisode && handleEpisodeClick(prevEpisode)}
-                disabled={!prevEpisode}
-                title={prevEpisode ? `Sebelumnya: ${prevEpisode.title}` : 'Episode Pertama'}
-                className={`flex items-center gap-1 px-3 py-1.5 rounded-lg text-xs font-medium transition-all duration-200 ${
-                  prevEpisode
-                    ? 'hover:scale-105 hover:border-cyan-500/50 cursor-pointer text-slate-200'
-                    : 'opacity-40 cursor-not-allowed text-slate-600'
-                }`}
-                style={{
-                  background: 'rgba(255, 255, 255, 0.05)',
-                  border: '1px solid rgba(255, 255, 255, 0.1)',
-                }}
-              >
-                <ChevronLeft size={14} />
-                <span className="hidden sm:inline">Prev</span>
-              </button>
-
-              <button
-                onClick={() => nextEpisode && handleEpisodeClick(nextEpisode)}
-                disabled={!nextEpisode}
-                title={nextEpisode ? `Berikutnya: ${nextEpisode.title}` : 'Episode Terakhir'}
-                className={`flex items-center gap-1 px-3 py-1.5 rounded-lg text-xs font-medium transition-all duration-200 ${
-                  nextEpisode
-                    ? 'hover:scale-105 hover:border-cyan-500/50 cursor-pointer text-cyan-400'
-                    : 'opacity-40 cursor-not-allowed text-slate-600'
-                }`}
-                style={{
-                  background: nextEpisode
-                    ? 'linear-gradient(135deg, rgba(6, 182, 212, 0.25), rgba(124, 58, 237, 0.25))'
-                    : 'rgba(255, 255, 255, 0.05)',
-                  border: nextEpisode
-                    ? '1px solid rgba(6, 182, 212, 0.5)'
-                    : '1px solid rgba(255, 255, 255, 0.1)',
-                }}
-              >
-                <span className="hidden sm:inline">Next</span>
-                <ChevronRight size={14} />
-              </button>
-            </div>
           </div>
         </div>
 
