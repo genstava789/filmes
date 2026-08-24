@@ -142,9 +142,9 @@ export default function TVDetailClient({
 
   return (
     <div className="w-full">
-      {/* Video Player Section (Rendered if active episode has video URL) */}
+      {/* Top Video Player Section (Rendered if active episode has video URL) */}
       {activeEpisode?.videoUrl && (
-        <div className="mt-14">
+        <div className="w-full max-w-7xl mx-auto px-2 sm:px-4 lg:px-6 pt-2 sm:pt-4">
           <VideoPlayer
             key={activeEpisode.slug}
             videoUrl={activeEpisode.videoUrl}
@@ -154,7 +154,7 @@ export default function TVDetailClient({
         </div>
       )}
 
-      {/* Bilibili.tv Horizontal Episode Selector */}
+      {/* Episode Selector directly below the player */}
       {seasons.length > 0 && (
         <EpisodeSelector
           seasons={seasons}
@@ -168,10 +168,12 @@ export default function TVDetailClient({
 
       {/* Active Episode Markdown Content / Notes */}
       {activeEpisode?.contentHtml && (
-        <MarkdownRenderer
-          contentHtml={activeEpisode.contentHtml}
-          title={`${showTitle} - ${activeEpisode.episodeLabel}: ${activeEpisode.title}`}
-        />
+        <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 mt-6">
+          <MarkdownRenderer
+            contentHtml={activeEpisode.contentHtml}
+            title={`${showTitle} - ${activeEpisode.episodeLabel}: ${activeEpisode.title}`}
+          />
+        </div>
       )}
     </div>
   );

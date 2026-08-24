@@ -130,7 +130,6 @@ export default async function TVShowPage({ params }: PageProps) {
   const trailerKey = trailer?.key || null;
 
   const defaultBackdrop = data.customImageUrl || (data.backdrop_path ? getImageUrl(data.backdrop_path, 'w1280') : undefined);
-  const thumbnailImage = data.activeEpisode?.imageUrl || data.customImageUrl || (data.backdrop_path ? getImageUrl(data.backdrop_path, 'w1280') : data.poster_path ? getImageUrl(data.poster_path, 'w500') : '/placeholder-poster.jpg');
 
   const videoUrl = data.activeEpisode?.videoUrl || null;
   const videoTitle = data.activeEpisode
@@ -139,6 +138,7 @@ export default async function TVShowPage({ params }: PageProps) {
   const videoDescription = data.activeEpisode?.overview || data.overview || `Nonton streaming ${videoTitle} full episode kualitas HD sub indo.`;
   const uploadDate = data.first_air_date ? `${data.first_air_date}T00:00:00+07:00` : '2026-08-24T00:00:00+07:00';
   const durationIso = formatIsoDuration(data.activeEpisode?.duration || data.episode_run_time?.[0] || '50m');
+  const thumbnailImage = data.activeEpisode?.imageUrl || data.customImageUrl || (data.backdrop_path ? getImageUrl(data.backdrop_path, 'w1280') : data.poster_path ? getImageUrl(data.poster_path, 'w500') : '/placeholder-poster.jpg');
 
   const videoObjectSchema = videoUrl
     ? {
@@ -178,68 +178,44 @@ export default async function TVShowPage({ params }: PageProps) {
         </>
       )}
 
-      {/* Backdrop Section */}
-      <div className="relative w-full" style={{ height: 'clamp(400px, 70vh, 700px)' }}>
-        {(data.customImageUrl || data.backdrop_path) && (
-          <div className="absolute inset-0">
-            <Image
-              src={data.customImageUrl || getImageUrl(data.backdrop_path, 'w1280')}
-              alt={data.name}
-              fill
-              priority
-              className="object-cover"
-              sizes="100vw"
-            />
-          </div>
-        )}
-        <div
-          className="absolute inset-0"
+      {/* Top Header Bar with Back Button */}
+      <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 pt-4 pb-2 flex items-center justify-between">
+        <Link
+          href="/tv"
+          className="inline-flex items-center gap-2 px-3.5 py-1.5 rounded-xl text-xs sm:text-sm font-semibold transition-all duration-200 hover:scale-105"
           style={{
-            background:
-              'linear-gradient(to bottom, rgba(5,8,22,0.3) 0%, rgba(5,8,22,0.6) 50%, rgba(5,8,22,1) 100%)',
+            background: 'rgba(255, 255, 255, 0.06)',
+            border: '1px solid rgba(255, 255, 255, 0.12)',
+            color: '#f1f5f9',
+            boxShadow: '0 4px 20px rgba(0, 0, 0, 0.5)',
           }}
-        />
-        <div
-          className="absolute inset-0"
-          style={{
-            background: 'linear-gradient(to right, rgba(5,8,22,0.85) 0%, transparent 60%)',
-          }}
-        />
-
-        {/* Back button */}
-        <div className="absolute top-4 sm:top-6 left-4 sm:left-8 z-30">
-          <Link
-            href="/tv"
-            className="flex items-center gap-2 px-3.5 py-2 rounded-xl text-xs sm:text-sm font-semibold transition-all duration-200 hover:scale-105"
-            style={{
-              background: 'rgba(5, 8, 22, 0.85)',
-              backdropFilter: 'blur(12px)',
-              border: '1px solid rgba(255, 255, 255, 0.15)',
-              color: '#f1f5f9',
-              boxShadow: '0 4px 20px rgba(0, 0, 0, 0.5)',
-            }}
-          >
-            <ArrowLeft size={16} />
-            <span>TV Shows</span>
-          </Link>
-        </div>
+        >
+          <ArrowLeft size={16} />
+          <span>TV Shows</span>
+        </Link>
       </div>
 
-      {/* Main TV Show Info Details */}
-      <div
-        className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8"
-        style={{ marginTop: '-200px', position: 'relative', zIndex: 10 }}
-      >
-        <div className="flex flex-col lg:flex-row gap-8">
+      {/* ── TOP: Interactive Full-View Player & Episode Selector (iQiyi Style) ── */}
+      <TVDetailClient
+        showTitle={data.name}
+        seasons={data.seasonsList || []}
+        hasSeasons={Boolean(data.hasSeasons)}
+        initialActiveEpisode={data.activeEpisode || null}
+        defaultBackdrop={defaultBackdrop}
+      />
+
+      {/* ── DIRECTLY BELOW: Show Details & Meta Info ── */}
+      <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 mt-8">
+        <div className="flex flex-col lg:flex-row gap-8 items-start">
           {/* Poster Card */}
           <div className="flex-shrink-0 mx-auto lg:mx-0">
             <div
               className="relative rounded-2xl overflow-hidden"
               style={{
-                width: '220px',
-                height: '330px',
+                width: '200px',
+                height: '300px',
                 border: '2px solid rgba(6,182,212,0.35)',
-                boxShadow: '0 0 40px rgba(6,182,212,0.2), 0 20px 60px rgba(0,0,0,0.6)',
+                boxShadow: '0 0 35px rgba(6,182,212,0.18), 0 20px 50px rgba(0,0,0,0.6)',
               }}
             >
               {data.poster_path || data.customImageUrl ? (
@@ -252,7 +228,7 @@ export default async function TVShowPage({ params }: PageProps) {
                   alt={data.name}
                   fill
                   className="object-cover"
-                  sizes="220px"
+                  sizes="200px"
                 />
               ) : (
                 <div className="w-full h-full flex items-center justify-center" style={{ background: '#0f172a' }}>
@@ -281,7 +257,7 @@ export default async function TVShowPage({ params }: PageProps) {
 
             {/* Title */}
             <h1
-              className="text-3xl sm:text-4xl lg:text-5xl font-black leading-tight mb-2"
+              className="text-2xl sm:text-3xl lg:text-4xl font-extrabold leading-tight mb-2"
               style={{ color: '#f1f5f9' }}
             >
               {data.name}
@@ -289,14 +265,24 @@ export default async function TVShowPage({ params }: PageProps) {
 
             {/* Tagline */}
             {data.tagline && (
-              <p className="text-lg italic mb-4" style={{ color: '#7c3aed' }}>
+              <p className="text-base sm:text-lg italic mb-4" style={{ color: '#7c3aed' }}>
                 &ldquo;{data.tagline}&rdquo;
               </p>
             )}
 
-            {/* Meta Badges */}
+            {/* Meta Badges Row (with HD icon badge) */}
             <div className="flex flex-wrap items-center gap-3 mb-5">
               <RatingBadge rating={data.vote_average} size="md" />
+              <span
+                className="px-2 py-0.5 rounded-md text-[11px] font-black tracking-wider"
+                style={{
+                  background: 'rgba(6, 182, 212, 0.15)',
+                  border: '1px solid rgba(6, 182, 212, 0.4)',
+                  color: '#06b6d4',
+                }}
+              >
+                HD
+              </span>
               {year && (
                 <div className="flex items-center gap-1.5 text-sm" style={{ color: '#94a3b8' }}>
                   <Calendar size={14} />
@@ -356,7 +342,7 @@ export default async function TVShowPage({ params }: PageProps) {
             )}
 
             {/* Overview */}
-            <p className="text-base leading-relaxed mb-6" style={{ color: '#94a3b8', maxWidth: '640px' }}>
+            <p className="text-sm sm:text-base leading-relaxed mb-6" style={{ color: '#94a3b8', maxWidth: '680px' }}>
               {data.overview}
             </p>
 
@@ -397,21 +383,14 @@ export default async function TVShowPage({ params }: PageProps) {
         </div>
       </div>
 
-      {/* Full-Width Interactive Player & Bilibili Episode Selector Section */}
-      <TVDetailClient
-        showTitle={data.name}
-        seasons={data.seasonsList || []}
-        hasSeasons={Boolean(data.hasSeasons)}
-        initialActiveEpisode={data.activeEpisode || null}
-        defaultBackdrop={defaultBackdrop}
-      />
-
       {/* Show Overview Markdown Content */}
       {data.customContentHtml && (
-        <MarkdownRenderer
-          contentHtml={data.customContentHtml}
-          title={`${data.name} - Informasi & Sinopsis Serial`}
-        />
+        <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 mt-12">
+          <MarkdownRenderer
+            contentHtml={data.customContentHtml}
+            title={`${data.name} - Informasi & Sinopsis Serial`}
+          />
+        </div>
       )}
 
       {/* Cast Section */}

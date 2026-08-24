@@ -241,26 +241,6 @@ export default function VideoPlayer({ videoUrl, poster }: VideoPlayerProps) {
               </div>
             )}
           </div>
-
-          {/* Player Bottom Info Ribbon (Clean View) */}
-          <div
-            className="flex items-center justify-between px-4 sm:px-6 py-2.5 text-xs border-t"
-            style={{
-              borderColor: 'rgba(255, 255, 255, 0.05)',
-              background: 'rgba(6, 9, 24, 0.85)',
-              color: '#64748b',
-            }}
-          >
-            <div className="flex items-center gap-2 text-neo-cyan">
-              <Tv size={13} />
-              <span className="font-semibold text-slate-300">HTML5 Stream Engine</span>
-            </div>
-            <div className="flex items-center gap-2">
-              <span className="px-2.5 py-0.5 rounded-full bg-cyan-500/10 text-cyan-400 border border-cyan-500/30 text-[10px] font-bold uppercase tracking-wider">
-                {resolution}
-              </span>
-            </div>
-          </div>
         </div>
       </div>
     </div>

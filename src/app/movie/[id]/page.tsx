@@ -187,68 +187,69 @@ export default async function MovieDetailPage({ params }: PageProps) {
         </>
       )}
 
-      {/* Backdrop Section */}
-      <div className="relative w-full" style={{ height: 'clamp(400px, 70vh, 700px)' }}>
-        {movie.backdrop_path && (
-          <div className="absolute inset-0">
-            <Image
-              src={getImageUrl(movie.backdrop_path, 'w1280')}
-              alt={movie.title}
-              fill
-              priority
-              className="object-cover"
-              sizes="100vw"
-            />
-          </div>
-        )}
-        <div
-          className="absolute inset-0"
+      {/* Top Header Bar with Back Button */}
+      <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 pt-4 pb-2 flex items-center justify-between">
+        <Link
+          href="/"
+          className="inline-flex items-center gap-2 px-3.5 py-1.5 rounded-xl text-xs sm:text-sm font-semibold transition-all duration-200 hover:scale-105"
           style={{
-            background:
-              'linear-gradient(to bottom, rgba(5,8,22,0.3) 0%, rgba(5,8,22,0.6) 50%, rgba(5,8,22,1) 100%)',
+            background: 'rgba(255, 255, 255, 0.06)',
+            border: '1px solid rgba(255, 255, 255, 0.12)',
+            color: '#f1f5f9',
+            boxShadow: '0 4px 20px rgba(0, 0, 0, 0.5)',
           }}
-        />
-        <div
-          className="absolute inset-0"
-          style={{
-            background: 'linear-gradient(to right, rgba(5,8,22,0.85) 0%, transparent 60%)',
-          }}
-        />
-
-        {/* Back button */}
-        <div className="absolute top-4 sm:top-6 left-4 sm:left-8 z-30">
-          <Link
-            href="/"
-            className="flex items-center gap-2 px-3.5 py-2 rounded-xl text-xs sm:text-sm font-semibold transition-all duration-200 hover:scale-105"
-            style={{
-              background: 'rgba(5, 8, 22, 0.85)',
-              backdropFilter: 'blur(12px)',
-              border: '1px solid rgba(255, 255, 255, 0.15)',
-              color: '#f1f5f9',
-              boxShadow: '0 4px 20px rgba(0, 0, 0, 0.5)',
-            }}
-          >
-            <ArrowLeft size={16} />
-            <span>Kembali</span>
-          </Link>
-        </div>
+        >
+          <ArrowLeft size={16} />
+          <span>Kembali</span>
+        </Link>
       </div>
 
-      {/* Main Movie Info Details */}
-      <div
-        className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8"
-        style={{ marginTop: '-200px', position: 'relative', zIndex: 10 }}
-      >
-        <div className="flex flex-col lg:flex-row gap-8">
+      {/* ── TOP: Full-View Video Player (iQiyi Style) ── */}
+      {videoUrl ? (
+        <div className="w-full max-w-7xl mx-auto px-2 sm:px-4 lg:px-6 pt-2 sm:pt-4">
+          <VideoPlayer
+            videoUrl={videoUrl}
+            title={movie.title}
+            poster={getImageUrl(movie.backdrop_path || movie.poster_path, 'w1280')}
+          />
+        </div>
+      ) : (
+        /* Fallback Backdrop Section if no direct videoUrl */
+        <div className="relative w-full" style={{ height: 'clamp(320px, 50vh, 500px)' }}>
+          {movie.backdrop_path && (
+            <div className="absolute inset-0">
+              <Image
+                src={getImageUrl(movie.backdrop_path, 'w1280')}
+                alt={movie.title}
+                fill
+                priority
+                className="object-cover"
+                sizes="100vw"
+              />
+            </div>
+          )}
+          <div
+            className="absolute inset-0"
+            style={{
+              background:
+                'linear-gradient(to bottom, rgba(5,8,22,0.3) 0%, rgba(5,8,22,0.6) 50%, rgba(5,8,22,1) 100%)',
+            }}
+          />
+        </div>
+      )}
+
+      {/* ── DIRECTLY BELOW: Movie Details & Meta Info ── */}
+      <div className={`max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 ${videoUrl ? 'mt-8' : '-mt-24 relative z-10'}`}>
+        <div className="flex flex-col lg:flex-row gap-8 items-start">
           {/* Poster Card */}
           <div className="flex-shrink-0 mx-auto lg:mx-0">
             <div
               className="relative rounded-2xl overflow-hidden"
               style={{
-                width: '220px',
-                height: '330px',
+                width: '200px',
+                height: '300px',
                 border: '2px solid rgba(6,182,212,0.35)',
-                boxShadow: '0 0 40px rgba(6,182,212,0.2), 0 20px 60px rgba(0,0,0,0.6)',
+                boxShadow: '0 0 35px rgba(6,182,212,0.18), 0 20px 50px rgba(0,0,0,0.6)',
               }}
             >
               {movie.poster_path ? (
@@ -257,7 +258,7 @@ export default async function MovieDetailPage({ params }: PageProps) {
                   alt={movie.title}
                   fill
                   className="object-cover"
-                  sizes="220px"
+                  sizes="200px"
                 />
               ) : (
                 <div
@@ -274,7 +275,8 @@ export default async function MovieDetailPage({ params }: PageProps) {
           <div className="flex-1 min-w-0">
             {/* Custom Static Badge */}
             {movie.isCustomMarkdown && (
-              <div className="inline-flex items-center gap-1.5 px-3 py-1 rounded-full text-xs font-bold uppercase tracking-wider mb-3"
+              <div
+                className="inline-flex items-center gap-1.5 px-3 py-1 rounded-full text-xs font-bold uppercase tracking-wider mb-3"
                 style={{
                   background: 'linear-gradient(135deg, rgba(6,182,212,0.2), rgba(124,58,237,0.2))',
                   border: '1px solid rgba(6,182,212,0.5)',
@@ -288,7 +290,7 @@ export default async function MovieDetailPage({ params }: PageProps) {
 
             {/* Title */}
             <h1
-              className="text-3xl sm:text-4xl lg:text-5xl font-black leading-tight mb-2"
+              className="text-2xl sm:text-3xl lg:text-4xl font-extrabold leading-tight mb-2"
               style={{ color: '#f1f5f9' }}
             >
               {movie.title}
@@ -296,14 +298,24 @@ export default async function MovieDetailPage({ params }: PageProps) {
 
             {/* Tagline */}
             {movie.tagline && (
-              <p className="text-lg italic mb-4" style={{ color: '#7c3aed' }}>
+              <p className="text-base sm:text-lg italic mb-4" style={{ color: '#7c3aed' }}>
                 &ldquo;{movie.tagline}&rdquo;
               </p>
             )}
 
-            {/* Meta badges */}
+            {/* Meta badges row (with HD badge) */}
             <div className="flex flex-wrap items-center gap-3 mb-5">
               <RatingBadge rating={movie.vote_average} size="md" />
+              <span
+                className="px-2 py-0.5 rounded-md text-[11px] font-black tracking-wider"
+                style={{
+                  background: 'rgba(6, 182, 212, 0.15)',
+                  border: '1px solid rgba(6, 182, 212, 0.4)',
+                  color: '#06b6d4',
+                }}
+              >
+                HD
+              </span>
               {year && (
                 <div className="flex items-center gap-1.5 text-sm" style={{ color: '#94a3b8' }}>
                   <Calendar size={14} />
@@ -345,7 +357,7 @@ export default async function MovieDetailPage({ params }: PageProps) {
             )}
 
             {/* Overview */}
-            <p className="text-base leading-relaxed mb-6" style={{ color: '#94a3b8', maxWidth: '640px' }}>
+            <p className="text-sm sm:text-base leading-relaxed mb-6" style={{ color: '#94a3b8', maxWidth: '680px' }}>
               {movie.overview}
             </p>
 
@@ -390,23 +402,14 @@ export default async function MovieDetailPage({ params }: PageProps) {
         </div>
       </div>
 
-      {/* Video Player Section (Rendered if videourl is provided) */}
-      {movie.customVideoUrl && (
-        <div className="mt-14">
-          <VideoPlayer
-            videoUrl={movie.customVideoUrl}
-            title={movie.title}
-            poster={getImageUrl(movie.backdrop_path || movie.poster_path, 'w1280')}
-          />
-        </div>
-      )}
-
       {/* Custom Markdown Body Rendered Section */}
       {movie.customContentHtml && (
-        <MarkdownRenderer
-          contentHtml={movie.customContentHtml}
-          title={movie.title}
-        />
+        <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 mt-12">
+          <MarkdownRenderer
+            contentHtml={movie.customContentHtml}
+            title={movie.title}
+          />
+        </div>
       )}
 
       {/* Cast Section */}
