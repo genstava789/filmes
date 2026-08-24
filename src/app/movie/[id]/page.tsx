@@ -71,6 +71,28 @@ export async function generateMetadata({ params }: PageProps): Promise<Metadata>
   };
 }
 
+function formatIsoDuration(duration?: string | number | null): string {
+  if (!duration) return 'PT1H30M';
+  if (typeof duration === 'number') {
+    const hours = Math.floor(duration / 60);
+    const minutes = duration % 60;
+    if (hours > 0 && minutes > 0) return `PT${hours}H${minutes}M`;
+    if (hours > 0) return `PT${hours}H`;
+    return `PT${minutes}M`;
+  }
+  const str = String(duration).trim().toLowerCase();
+  const matchH = str.match(/(\d+)\s*h/);
+  const matchM = str.match(/(\d+)\s*m/);
+  const hours = matchH ? parseInt(matchH[1], 10) : 0;
+  const minutes = matchM ? parseInt(matchM[1], 10) : 0;
+  if (hours > 0 && minutes > 0) return `PT${hours}H${minutes}M`;
+  if (hours > 0) return `PT${hours}H`;
+  if (minutes > 0) return `PT${minutes}M`;
+  const plainNum = parseInt(str, 10);
+  if (!isNaN(plainNum) && plainNum > 0) return `PT${plainNum}M`;
+  return 'PT1H30M';
+}
+
 export default async function MovieDetailPage({ params }: PageProps) {
   const movie = await getMovieDetailsWithCustomOverride(params.id).catch(() => null);
 
@@ -121,8 +143,50 @@ export default async function MovieDetailPage({ params }: PageProps) {
       ? getImageUrl(movie.poster_path, 'w500')
       : '/placeholder-poster.jpg');
 
+  const videoUrl = movie.customVideoUrl || null;
+  const videoTitle = `${movie.title} ${year ? `(${year})` : ''}`;
+  const videoDescription = movie.overview || `Nonton full streaming film ${movie.title} sub indo kualitas HD.`;
+  const uploadDate = movie.release_date ? `${movie.release_date}T00:00:00+07:00` : '2026-08-24T00:00:00+07:00';
+  const durationIso = formatIsoDuration(movie.runtime || '120m');
+
+  const videoObjectSchema = videoUrl
+    ? {
+        '@context': 'https://schema.org',
+        '@type': 'VideoObject',
+        name: videoTitle,
+        description: videoDescription,
+        thumbnailUrl: [thumbnailImage],
+        uploadDate: uploadDate,
+        duration: durationIso,
+        contentUrl: videoUrl,
+        embedUrl: videoUrl,
+        publisher: {
+          '@type': 'Organization',
+          name: 'Filmanesia',
+          logo: {
+            '@type': 'ImageObject',
+            url: 'https://filmanesia.vercel.app/logo.png',
+          },
+        },
+      }
+    : null;
+
   return (
     <div className="min-h-screen pb-16" style={{ background: '#050816' }}>
+      {/* OpenGraph Video & Schema.org VideoObject */}
+      {videoUrl && (
+        <>
+          <meta property="og:video:url" content={videoUrl} />
+          <meta property="og:video:type" content="video/mp4" />
+          {videoObjectSchema && (
+            <script
+              type="application/ld+json"
+              dangerouslySetInnerHTML={{ __html: JSON.stringify(videoObjectSchema, null, 2) }}
+            />
+          )}
+        </>
+      )}
+
       {/* Backdrop Section */}
       <div className="relative w-full" style={{ height: 'clamp(400px, 70vh, 700px)' }}>
         {movie.backdrop_path && (

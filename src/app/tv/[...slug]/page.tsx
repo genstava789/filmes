@@ -68,6 +68,28 @@ export async function generateMetadata({ params }: PageProps): Promise<Metadata>
   };
 }
 
+function formatIsoDuration(duration?: string | number | null): string {
+  if (!duration) return 'PT1H30M';
+  if (typeof duration === 'number') {
+    const hours = Math.floor(duration / 60);
+    const minutes = duration % 60;
+    if (hours > 0 && minutes > 0) return `PT${hours}H${minutes}M`;
+    if (hours > 0) return `PT${hours}H`;
+    return `PT${minutes}M`;
+  }
+  const str = String(duration).trim().toLowerCase();
+  const matchH = str.match(/(\d+)\s*h/);
+  const matchM = str.match(/(\d+)\s*m/);
+  const hours = matchH ? parseInt(matchH[1], 10) : 0;
+  const minutes = matchM ? parseInt(matchM[1], 10) : 0;
+  if (hours > 0 && minutes > 0) return `PT${hours}H${minutes}M`;
+  if (hours > 0) return `PT${hours}H`;
+  if (minutes > 0) return `PT${minutes}M`;
+  const plainNum = parseInt(str, 10);
+  if (!isNaN(plainNum) && plainNum > 0) return `PT${plainNum}M`;
+  return 'PT1H30M';
+}
+
 export default async function TVShowPage({ params }: PageProps) {
   const data = await getTVShowDetailsWithCustomOverride(params.slug).catch(() => null);
 
@@ -110,8 +132,52 @@ export default async function TVShowPage({ params }: PageProps) {
   const defaultBackdrop = data.customImageUrl || (data.backdrop_path ? getImageUrl(data.backdrop_path, 'w1280') : undefined);
   const thumbnailImage = data.activeEpisode?.imageUrl || data.customImageUrl || (data.backdrop_path ? getImageUrl(data.backdrop_path, 'w1280') : data.poster_path ? getImageUrl(data.poster_path, 'w500') : '/placeholder-poster.jpg');
 
+  const videoUrl = data.activeEpisode?.videoUrl || null;
+  const videoTitle = data.activeEpisode
+    ? `${data.name} - ${data.activeEpisode.episodeLabel}: ${data.activeEpisode.title}`
+    : data.name;
+  const videoDescription = data.activeEpisode?.overview || data.overview || `Nonton streaming ${videoTitle} full episode kualitas HD sub indo.`;
+  const uploadDate = data.first_air_date ? `${data.first_air_date}T00:00:00+07:00` : '2026-08-24T00:00:00+07:00';
+  const durationIso = formatIsoDuration(data.activeEpisode?.duration || data.episode_run_time?.[0] || '50m');
+
+  const videoObjectSchema = videoUrl
+    ? {
+        '@context': 'https://schema.org',
+        '@type': 'VideoObject',
+        name: videoTitle,
+        description: videoDescription,
+        thumbnailUrl: [thumbnailImage],
+        uploadDate: uploadDate,
+        duration: durationIso,
+        contentUrl: videoUrl,
+        embedUrl: videoUrl,
+        publisher: {
+          '@type': 'Organization',
+          name: 'Filmanesia',
+          logo: {
+            '@type': 'ImageObject',
+            url: 'https://filmanesia.vercel.app/logo.png',
+          },
+        },
+      }
+    : null;
+
   return (
     <div className="min-h-screen pb-16" style={{ background: '#050816' }}>
+      {/* OpenGraph Video & Schema.org VideoObject */}
+      {videoUrl && (
+        <>
+          <meta property="og:video:url" content={videoUrl} />
+          <meta property="og:video:type" content="video/mp4" />
+          {videoObjectSchema && (
+            <script
+              type="application/ld+json"
+              dangerouslySetInnerHTML={{ __html: JSON.stringify(videoObjectSchema, null, 2) }}
+            />
+          )}
+        </>
+      )}
+
       {/* Backdrop Section */}
       <div className="relative w-full" style={{ height: 'clamp(400px, 70vh, 700px)' }}>
         {(data.customImageUrl || data.backdrop_path) && (
