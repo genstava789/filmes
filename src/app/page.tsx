@@ -41,19 +41,14 @@ export default async function HomePage() {
 
   return (
     <div className="min-h-screen" style={{ background: '#050816' }}>
-      {/* Hero */}
-      {featuredMovie && (
-        <Hero movie={featuredMovie} genres={genreList} />
-      )}
+      {/* Hero with 3 Featured Items Carousel */}
+      <Hero movie={featuredMovie} movies={trending} genres={genreList} />
 
       {/* Content sections */}
-      <div className="relative z-10 space-y-12 pb-12" style={{ marginTop: '-2rem' }}>
+      <div className="relative z-10 space-y-12 pb-16 pt-2 sm:pt-4">
         {/* Genre Filter */}
         {genreList.length > 0 && (
           <section className="px-4 sm:px-6 lg:px-8 max-w-7xl mx-auto">
-            <h2 className="section-title text-xl font-bold text-neo-text-primary mb-4">
-              Browse by Genre
-            </h2>
             <GenreFilter genres={genreList} />
           </section>
         )}
