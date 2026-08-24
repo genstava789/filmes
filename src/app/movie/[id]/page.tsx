@@ -307,12 +307,25 @@ export default async function MovieDetailPage({ params }: PageProps) {
           homepage={movie.homepage}
           hasCustomVideo={Boolean(movie.customVideoUrl)}
         />
+      </div>
 
-        {/* Stats */}
-        <div className="grid grid-cols-2 sm:grid-cols-4 gap-4 mt-8">
+      {/* ── VIDEO PLAYER: Positioned Directly Below Director & Action Buttons ── */}
+      {videoUrl && (
+        <div className="w-full max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 mt-10">
+          <VideoPlayer
+            videoUrl={videoUrl}
+            title={movie.title}
+            poster={thumbnailImage}
+          />
+        </div>
+      )}
+
+      {/* ── STATS / VIEWS / POPULARITY: Positioned Below the Video Player ── */}
+      <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 mt-8">
+        <div className="grid grid-cols-2 sm:grid-cols-4 gap-4">
           {[
+            { label: 'Popularity (Views)', value: Math.round(movie.popularity || 100).toLocaleString() },
             { label: 'Vote Count', value: movie.vote_count?.toLocaleString() || '1,000+' },
-            { label: 'Popularity', value: Math.round(movie.popularity || 100).toLocaleString() },
             { label: 'Budget', value: movie.budget ? `$${(movie.budget / 1e6).toFixed(1)}M` : 'N/A' },
             { label: 'Revenue', value: movie.revenue ? `$${(movie.revenue / 1e6).toFixed(1)}M` : 'N/A' },
           ].map(({ label, value }) => (
@@ -330,17 +343,6 @@ export default async function MovieDetailPage({ params }: PageProps) {
           ))}
         </div>
       </div>
-
-      {/* ── VIDEO PLAYER: Positioned Directly Below Director & Action Buttons ── */}
-      {videoUrl && (
-        <div className="w-full max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 mt-10">
-          <VideoPlayer
-            videoUrl={videoUrl}
-            title={movie.title}
-            poster={thumbnailImage}
-          />
-        </div>
-      )}
 
       {/* Custom Markdown Body Rendered Section */}
       {movie.customContentHtml && (

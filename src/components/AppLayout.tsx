@@ -12,7 +12,7 @@ interface AppLayoutProps {
 }
 
 export default function AppLayout({ children, genres }: AppLayoutProps) {
-  const [sidebarOpen, setSidebarOpen] = useState(true);
+  const [sidebarOpen, setSidebarOpen] = useState(false);
 
   return (
     <div data-sidebar={sidebarOpen ? 'open' : 'closed'}>

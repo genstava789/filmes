@@ -310,11 +310,22 @@ export default async function TVShowPage({ params }: PageProps) {
           homepage={data.homepage}
           showTitle={data.name}
         />
+      </div>
 
-        {/* Stats */}
-        <div className="grid grid-cols-2 sm:grid-cols-4 gap-4 mt-8">
+      {/* ── VIDEO PLAYER & EPISODE SELECTOR: Positioned Directly Below Action Buttons ── */}
+      <TVDetailClient
+        showTitle={data.name}
+        seasons={data.seasonsList || []}
+        hasSeasons={Boolean(data.hasSeasons)}
+        initialActiveEpisode={data.activeEpisode || null}
+        defaultBackdrop={defaultBackdrop}
+      />
+
+      {/* ── STATS / RETURNING SERIES / STATUS: Positioned Below the Video Player & Episode Selector ── */}
+      <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 mt-8">
+        <div className="grid grid-cols-2 sm:grid-cols-4 gap-4">
           {[
-            { label: 'Status', value: data.status || 'Ongoing' },
+            { label: 'Status', value: data.status || 'Returning Series' },
             {
               label: 'Seasons',
               value: data.hasSeasons
@@ -335,15 +346,6 @@ export default async function TVShowPage({ params }: PageProps) {
           ))}
         </div>
       </div>
-
-      {/* ── VIDEO PLAYER & EPISODE SELECTOR: Positioned Directly Below Action Buttons & Stats ── */}
-      <TVDetailClient
-        showTitle={data.name}
-        seasons={data.seasonsList || []}
-        hasSeasons={Boolean(data.hasSeasons)}
-        initialActiveEpisode={data.activeEpisode || null}
-        defaultBackdrop={defaultBackdrop}
-      />
 
       {/* Show Overview Markdown Content */}
       {data.customContentHtml && (
