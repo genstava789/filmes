@@ -144,7 +144,7 @@ export default function TVDetailClient({
     <div className="w-full">
       {/* Top Video Player Section (Rendered if active episode has video URL) */}
       {activeEpisode?.videoUrl && (
-        <div className="w-full max-w-7xl mx-auto px-2 sm:px-4 lg:px-6 pt-2 sm:pt-4">
+        <div className="w-full max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 mt-10">
           <VideoPlayer
             key={activeEpisode.slug}
             videoUrl={activeEpisode.videoUrl}

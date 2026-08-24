@@ -1,9 +1,7 @@
 import React from 'react';
-import Image from 'next/image';
 import Link from 'next/link';
 import { Metadata } from 'next';
 import {
-  Play,
   Calendar,
   Clock,
   Globe,
@@ -187,8 +185,8 @@ export default async function MovieDetailPage({ params }: PageProps) {
         </>
       )}
 
-      {/* Top Header Bar with Back Button */}
-      <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 pt-4 pb-2 flex items-center justify-between">
+      {/* Top Header Navigation Bar */}
+      <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 pt-4 sm:pt-6 pb-2">
         <Link
           href="/"
           className="inline-flex items-center gap-2 px-3.5 py-1.5 rounded-xl text-xs sm:text-sm font-semibold transition-all duration-200 hover:scale-105"
@@ -204,203 +202,145 @@ export default async function MovieDetailPage({ params }: PageProps) {
         </Link>
       </div>
 
-      {/* ── TOP: Full-View Video Player (iQiyi Style) ── */}
-      {videoUrl ? (
-        <div className="w-full max-w-7xl mx-auto px-2 sm:px-4 lg:px-6 pt-2 sm:pt-4">
+      {/* ── TOP SECTION: Clean Full-View Movie Details (No Poster, Direct Focus) ── */}
+      <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 pt-4">
+        {/* Custom Edition Badge */}
+        {movie.isCustomMarkdown && (
+          <div
+            className="inline-flex items-center gap-1.5 px-3 py-1 rounded-full text-xs font-bold uppercase tracking-wider mb-3"
+            style={{
+              background: 'linear-gradient(135deg, rgba(6,182,212,0.2), rgba(124,58,237,0.2))',
+              border: '1px solid rgba(6,182,212,0.5)',
+              color: '#06b6d4',
+            }}
+          >
+            <Sparkles size={12} />
+            Static Custom Edition
+          </div>
+        )}
+
+        {/* Title */}
+        <h1
+          className="text-3xl sm:text-4xl lg:text-5xl font-black leading-tight mb-2 tracking-tight"
+          style={{ color: '#f1f5f9' }}
+        >
+          {movie.title}
+        </h1>
+
+        {/* Tagline */}
+        {movie.tagline && (
+          <p className="text-base sm:text-lg italic mb-4" style={{ color: '#7c3aed' }}>
+            &ldquo;{movie.tagline}&rdquo;
+          </p>
+        )}
+
+        {/* Meta badges row (with HD badge) */}
+        <div className="flex flex-wrap items-center gap-3 mb-5">
+          <RatingBadge rating={movie.vote_average} size="md" />
+          <span
+            className="px-2 py-0.5 rounded-md text-[11px] font-black tracking-wider"
+            style={{
+              background: 'rgba(6, 182, 212, 0.15)',
+              border: '1px solid rgba(6, 182, 212, 0.4)',
+              color: '#06b6d4',
+            }}
+          >
+            HD
+          </span>
+          {year && (
+            <div className="flex items-center gap-1.5 text-sm" style={{ color: '#94a3b8' }}>
+              <Calendar size={14} />
+              {year}
+            </div>
+          )}
+          {runtime && (
+            <div className="flex items-center gap-1.5 text-sm" style={{ color: '#94a3b8' }}>
+              <Clock size={14} />
+              {runtime}
+            </div>
+          )}
+          {movie.original_language && (
+            <div className="flex items-center gap-1.5 text-sm" style={{ color: '#94a3b8' }}>
+              <Globe size={14} />
+              {movie.original_language.toUpperCase()}
+            </div>
+          )}
+        </div>
+
+        {/* Genres */}
+        {movie.genres && movie.genres.length > 0 && (
+          <div className="flex flex-wrap gap-2 mb-5">
+            {movie.genres.map((genre) => (
+              <Link
+                key={genre.id}
+                href={`/genre/${genre.id}`}
+                className="px-3 py-1 rounded-full text-xs font-medium transition-all duration-200 hover:scale-105"
+                style={{
+                  background: 'rgba(124,58,237,0.15)',
+                  border: '1px solid rgba(124,58,237,0.4)',
+                  color: '#a78bfa',
+                }}
+              >
+                {genre.name}
+              </Link>
+            ))}
+          </div>
+        )}
+
+        {/* Overview / Sinopsis */}
+        <p className="text-sm sm:text-base leading-relaxed mb-5 max-w-4xl" style={{ color: '#94a3b8' }}>
+          {movie.overview}
+        </p>
+
+        {/* Director */}
+        {director && (
+          <p className="text-sm mb-6" style={{ color: '#94a3b8' }}>
+            <span style={{ color: '#f1f5f9', fontWeight: 600 }}>Director: </span>
+            {director.name}
+          </p>
+        )}
+
+        {/* Action buttons (Watch Trailer, Watchlist, Official Site) */}
+        <MovieDetailClient
+          movieTitle={movie.title}
+          trailerKey={trailerKey}
+          homepage={movie.homepage}
+          hasCustomVideo={Boolean(movie.customVideoUrl)}
+        />
+
+        {/* Stats */}
+        <div className="grid grid-cols-2 sm:grid-cols-4 gap-4 mt-8">
+          {[
+            { label: 'Vote Count', value: movie.vote_count?.toLocaleString() || '1,000+' },
+            { label: 'Popularity', value: Math.round(movie.popularity || 100).toLocaleString() },
+            { label: 'Budget', value: movie.budget ? `$${(movie.budget / 1e6).toFixed(1)}M` : 'N/A' },
+            { label: 'Revenue', value: movie.revenue ? `$${(movie.revenue / 1e6).toFixed(1)}M` : 'N/A' },
+          ].map(({ label, value }) => (
+            <div
+              key={label}
+              className="rounded-xl p-4 text-center"
+              style={{
+                background: 'rgba(255,255,255,0.04)',
+                border: '1px solid rgba(255,255,255,0.08)',
+              }}
+            >
+              <p className="text-lg font-bold" style={{ color: '#06b6d4' }}>{value}</p>
+              <p className="text-xs mt-1" style={{ color: '#475569' }}>{label}</p>
+            </div>
+          ))}
+        </div>
+      </div>
+
+      {/* ── VIDEO PLAYER: Positioned Directly Below Director & Action Buttons ── */}
+      {videoUrl && (
+        <div className="w-full max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 mt-10">
           <VideoPlayer
             videoUrl={videoUrl}
             title={movie.title}
-            poster={getImageUrl(movie.backdrop_path || movie.poster_path, 'w1280')}
-          />
-        </div>
-      ) : (
-        /* Fallback Backdrop Section if no direct videoUrl */
-        <div className="relative w-full" style={{ height: 'clamp(320px, 50vh, 500px)' }}>
-          {movie.backdrop_path && (
-            <div className="absolute inset-0">
-              <Image
-                src={getImageUrl(movie.backdrop_path, 'w1280')}
-                alt={movie.title}
-                fill
-                priority
-                className="object-cover"
-                sizes="100vw"
-              />
-            </div>
-          )}
-          <div
-            className="absolute inset-0"
-            style={{
-              background:
-                'linear-gradient(to bottom, rgba(5,8,22,0.3) 0%, rgba(5,8,22,0.6) 50%, rgba(5,8,22,1) 100%)',
-            }}
+            poster={thumbnailImage}
           />
         </div>
       )}
-
-      {/* ── DIRECTLY BELOW: Movie Details & Meta Info ── */}
-      <div className={`max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 ${videoUrl ? 'mt-8' : '-mt-24 relative z-10'}`}>
-        <div className="flex flex-col lg:flex-row gap-8 items-start">
-          {/* Poster Card */}
-          <div className="flex-shrink-0 mx-auto lg:mx-0">
-            <div
-              className="relative rounded-2xl overflow-hidden"
-              style={{
-                width: '200px',
-                height: '300px',
-                border: '2px solid rgba(6,182,212,0.35)',
-                boxShadow: '0 0 35px rgba(6,182,212,0.18), 0 20px 50px rgba(0,0,0,0.6)',
-              }}
-            >
-              {movie.poster_path ? (
-                <Image
-                  src={getImageUrl(movie.poster_path, 'w500')}
-                  alt={movie.title}
-                  fill
-                  className="object-cover"
-                  sizes="200px"
-                />
-              ) : (
-                <div
-                  className="w-full h-full flex items-center justify-center"
-                  style={{ background: '#0f172a' }}
-                >
-                  <Play size={48} className="text-neo-text-muted" />
-                </div>
-              )}
-            </div>
-          </div>
-
-          {/* Info Details */}
-          <div className="flex-1 min-w-0">
-            {/* Custom Static Badge */}
-            {movie.isCustomMarkdown && (
-              <div
-                className="inline-flex items-center gap-1.5 px-3 py-1 rounded-full text-xs font-bold uppercase tracking-wider mb-3"
-                style={{
-                  background: 'linear-gradient(135deg, rgba(6,182,212,0.2), rgba(124,58,237,0.2))',
-                  border: '1px solid rgba(6,182,212,0.5)',
-                  color: '#06b6d4',
-                }}
-              >
-                <Sparkles size={12} />
-                Static Custom Edition
-              </div>
-            )}
-
-            {/* Title */}
-            <h1
-              className="text-2xl sm:text-3xl lg:text-4xl font-extrabold leading-tight mb-2"
-              style={{ color: '#f1f5f9' }}
-            >
-              {movie.title}
-            </h1>
-
-            {/* Tagline */}
-            {movie.tagline && (
-              <p className="text-base sm:text-lg italic mb-4" style={{ color: '#7c3aed' }}>
-                &ldquo;{movie.tagline}&rdquo;
-              </p>
-            )}
-
-            {/* Meta badges row (with HD badge) */}
-            <div className="flex flex-wrap items-center gap-3 mb-5">
-              <RatingBadge rating={movie.vote_average} size="md" />
-              <span
-                className="px-2 py-0.5 rounded-md text-[11px] font-black tracking-wider"
-                style={{
-                  background: 'rgba(6, 182, 212, 0.15)',
-                  border: '1px solid rgba(6, 182, 212, 0.4)',
-                  color: '#06b6d4',
-                }}
-              >
-                HD
-              </span>
-              {year && (
-                <div className="flex items-center gap-1.5 text-sm" style={{ color: '#94a3b8' }}>
-                  <Calendar size={14} />
-                  {year}
-                </div>
-              )}
-              {runtime && (
-                <div className="flex items-center gap-1.5 text-sm" style={{ color: '#94a3b8' }}>
-                  <Clock size={14} />
-                  {runtime}
-                </div>
-              )}
-              {movie.original_language && (
-                <div className="flex items-center gap-1.5 text-sm" style={{ color: '#94a3b8' }}>
-                  <Globe size={14} />
-                  {movie.original_language.toUpperCase()}
-                </div>
-              )}
-            </div>
-
-            {/* Genres */}
-            {movie.genres && movie.genres.length > 0 && (
-              <div className="flex flex-wrap gap-2 mb-5">
-                {movie.genres.map((genre) => (
-                  <Link
-                    key={genre.id}
-                    href={`/genre/${genre.id}`}
-                    className="px-3 py-1 rounded-full text-xs font-medium transition-all duration-200 hover:scale-105"
-                    style={{
-                      background: 'rgba(124,58,237,0.15)',
-                      border: '1px solid rgba(124,58,237,0.4)',
-                      color: '#a78bfa',
-                    }}
-                  >
-                    {genre.name}
-                  </Link>
-                ))}
-              </div>
-            )}
-
-            {/* Overview */}
-            <p className="text-sm sm:text-base leading-relaxed mb-6" style={{ color: '#94a3b8', maxWidth: '680px' }}>
-              {movie.overview}
-            </p>
-
-            {/* Director */}
-            {director && (
-              <p className="text-sm mb-6" style={{ color: '#94a3b8' }}>
-                <span style={{ color: '#f1f5f9', fontWeight: 600 }}>Director: </span>
-                {director.name}
-              </p>
-            )}
-
-            {/* Action buttons (Client interactive) */}
-            <MovieDetailClient
-              movieTitle={movie.title}
-              trailerKey={trailerKey}
-              homepage={movie.homepage}
-              hasCustomVideo={Boolean(movie.customVideoUrl)}
-            />
-
-            {/* Stats */}
-            <div className="grid grid-cols-2 sm:grid-cols-4 gap-4 mt-8">
-              {[
-                { label: 'Vote Count', value: movie.vote_count?.toLocaleString() || '1,000+' },
-                { label: 'Popularity', value: Math.round(movie.popularity || 100).toLocaleString() },
-                { label: 'Budget', value: movie.budget ? `$${(movie.budget / 1e6).toFixed(1)}M` : 'N/A' },
-                { label: 'Revenue', value: movie.revenue ? `$${(movie.revenue / 1e6).toFixed(1)}M` : 'N/A' },
-              ].map(({ label, value }) => (
-                <div
-                  key={label}
-                  className="rounded-xl p-4 text-center"
-                  style={{
-                    background: 'rgba(255,255,255,0.04)',
-                    border: '1px solid rgba(255,255,255,0.08)',
-                  }}
-                >
-                  <p className="text-lg font-bold" style={{ color: '#06b6d4' }}>{value}</p>
-                  <p className="text-xs mt-1" style={{ color: '#475569' }}>{label}</p>
-                </div>
-              ))}
-            </div>
-          </div>
-        </div>
-      </div>
 
       {/* Custom Markdown Body Rendered Section */}
       {movie.customContentHtml && (

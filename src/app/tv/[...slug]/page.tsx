@@ -1,5 +1,4 @@
 import React from 'react';
-import Image from 'next/image';
 import Link from 'next/link';
 import { Metadata } from 'next';
 import {
@@ -7,7 +6,6 @@ import {
   Clock,
   ArrowLeft,
   Sparkles,
-  Tv,
 } from 'lucide-react';
 import { getImageUrl } from '@/lib/tmdb';
 import {
@@ -178,8 +176,8 @@ export default async function TVShowPage({ params }: PageProps) {
         </>
       )}
 
-      {/* Top Header Bar with Back Button */}
-      <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 pt-4 pb-2 flex items-center justify-between">
+      {/* Top Header Navigation Bar */}
+      <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 pt-4 sm:pt-6 pb-2">
         <Link
           href="/tv"
           className="inline-flex items-center gap-2 px-3.5 py-1.5 rounded-xl text-xs sm:text-sm font-semibold transition-all duration-200 hover:scale-105"
@@ -195,7 +193,150 @@ export default async function TVShowPage({ params }: PageProps) {
         </Link>
       </div>
 
-      {/* ── TOP: Interactive Full-View Player & Episode Selector (iQiyi Style) ── */}
+      {/* ── TOP SECTION: Clean Full-View TV Show Details (No Poster, Direct Focus) ── */}
+      <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 pt-4">
+        {/* Custom Static Badge */}
+        {data.isCustomTV && (
+          <div
+            className="inline-flex items-center gap-1.5 px-3 py-1 rounded-full text-xs font-semibold mb-3"
+            style={{
+              background: 'rgba(6,182,212,0.15)',
+              border: '1px solid rgba(6,182,212,0.4)',
+              color: '#06b6d4',
+            }}
+          >
+            <Sparkles size={12} />
+            Static Custom Serial
+          </div>
+        )}
+
+        {/* Title */}
+        <h1
+          className="text-3xl sm:text-4xl lg:text-5xl font-black leading-tight mb-2 tracking-tight"
+          style={{ color: '#f1f5f9' }}
+        >
+          {data.name}
+        </h1>
+
+        {/* Tagline */}
+        {data.tagline && (
+          <p className="text-base sm:text-lg italic mb-4" style={{ color: '#7c3aed' }}>
+            &ldquo;{data.tagline}&rdquo;
+          </p>
+        )}
+
+        {/* Meta Badges Row (with HD icon badge) */}
+        <div className="flex flex-wrap items-center gap-3 mb-5">
+          <RatingBadge rating={data.vote_average} size="md" />
+          <span
+            className="px-2 py-0.5 rounded-md text-[11px] font-black tracking-wider"
+            style={{
+              background: 'rgba(6, 182, 212, 0.15)',
+              border: '1px solid rgba(6, 182, 212, 0.4)',
+              color: '#06b6d4',
+            }}
+          >
+            HD
+          </span>
+          {year && (
+            <div className="flex items-center gap-1.5 text-sm" style={{ color: '#94a3b8' }}>
+              <Calendar size={14} />
+              {year}
+            </div>
+          )}
+          {runtime && (
+            <div className="flex items-center gap-1.5 text-sm" style={{ color: '#94a3b8' }}>
+              <Clock size={14} />
+              {runtime}
+            </div>
+          )}
+          {data.hasSeasons && data.number_of_seasons ? (
+            <div
+              className="px-3 py-1 rounded-lg text-xs font-bold uppercase tracking-wider"
+              style={{
+                background: 'rgba(6,182,212,0.12)',
+                border: '1px solid rgba(6,182,212,0.35)',
+                color: '#06b6d4',
+              }}
+            >
+              {data.number_of_seasons} Season{data.number_of_seasons > 1 ? 's' : ''}
+            </div>
+          ) : null}
+          {data.number_of_episodes ? (
+            <div
+              className="px-3 py-1 rounded-lg text-xs font-bold uppercase tracking-wider"
+              style={{
+                background: 'rgba(124,58,237,0.12)',
+                border: '1px solid rgba(124,58,237,0.35)',
+                color: '#a78bfa',
+              }}
+            >
+              {data.number_of_episodes} Episodes
+            </div>
+          ) : null}
+        </div>
+
+        {/* Genres */}
+        {data.genres && data.genres.length > 0 && (
+          <div className="flex flex-wrap gap-2 mb-5">
+            {data.genres.map((genre) => (
+              <Link
+                key={genre.id}
+                href={`/genre/${genre.id}`}
+                className="px-3 py-1 rounded-full text-xs font-medium transition-all duration-200 hover:scale-105"
+                style={{
+                  background: 'rgba(124,58,237,0.15)',
+                  border: '1px solid rgba(124,58,237,0.4)',
+                  color: '#a78bfa',
+                }}
+              >
+                {genre.name}
+              </Link>
+            ))}
+          </div>
+        )}
+
+        {/* Overview / Sinopsis */}
+        <p className="text-sm sm:text-base leading-relaxed mb-6 max-w-4xl" style={{ color: '#94a3b8' }}>
+          {data.overview}
+        </p>
+
+        {/* Action Buttons (Watch Trailer, Watchlist, Official Site) */}
+        <TVDetailHeaderActions
+          activeEpisodeLabel={data.activeEpisode?.episodeLabel}
+          activeEpisodeTitle={data.activeEpisode?.title}
+          hasVideo={Boolean(data.activeEpisode?.videoUrl)}
+          trailerKey={trailerKey}
+          homepage={data.homepage}
+          showTitle={data.name}
+        />
+
+        {/* Stats */}
+        <div className="grid grid-cols-2 sm:grid-cols-4 gap-4 mt-8">
+          {[
+            { label: 'Status', value: data.status || 'Ongoing' },
+            {
+              label: 'Seasons',
+              value: data.hasSeasons
+                ? (data.number_of_seasons?.toString() || '1')
+                : '1 Season',
+            },
+            { label: 'Total Episodes', value: data.number_of_episodes?.toString() || 'N/A' },
+            { label: 'Vote Count', value: data.vote_count?.toLocaleString() || '1,000+' },
+          ].map(({ label, value }) => (
+            <div
+              key={label}
+              className="rounded-xl p-4 text-center"
+              style={{ background: 'rgba(255,255,255,0.04)', border: '1px solid rgba(255,255,255,0.08)' }}
+            >
+              <p className="text-lg font-bold" style={{ color: '#06b6d4' }}>{value}</p>
+              <p className="text-xs mt-1" style={{ color: '#475569' }}>{label}</p>
+            </div>
+          ))}
+        </div>
+      </div>
+
+      {/* ── VIDEO PLAYER & EPISODE SELECTOR: Positioned Directly Below Action Buttons & Stats ── */}
       <TVDetailClient
         showTitle={data.name}
         seasons={data.seasonsList || []}
@@ -203,185 +344,6 @@ export default async function TVShowPage({ params }: PageProps) {
         initialActiveEpisode={data.activeEpisode || null}
         defaultBackdrop={defaultBackdrop}
       />
-
-      {/* ── DIRECTLY BELOW: Show Details & Meta Info ── */}
-      <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 mt-8">
-        <div className="flex flex-col lg:flex-row gap-8 items-start">
-          {/* Poster Card */}
-          <div className="flex-shrink-0 mx-auto lg:mx-0">
-            <div
-              className="relative rounded-2xl overflow-hidden"
-              style={{
-                width: '200px',
-                height: '300px',
-                border: '2px solid rgba(6,182,212,0.35)',
-                boxShadow: '0 0 35px rgba(6,182,212,0.18), 0 20px 50px rgba(0,0,0,0.6)',
-              }}
-            >
-              {data.poster_path || data.customImageUrl ? (
-                <Image
-                  src={
-                    data.poster_path
-                      ? getImageUrl(data.poster_path, 'w500')
-                      : (data.customImageUrl || '/placeholder-poster.jpg')
-                  }
-                  alt={data.name}
-                  fill
-                  className="object-cover"
-                  sizes="200px"
-                />
-              ) : (
-                <div className="w-full h-full flex items-center justify-center" style={{ background: '#0f172a' }}>
-                  <Tv size={48} className="text-neo-text-muted" />
-                </div>
-              )}
-            </div>
-          </div>
-
-          {/* Info Details */}
-          <div className="flex-1 min-w-0">
-            {/* Custom Static Badge */}
-            {data.isCustomTV && (
-              <div
-                className="inline-flex items-center gap-1.5 px-3 py-1 rounded-full text-xs font-semibold mb-3"
-                style={{
-                  background: 'rgba(6,182,212,0.15)',
-                  border: '1px solid rgba(6,182,212,0.4)',
-                  color: '#06b6d4',
-                }}
-              >
-                <Sparkles size={12} />
-                Static Custom Serial
-              </div>
-            )}
-
-            {/* Title */}
-            <h1
-              className="text-2xl sm:text-3xl lg:text-4xl font-extrabold leading-tight mb-2"
-              style={{ color: '#f1f5f9' }}
-            >
-              {data.name}
-            </h1>
-
-            {/* Tagline */}
-            {data.tagline && (
-              <p className="text-base sm:text-lg italic mb-4" style={{ color: '#7c3aed' }}>
-                &ldquo;{data.tagline}&rdquo;
-              </p>
-            )}
-
-            {/* Meta Badges Row (with HD icon badge) */}
-            <div className="flex flex-wrap items-center gap-3 mb-5">
-              <RatingBadge rating={data.vote_average} size="md" />
-              <span
-                className="px-2 py-0.5 rounded-md text-[11px] font-black tracking-wider"
-                style={{
-                  background: 'rgba(6, 182, 212, 0.15)',
-                  border: '1px solid rgba(6, 182, 212, 0.4)',
-                  color: '#06b6d4',
-                }}
-              >
-                HD
-              </span>
-              {year && (
-                <div className="flex items-center gap-1.5 text-sm" style={{ color: '#94a3b8' }}>
-                  <Calendar size={14} />
-                  {year}
-                </div>
-              )}
-              {runtime && (
-                <div className="flex items-center gap-1.5 text-sm" style={{ color: '#94a3b8' }}>
-                  <Clock size={14} />
-                  {runtime}
-                </div>
-              )}
-              {data.hasSeasons && data.number_of_seasons ? (
-                <div
-                  className="px-3 py-1 rounded-lg text-xs font-bold uppercase tracking-wider"
-                  style={{
-                    background: 'rgba(6,182,212,0.12)',
-                    border: '1px solid rgba(6,182,212,0.35)',
-                    color: '#06b6d4',
-                  }}
-                >
-                  {data.number_of_seasons} Season{data.number_of_seasons > 1 ? 's' : ''}
-                </div>
-              ) : null}
-              {data.number_of_episodes ? (
-                <div
-                  className="px-3 py-1 rounded-lg text-xs font-bold uppercase tracking-wider"
-                  style={{
-                    background: 'rgba(124,58,237,0.12)',
-                    border: '1px solid rgba(124,58,237,0.35)',
-                    color: '#a78bfa',
-                  }}
-                >
-                  {data.number_of_episodes} Episodes
-                </div>
-              ) : null}
-            </div>
-
-            {/* Genres */}
-            {data.genres && data.genres.length > 0 && (
-              <div className="flex flex-wrap gap-2 mb-5">
-                {data.genres.map((genre) => (
-                  <Link
-                    key={genre.id}
-                    href={`/genre/${genre.id}`}
-                    className="px-3 py-1 rounded-full text-xs font-medium transition-all duration-200 hover:scale-105"
-                    style={{
-                      background: 'rgba(124,58,237,0.15)',
-                      border: '1px solid rgba(124,58,237,0.4)',
-                      color: '#a78bfa',
-                    }}
-                  >
-                    {genre.name}
-                  </Link>
-                ))}
-              </div>
-            )}
-
-            {/* Overview */}
-            <p className="text-sm sm:text-base leading-relaxed mb-6" style={{ color: '#94a3b8', maxWidth: '680px' }}>
-              {data.overview}
-            </p>
-
-            {/* Action Buttons */}
-            <TVDetailHeaderActions
-              activeEpisodeLabel={data.activeEpisode?.episodeLabel}
-              activeEpisodeTitle={data.activeEpisode?.title}
-              hasVideo={Boolean(data.activeEpisode?.videoUrl)}
-              trailerKey={trailerKey}
-              homepage={data.homepage}
-              showTitle={data.name}
-            />
-
-            {/* Stats */}
-            <div className="grid grid-cols-2 sm:grid-cols-4 gap-4 mt-8">
-              {[
-                { label: 'Status', value: data.status || 'Ongoing' },
-                {
-                  label: 'Seasons',
-                  value: data.hasSeasons
-                    ? (data.number_of_seasons?.toString() || '1')
-                    : '1 Season',
-                },
-                { label: 'Total Episodes', value: data.number_of_episodes?.toString() || 'N/A' },
-                { label: 'Vote Count', value: data.vote_count?.toLocaleString() || '1,000+' },
-              ].map(({ label, value }) => (
-                <div
-                  key={label}
-                  className="rounded-xl p-4 text-center"
-                  style={{ background: 'rgba(255,255,255,0.04)', border: '1px solid rgba(255,255,255,0.08)' }}
-                >
-                  <p className="text-lg font-bold" style={{ color: '#06b6d4' }}>{value}</p>
-                  <p className="text-xs mt-1" style={{ color: '#475569' }}>{label}</p>
-                </div>
-              ))}
-            </div>
-          </div>
-        </div>
-      </div>
 
       {/* Show Overview Markdown Content */}
       {data.customContentHtml && (
