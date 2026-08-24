@@ -1,7 +1,17 @@
 'use client';
 
-import React, { useState, useRef } from 'react';
-import { Play, Maximize2, Minimize2, Tv, Sparkles, AlertCircle } from 'lucide-react';
+import React, { useState, useEffect, useRef } from 'react';
+import {
+  Play,
+  Maximize2,
+  Minimize2,
+  Tv,
+  Sparkles,
+  AlertCircle,
+  ExternalLink,
+  Keyboard,
+} from 'lucide-react';
+import 'plyr/dist/plyr.css';
 
 interface VideoPlayerProps {
   videoUrl: string;
@@ -9,20 +19,25 @@ interface VideoPlayerProps {
   poster?: string;
 }
 
-function getYouTubeEmbedUrl(url: string): string | null {
+function getYouTubeId(url: string): string | null {
   const match = url.match(
     /(?:youtu\.be\/|youtube\.com\/(?:embed\/|v\/|watch\?v=|watch\?.+&v=))([\w-]{11})/
   );
-  if (match && match[1]) {
-    return `https://www.youtube-nocookie.com/embed/${match[1]}?autoplay=0&rel=0&modestbranding=1`;
-  }
-  return null;
+  return match && match[1] ? match[1] : null;
+}
+
+function getVimeoId(url: string): string | null {
+  const match = url.match(/(?:vimeo\.com\/)(\d+)/);
+  return match && match[1] ? match[1] : null;
 }
 
 function isDirectVideo(url: string): boolean {
   return (
-    /\.(mp4|webm|ogg|mov|m4v|m3u8)(\?.*)?$/i.test(url) ||
+    /\.(mp4|webm|ogg|mov|m4v|m3u8|mkv)(\?.*)?$/i.test(url) ||
     url.includes('commondatastorage.googleapis.com') ||
+    url.includes('huggingface.co') ||
+    url.includes('/resolve/') ||
+    url.includes('/raw/') ||
     url.startsWith('blob:') ||
     url.startsWith('data:video')
   );
@@ -30,15 +45,100 @@ function isDirectVideo(url: string): boolean {
 
 export default function VideoPlayer({ videoUrl, title, poster }: VideoPlayerProps) {
   const [isTheater, setIsTheater] = useState(false);
+  const [showShortcuts, setShowShortcuts] = useState(false);
   const [hasError, setHasError] = useState(false);
-  const videoRef = useRef<HTMLVideoElement>(null);
 
-  const youtubeEmbedUrl = getYouTubeEmbedUrl(videoUrl);
+  const videoRef = useRef<HTMLVideoElement>(null);
+  const playerInstanceRef = useRef<any>(null);
+  const hlsInstanceRef = useRef<any>(null);
+
+  const youtubeId = getYouTubeId(videoUrl);
+  const vimeoId = getVimeoId(videoUrl);
   const directVideo = isDirectVideo(videoUrl);
 
   const toggleTheater = () => {
     setIsTheater((prev) => !prev);
   };
+
+  useEffect(() => {
+    if (typeof window === 'undefined') return;
+
+    let isMounted = true;
+    setHasError(false);
+
+    async function init() {
+      if (!directVideo || !videoRef.current) return;
+
+      const videoElement = videoRef.current;
+      const isHls = videoUrl.includes('.m3u8');
+
+      try {
+        if (isHls) {
+          const HlsModule = (await import('hls.js')).default;
+          if (HlsModule.isSupported()) {
+            const hls = new HlsModule({
+              enableWorker: true,
+              lowLatencyMode: true,
+            });
+            hls.loadSource(videoUrl);
+            hls.attachMedia(videoElement);
+            hlsInstanceRef.current = hls;
+          }
+        }
+
+        const PlyrModule = (await import('plyr')).default;
+        if (!isMounted) return;
+
+        const player = new PlyrModule(videoElement, {
+          controls: [
+            'play-large',
+            'restart',
+            'rewind',
+            'play',
+            'fast-forward',
+            'progress',
+            'current-time',
+            'duration',
+            'mute',
+            'volume',
+            'captions',
+            'settings',
+            'pip',
+            'airplay',
+            'fullscreen',
+          ],
+          settings: ['speed', 'quality', 'loop'],
+          speed: { selected: 1, options: [0.5, 0.75, 1, 1.25, 1.5, 2] },
+          seekTime: 10,
+          keyboard: { focused: true, global: true },
+          tooltips: { controls: true, seek: true },
+          fullscreen: { enabled: true, fallback: true, iosNative: true },
+        });
+
+        playerInstanceRef.current = player;
+      } catch (err) {
+        console.error('Error loading video player modules:', err);
+      }
+    }
+
+    init();
+
+    return () => {
+      isMounted = false;
+      if (playerInstanceRef.current) {
+        try {
+          playerInstanceRef.current.destroy();
+        } catch (e) {}
+        playerInstanceRef.current = null;
+      }
+      if (hlsInstanceRef.current) {
+        try {
+          hlsInstanceRef.current.destroy();
+        } catch (e) {}
+        hlsInstanceRef.current = null;
+      }
+    };
+  }, [videoUrl, directVideo]);
 
   return (
     <div
@@ -66,7 +166,7 @@ export default function VideoPlayer({ videoUrl, title, poster }: VideoPlayerProp
         >
           <div className="flex items-center gap-3 min-w-0">
             <div
-              className="flex items-center justify-center w-8 h-8 rounded-lg"
+              className="flex items-center justify-center w-8 h-8 rounded-lg flex-shrink-0"
               style={{
                 background: 'linear-gradient(135deg, #06b6d4, #7c3aed)',
                 boxShadow: '0 0 15px rgba(6, 182, 212, 0.4)',
@@ -84,7 +184,7 @@ export default function VideoPlayer({ videoUrl, title, poster }: VideoPlayerProp
                     color: '#06b6d4',
                   }}
                 >
-                  Stream Player
+                  Modern Stream Player
                 </span>
                 <span className="text-xs text-neo-text-muted hidden sm:inline-flex items-center gap-1">
                   <Sparkles size={11} className="text-neo-cyan" /> 4K Ultra HD
@@ -97,7 +197,25 @@ export default function VideoPlayer({ videoUrl, title, poster }: VideoPlayerProp
           </div>
 
           {/* Action buttons */}
-          <div className="flex items-center gap-2">
+          <div className="flex items-center gap-2 flex-shrink-0">
+            {/* Keyboard shortcuts toggle */}
+            <button
+              onClick={() => setShowShortcuts((prev) => !prev)}
+              title="Keyboard Shortcuts"
+              className="hidden md:flex items-center gap-1.5 px-3 py-1.5 rounded-lg text-xs font-medium transition-all duration-200 hover:scale-105"
+              style={{
+                background: showShortcuts ? 'rgba(124, 58, 237, 0.2)' : 'rgba(255, 255, 255, 0.06)',
+                border: showShortcuts
+                  ? '1px solid rgba(124, 58, 237, 0.5)'
+                  : '1px solid rgba(255, 255, 255, 0.12)',
+                color: showShortcuts ? '#a78bfa' : '#94a3b8',
+              }}
+            >
+              <Keyboard size={14} />
+              <span>Keys</span>
+            </button>
+
+            {/* Theater Mode toggle */}
             <button
               onClick={toggleTheater}
               title={isTheater ? 'Default View' : 'Theater Mode'}
@@ -118,16 +236,42 @@ export default function VideoPlayer({ videoUrl, title, poster }: VideoPlayerProp
               ) : (
                 <>
                   <Maximize2 size={14} />
-                  <span className="hidden sm:inline">Theater Mode</span>
+                  <span className="hidden sm:inline">Theater</span>
                 </>
               )}
             </button>
           </div>
         </div>
 
+        {/* Shortcuts info banner */}
+        {showShortcuts && (
+          <div
+            className="px-4 sm:px-6 py-2.5 flex flex-wrap items-center justify-between text-xs border-b gap-2"
+            style={{
+              background: 'rgba(12, 18, 36, 0.95)',
+              borderColor: 'rgba(124, 58, 237, 0.3)',
+              color: '#94a3b8',
+            }}
+          >
+            <div className="flex flex-wrap items-center gap-4">
+              <span><kbd className="px-1.5 py-0.5 bg-white/10 rounded text-neo-cyan">Space</kbd> / <kbd className="px-1.5 py-0.5 bg-white/10 rounded text-neo-cyan">K</kbd> Play/Pause</span>
+              <span><kbd className="px-1.5 py-0.5 bg-white/10 rounded text-neo-cyan">←</kbd> / <kbd className="px-1.5 py-0.5 bg-white/10 rounded text-neo-cyan">→</kbd> Seek 10s</span>
+              <span><kbd className="px-1.5 py-0.5 bg-white/10 rounded text-neo-cyan">↑</kbd> / <kbd className="px-1.5 py-0.5 bg-white/10 rounded text-neo-cyan">↓</kbd> Volume</span>
+              <span><kbd className="px-1.5 py-0.5 bg-white/10 rounded text-neo-cyan">F</kbd> Fullscreen</span>
+              <span><kbd className="px-1.5 py-0.5 bg-white/10 rounded text-neo-cyan">M</kbd> Mute</span>
+            </div>
+            <button
+              onClick={() => setShowShortcuts(false)}
+              className="text-xs text-neo-text-muted hover:text-white"
+            >
+              ✕ Tutup
+            </button>
+          </div>
+        )}
+
         {/* Video Canvas Container */}
         <div
-          className="relative w-full overflow-hidden bg-black flex items-center justify-center"
+          className="relative w-full overflow-hidden bg-black flex items-center justify-center plyr-custom-wrapper"
           style={{
             aspectRatio: '16/9',
             maxHeight: isTheater ? '85vh' : '700px',
@@ -137,16 +281,37 @@ export default function VideoPlayer({ videoUrl, title, poster }: VideoPlayerProp
             <div className="flex flex-col items-center justify-center p-6 text-center text-neo-text-secondary">
               <AlertCircle size={40} className="text-red-400 mb-2" />
               <p className="font-semibold text-white">Gagal memuat video</p>
-              <p className="text-xs mt-1 text-neo-text-muted">
-                URL video tidak dapat diakses atau format tidak didukung: {videoUrl}
+              <p className="text-xs mt-1 text-neo-text-muted max-w-md">
+                URL video tidak dapat diakses atau dibatasi oleh CORS server: {videoUrl}
               </p>
+              <a
+                href={videoUrl}
+                target="_blank"
+                rel="noopener noreferrer"
+                className="mt-4 inline-flex items-center gap-2 px-4 py-2 rounded-lg text-xs font-semibold"
+                style={{
+                  background: 'linear-gradient(135deg, #06b6d4, #7c3aed)',
+                  color: 'white',
+                }}
+              >
+                <ExternalLink size={14} />
+                Buka / Download Sumber Langsung
+              </a>
             </div>
-          ) : youtubeEmbedUrl ? (
+          ) : youtubeId ? (
             <iframe
-              src={youtubeEmbedUrl}
+              src={`https://www.youtube-nocookie.com/embed/${youtubeId}?autoplay=0&rel=0&modestbranding=1`}
               title={title || 'Movie Video Player'}
               className="w-full h-full border-0"
               allow="accelerometer; autoplay; clipboard-write; encrypted-media; gyroscope; picture-in-picture; web-share"
+              allowFullScreen
+            />
+          ) : vimeoId ? (
+            <iframe
+              src={`https://player.vimeo.com/video/${vimeoId}`}
+              title={title || 'Movie Video Player'}
+              className="w-full h-full border-0"
+              allow="autoplay; fullscreen; picture-in-picture"
               allowFullScreen
             />
           ) : directVideo ? (
@@ -154,13 +319,14 @@ export default function VideoPlayer({ videoUrl, title, poster }: VideoPlayerProp
               ref={videoRef}
               src={videoUrl}
               poster={poster}
-              controls
               playsInline
+              crossOrigin="anonymous"
               preload="metadata"
               onError={() => setHasError(true)}
               className="w-full h-full object-contain"
             >
-              Browser Anda tidak mendukung tag video HTML5.
+              <source src={videoUrl} type="video/mp4" />
+              Browser Anda tidak mendukung pemutar video.
             </video>
           ) : (
             // Generic iframe fallback for other stream embed providers
@@ -189,7 +355,15 @@ export default function VideoPlayer({ videoUrl, title, poster }: VideoPlayerProp
             <span>Fast CDN Streaming Active</span>
           </div>
           <div className="flex items-center gap-3">
-            <span className="hidden sm:inline">Sound: Stereo / Dolby 5.1</span>
+            <a
+              href={videoUrl}
+              target="_blank"
+              rel="noopener noreferrer"
+              className="flex items-center gap-1 text-neo-text-muted hover:text-neo-cyan transition-colors"
+            >
+              <ExternalLink size={12} />
+              <span>Direct Link</span>
+            </a>
             <span className="text-neo-cyan font-medium">Custom Page Edition</span>
           </div>
         </div>

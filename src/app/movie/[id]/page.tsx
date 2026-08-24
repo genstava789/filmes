@@ -2,7 +2,6 @@ import React from 'react';
 import Image from 'next/image';
 import Link from 'next/link';
 import { Metadata } from 'next';
-import { notFound } from 'next/navigation';
 import {
   Play,
   Calendar,
@@ -114,8 +113,67 @@ export default async function MovieDetailPage({ params }: PageProps) {
     movie.videos?.results?.[0];
   const trailerKey = trailer?.key || null;
 
+  // Build JSON-LD Structured Data for SEO & Video Content
+  const movieSchema: Record<string, any> = {
+    '@context': 'https://schema.org',
+    '@type': 'Movie',
+    name: movie.title,
+    description: movie.overview,
+    image: movie.backdrop_path
+      ? getImageUrl(movie.backdrop_path, 'w1280')
+      : movie.poster_path
+      ? getImageUrl(movie.poster_path, 'w500')
+      : undefined,
+    datePublished: movie.release_date || undefined,
+    genre: movie.genres?.map((g) => g.name) || [],
+    aggregateRating: movie.vote_average
+      ? {
+          '@type': 'AggregateRating',
+          ratingValue: movie.vote_average,
+          bestRating: 10,
+          worstRating: 1,
+          ratingCount: movie.vote_count || 100,
+        }
+      : undefined,
+    director: director
+      ? {
+          '@type': 'Person',
+          name: director.name,
+        }
+      : undefined,
+    actor: cast.slice(0, 5).map((c) => ({
+      '@type': 'Person',
+      name: c.name,
+    })),
+  };
+
+  const videoSchema = movie.customVideoUrl
+    ? {
+        '@context': 'https://schema.org',
+        '@type': 'VideoObject',
+        name: `${movie.title} - Stream Video`,
+        description: movie.overview || `Watch ${movie.title} full stream online.`,
+        thumbnailUrl: [
+          getImageUrl(movie.backdrop_path || movie.poster_path, 'w1280'),
+          getImageUrl(movie.poster_path, 'w500'),
+        ],
+        uploadDate: movie.release_date ? `${movie.release_date}T00:00:00Z` : new Date().toISOString(),
+        contentUrl: movie.customVideoUrl,
+        embedUrl: movie.customVideoUrl,
+        inLanguage: movie.original_language || 'id',
+      }
+    : null;
+
+  const jsonLdData = videoSchema ? [movieSchema, videoSchema] : movieSchema;
+
   return (
     <div className="min-h-screen pb-16" style={{ background: '#050816' }}>
+      {/* Schema.org JSON-LD Structured Data */}
+      <script
+        type="application/ld+json"
+        dangerouslySetInnerHTML={{ __html: JSON.stringify(jsonLdData) }}
+      />
+
       {/* Backdrop Section */}
       <div className="relative w-full" style={{ height: 'clamp(400px, 70vh, 700px)' }}>
         {movie.backdrop_path && (
