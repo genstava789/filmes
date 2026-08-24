@@ -17,6 +17,7 @@ import CastCard from '@/components/CastCard';
 import RatingBadge from '@/components/RatingBadge';
 import MarkdownRenderer from '@/components/MarkdownRenderer';
 import TVDetailClient, { TVDetailHeaderActions } from '@/components/TVDetailClient';
+import siteConfig from '@/config';
 
 export const dynamicParams = true;
 export const revalidate = 3600;
@@ -43,13 +44,13 @@ export async function generateMetadata({ params }: PageProps): Promise<Metadata>
 
   if (!data) {
     return {
-      title: 'TV Show Not Found - Filmanesia',
+      title: `TV Show Not Found - ${siteConfig.name}`,
     };
   }
 
   const epTitle = data.activeEpisode ? ` - ${data.activeEpisode.episodeLabel}: ${data.activeEpisode.title}` : '';
-  const title = `${data.name}${epTitle} - Filmanesia`;
-  const description = data.activeEpisode?.overview || data.overview || 'Watch TV shows and stream episodes online on Filmanesia.';
+  const title = `${data.name}${epTitle} - ${siteConfig.name}`;
+  const description = data.activeEpisode?.overview || data.overview || `Watch TV shows and stream episodes online on ${siteConfig.name}.`;
 
   const image = data.activeEpisode?.imageUrl ||
     data.customImageUrl ||
@@ -151,10 +152,10 @@ export default async function TVShowPage({ params }: PageProps) {
         embedUrl: videoUrl,
         publisher: {
           '@type': 'Organization',
-          name: 'Filmanesia',
+          name: siteConfig.name,
           logo: {
             '@type': 'ImageObject',
-            url: 'https://filmanesia.vercel.app/logo.png',
+            url: siteConfig.logoUrl,
           },
         },
       }

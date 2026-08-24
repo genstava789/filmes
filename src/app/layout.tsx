@@ -5,6 +5,8 @@ import AppLayout from '@/components/AppLayout';
 import BackToTop from '@/components/BackToTop';
 import { getGenres } from '@/lib/tmdb';
 
+import siteConfig from '@/config';
+
 const plusJakartaSans = Plus_Jakarta_Sans({
   subsets: ['latin'],
   weight: ['300', '400', '500', '600', '700', '800'],
@@ -13,14 +15,14 @@ const plusJakartaSans = Plus_Jakarta_Sans({
 });
 
 export const metadata: Metadata = {
-  title: 'Filmanesia - Watch Movies & TV Shows Online',
-  description:
-    'Discover and explore thousands of movies and TV shows. Find trending titles, top-rated classics, and everything in between on Filmanesia.',
-  keywords: 'movies, TV shows, streaming, TMDB, cinema, watch online',
+  title: `${siteConfig.name} - ${siteConfig.tagline}`,
+  description: siteConfig.description,
+  keywords: siteConfig.keywords.join(', '),
   openGraph: {
-    title: 'Filmanesia - Watch Movies & TV Shows Online',
-    description: 'Discover and explore thousands of movies and TV shows.',
+    title: `${siteConfig.name} - ${siteConfig.tagline}`,
+    description: siteConfig.description,
     type: 'website',
+    url: siteConfig.url,
   },
 };
 

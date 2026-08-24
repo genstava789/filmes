@@ -16,9 +16,10 @@ import {
 import MovieRow from '@/components/MovieRow';
 import CastCard from '@/components/CastCard';
 import RatingBadge from '@/components/RatingBadge';
-import VideoPlayer from '@/components/VideoPlayer';
 import MarkdownRenderer from '@/components/MarkdownRenderer';
 import MovieDetailClient from '@/components/MovieDetailClient';
+import VideoPlayer from '@/components/VideoPlayer';
+import siteConfig from '@/config';
 
 export const dynamicParams = true;
 export const revalidate = 3600;
@@ -30,29 +31,29 @@ interface PageProps {
 }
 
 /**
- * Pre-generates static params for all custom markdown files in video/
+ * Pre-generates static params for all custom markdown movies in video/
  */
 export async function generateStaticParams() {
-  const customSlugs = getAllCustomMovieSlugs();
-  return customSlugs.map((slug) => ({
+  const customMovieSlugs = await getAllCustomMovieSlugs();
+  return customMovieSlugs.map((slug) => ({
     id: slug,
   }));
 }
 
 /**
- * Dynamic metadata generation for SEO
+ * Dynamic metadata generation for SEO & OpenGraph
  */
 export async function generateMetadata({ params }: PageProps): Promise<Metadata> {
   const movie = await getMovieDetailsWithCustomOverride(params.id).catch(() => null);
 
   if (!movie) {
     return {
-      title: 'Movie Not Found - Filmanesia',
+      title: `Movie Not Found - ${siteConfig.name}`,
     };
   }
 
-  const title = `${movie.title} ${movie.release_date ? `(${new Date(movie.release_date).getFullYear()})` : ''} - Filmanesia`;
-  const description = movie.overview ? movie.overview.slice(0, 160) : 'Watch movies and stream online on Filmanesia.';
+  const title = `${movie.title} ${movie.release_date ? `(${new Date(movie.release_date).getFullYear()})` : ''} - ${siteConfig.name}`;
+  const description = movie.overview ? movie.overview.slice(0, 160) : `Watch movies and stream online on ${siteConfig.name}.`;
 
   return {
     title,
@@ -160,10 +161,10 @@ export default async function MovieDetailPage({ params }: PageProps) {
         embedUrl: videoUrl,
         publisher: {
           '@type': 'Organization',
-          name: 'Filmanesia',
+          name: siteConfig.name,
           logo: {
             '@type': 'ImageObject',
-            url: 'https://filmanesia.vercel.app/logo.png',
+            url: siteConfig.logoUrl,
           },
         },
       }

@@ -13,7 +13,6 @@ interface BottomNavProps {
 export default function BottomNav({ genres = [] }: BottomNavProps) {
   const pathname = usePathname();
   const [genreSheetOpen, setGenreSheetOpen] = useState(false);
-  const [searchOpen, setSearchOpen] = useState(false);
 
   const isActive = (href: string) => {
     if (href === '/') return pathname === '/';
@@ -34,11 +33,11 @@ export default function BottomNav({ genres = [] }: BottomNavProps) {
       <nav
         className="lg:hidden fixed bottom-0 left-0 right-0 z-50"
         style={{
-          background: 'rgba(11,16,32,0.97)',
+          background: 'rgba(11, 16, 32, 0.98)',
           backdropFilter: 'blur(20px)',
           WebkitBackdropFilter: 'blur(20px)',
-          borderTop: '1px solid rgba(255,255,255,0.08)',
-          boxShadow: '0 -4px 30px rgba(0,0,0,0.4)',
+          borderTop: '1px solid rgba(255, 255, 255, 0.08)',
+          boxShadow: '0 -4px 30px rgba(0, 0, 0, 0.5)',
           paddingBottom: 'env(safe-area-inset-bottom)',
         }}
       >
@@ -48,30 +47,31 @@ export default function BottomNav({ genres = [] }: BottomNavProps) {
             const Icon = item.icon;
 
             const content = (
-              <div className="flex flex-col items-center gap-1 px-3 py-1.5 rounded-xl transition-all duration-200 min-w-[56px]"
+              <div
+                className={`flex flex-col items-center gap-1 px-3 py-1.5 rounded-xl transition-all duration-200 min-w-[58px] ${
+                  active
+                    ? 'text-cyan-400 border border-cyan-500/40 shadow-[0_0_14px_rgba(6,182,212,0.25)]'
+                    : 'text-slate-400 hover:text-cyan-400 hover:bg-white/[0.06] hover:border-white/10 border border-transparent'
+                }`}
                 style={{
-                  background: active ? 'rgba(6,182,212,0.12)' : 'transparent',
+                  background: active
+                    ? 'linear-gradient(135deg, rgba(6, 182, 212, 0.2), rgba(124, 58, 237, 0.2))'
+                    : 'transparent',
                 }}
               >
-                <div className="relative">
+                <div className="relative flex items-center justify-center">
                   <Icon
-                    size={22}
+                    size={20}
+                    className={active ? 'drop-shadow-[0_0_6px_rgba(6,182,212,0.8)]' : ''}
                     style={{
-                      color: active ? '#06b6d4' : '#64748b',
-                      filter: active ? 'drop-shadow(0 0 6px rgba(6,182,212,0.8))' : 'none',
                       transition: 'all 0.2s ease',
                     }}
                   />
-                  {active && (
-                    <span
-                      className="absolute -bottom-1 left-1/2 -translate-x-1/2 w-1 h-1 rounded-full"
-                      style={{ background: '#06b6d4', boxShadow: '0 0 6px #06b6d4' }}
-                    />
-                  )}
                 </div>
                 <span
-                  className="text-[10px] font-medium"
-                  style={{ color: active ? '#06b6d4' : '#64748b' }}
+                  className={`text-[10px] tracking-wide transition-colors duration-200 ${
+                    active ? 'font-bold text-cyan-400' : 'font-medium text-slate-400'
+                  }`}
                 >
                   {item.label}
                 </span>
@@ -80,14 +80,22 @@ export default function BottomNav({ genres = [] }: BottomNavProps) {
 
             if (item.action) {
               return (
-                <button key={item.label} onClick={item.action} className="focus:outline-none">
+                <button
+                  key={item.label}
+                  onClick={item.action}
+                  className="focus:outline-none transition-transform active:scale-95"
+                >
                   {content}
                 </button>
               );
             }
 
             return (
-              <Link key={item.label} href={item.href!}>
+              <Link
+                key={item.label}
+                href={item.href!}
+                className="focus:outline-none transition-transform active:scale-95"
+              >
                 {content}
               </Link>
             );
@@ -125,7 +133,7 @@ export default function BottomNav({ genres = [] }: BottomNavProps) {
               <h3 className="font-bold text-base" style={{ color: '#f1f5f9' }}>Browse Genres</h3>
               <button
                 onClick={() => setGenreSheetOpen(false)}
-                className="p-1.5 rounded-lg"
+                className="p-1.5 rounded-lg hover:bg-white/10 transition-colors"
                 style={{ background: 'rgba(255,255,255,0.08)', color: '#94a3b8' }}
               >
                 <X size={16} />
@@ -134,22 +142,29 @@ export default function BottomNav({ genres = [] }: BottomNavProps) {
             {/* Genre Grid */}
             <div className="overflow-y-auto p-4" style={{ maxHeight: 'calc(70vh - 80px)' }}>
               <div className="grid grid-cols-2 gap-2">
-                {genres.map((genre) => (
-                  <Link
-                    key={genre.id}
-                    href={`/genre/${genre.id}`}
-                    onClick={() => setGenreSheetOpen(false)}
-                    className="flex items-center justify-between px-4 py-3 rounded-xl transition-all duration-150"
-                    style={{
-                      background: pathname === `/genre/${genre.id}` ? 'rgba(6,182,212,0.12)' : 'rgba(255,255,255,0.04)',
-                      border: `1px solid ${pathname === `/genre/${genre.id}` ? 'rgba(6,182,212,0.4)' : 'rgba(255,255,255,0.06)'}`,
-                      color: pathname === `/genre/${genre.id}` ? '#06b6d4' : '#94a3b8',
-                    }}
-                  >
-                    <span className="text-sm font-medium">{genre.name}</span>
-                    <ChevronRight size={14} style={{ opacity: 0.5 }} />
-                  </Link>
-                ))}
+                {genres.map((genre) => {
+                  const isGenreActive = pathname === `/genre/${genre.id}`;
+                  return (
+                    <Link
+                      key={genre.id}
+                      href={`/genre/${genre.id}`}
+                      onClick={() => setGenreSheetOpen(false)}
+                      className={`flex items-center justify-between px-4 py-3 rounded-xl transition-all duration-200 ${
+                        isGenreActive
+                          ? 'text-cyan-400 border border-cyan-500/40 shadow-[0_0_14px_rgba(6,182,212,0.25)]'
+                          : 'text-slate-400 hover:text-cyan-400 hover:bg-white/[0.06] hover:border-white/10 border border-white/[0.06]'
+                      }`}
+                      style={{
+                        background: isGenreActive
+                          ? 'linear-gradient(135deg, rgba(6, 182, 212, 0.2), rgba(124, 58, 237, 0.2))'
+                          : 'rgba(255,255,255,0.04)',
+                      }}
+                    >
+                      <span className="text-sm font-medium">{genre.name}</span>
+                      <ChevronRight size={14} style={{ opacity: 0.5 }} />
+                    </Link>
+                  );
+                })}
               </div>
             </div>
           </div>

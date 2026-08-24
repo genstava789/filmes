@@ -3,6 +3,7 @@ import { notFound } from 'next/navigation';
 import type { Metadata } from 'next';
 import { getMoviesByGenre, getGenres, getGenreById } from '@/lib/tmdb';
 import GenrePageClient from './GenrePageClient';
+import siteConfig from '@/config';
 
 interface PageProps {
   params: { id: string };
@@ -12,8 +13,8 @@ interface PageProps {
 export async function generateMetadata({ params }: PageProps): Promise<Metadata> {
   const genre = await getGenreById(Number(params.id)).catch(() => null);
   return {
-    title: genre ? `${genre.name} Movies - Filmanesia` : 'Genre - Filmanesia',
-    description: genre ? `Browse ${genre.name} movies on Filmanesia.` : 'Browse movies by genre.',
+    title: genre ? `${genre.name} Movies - ${siteConfig.name}` : `Genre - ${siteConfig.name}`,
+    description: genre ? `Browse ${genre.name} movies on ${siteConfig.name}.` : 'Browse movies by genre.',
   };
 }
 

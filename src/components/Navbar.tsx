@@ -6,6 +6,7 @@ import { usePathname } from 'next/navigation';
 import { Film, Search, Menu, X, ChevronDown, Tv } from 'lucide-react';
 import SearchBar from './SearchBar';
 import { Genre } from '@/types/tmdb';
+import siteConfig from '@/config';
 
 interface NavbarProps {
   genres?: Genre[];
@@ -67,7 +68,7 @@ export default function Navbar({ genres = [] }: NavbarProps) {
                 <Film size={18} className="text-white" />
               </div>
               <span
-                className="text-xl font-black tracking-wider hidden sm:block"
+                className="text-xl font-black tracking-wider hidden sm:block uppercase"
                 style={{
                   background: 'linear-gradient(135deg, #06b6d4, #7c3aed)',
                   WebkitBackgroundClip: 'text',
@@ -75,7 +76,7 @@ export default function Navbar({ genres = [] }: NavbarProps) {
                   backgroundClip: 'text',
                 }}
               >
-                FILMANESIA
+                {siteConfig.nameUpper || siteConfig.name}
               </span>
             </Link>
 

@@ -8,6 +8,7 @@ import {
   TrendingUp, Star, Clock, Clapperboard, Flame, Menu, X
 } from 'lucide-react';
 import { Genre } from '@/types/tmdb';
+import siteConfig from '@/config';
 
 interface SidebarProps {
   genres?: Genre[];
@@ -65,7 +66,7 @@ export default function Sidebar({ genres = [], isOpen, onToggle }: SidebarProps)
         {/* Logo icon */}
         <Link
           href="/"
-          title="Filmanesia"
+          title={siteConfig.name}
           className="flex items-center gap-3"
         >
           <div
@@ -80,7 +81,7 @@ export default function Sidebar({ genres = [], isOpen, onToggle }: SidebarProps)
 
           {isOpen && (
             <span
-              className="text-base font-extrabold tracking-wider whitespace-nowrap overflow-hidden text-ellipsis"
+              className="text-base font-extrabold tracking-wider whitespace-nowrap overflow-hidden text-ellipsis uppercase"
               style={{
                 background: 'linear-gradient(135deg, #06b6d4, #7c3aed)',
                 WebkitBackgroundClip: 'text',
@@ -88,7 +89,7 @@ export default function Sidebar({ genres = [], isOpen, onToggle }: SidebarProps)
                 backgroundClip: 'text',
               }}
             >
-              FILMANESIA
+              {siteConfig.nameUpper || siteConfig.name}
             </span>
           )}
         </Link>
@@ -239,7 +240,7 @@ export default function Sidebar({ genres = [], isOpen, onToggle }: SidebarProps)
           })}
         </nav>
 
-        {/* All Genres Accordion (only when open) */}
+        {/* All Genres Accordion (only when open) with Smooth Scroll Behavior */}
         {isOpen && genres.length > 0 && (
           <div className="px-3 mb-4">
             <button
@@ -252,7 +253,13 @@ export default function Sidebar({ genres = [], isOpen, onToggle }: SidebarProps)
             </button>
 
             {genreExpanded && (
-              <div className="mt-1 ml-3 pl-3 space-y-0.5 border-l border-cyan-500/20">
+              <div
+                className="mt-1 ml-3 pl-3 space-y-0.5 border-l border-cyan-500/20 max-h-52 overflow-y-auto scroll-smooth hide-scrollbar pr-1"
+                style={{
+                  scrollbarWidth: 'thin',
+                  scrollbarColor: 'rgba(6,182,212,0.3) transparent',
+                }}
+              >
                 {genres.map((genre) => {
                   const active = pathname === `/genre/${genre.id}`;
                   return (

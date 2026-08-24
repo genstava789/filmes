@@ -1,6 +1,7 @@
 'use client';
 
 import React from 'react';
+import siteConfig from '@/config';
 
 export default function Footer() {
   const currentYear = new Date().getFullYear();
@@ -15,7 +16,7 @@ export default function Footer() {
     >
       <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 text-center">
         <p className="text-neo-text-muted text-xs text-center">
-          © {currentYear} <span className="font-semibold text-slate-300">Filmanesia</span>. All rights reserved.
+          © {currentYear} <span className="font-semibold text-slate-300">{siteConfig.copyright || siteConfig.name}</span>. {siteConfig.footerText}
         </p>
       </div>
     </footer>

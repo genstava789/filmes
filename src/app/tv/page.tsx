@@ -8,9 +8,11 @@ import { getImageUrl } from '@/lib/tmdb';
 import MovieRow from '@/components/MovieRow';
 import { TVShow } from '@/types/tmdb';
 
+import siteConfig from '@/config';
+
 export const metadata: Metadata = {
-  title: 'TV Shows - Filmanesia',
-  description: 'Discover trending and popular TV shows on Filmanesia.',
+  title: `TV Shows - ${siteConfig.name}`,
+  description: `Discover trending and popular TV shows on ${siteConfig.name}.`,
 };
 
 export const revalidate = 3600;
