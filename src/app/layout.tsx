@@ -1,13 +1,16 @@
 import type { Metadata } from 'next';
-import { Inter } from 'next/font/google';
+import { Plus_Jakarta_Sans } from 'next/font/google';
 import './globals.css';
-import Sidebar from '@/components/Sidebar';
-import BottomNav from '@/components/BottomNav';
-import Footer from '@/components/Footer';
+import AppLayout from '@/components/AppLayout';
 import BackToTop from '@/components/BackToTop';
 import { getGenres } from '@/lib/tmdb';
 
-const inter = Inter({ subsets: ['latin'], display: 'swap' });
+const plusJakartaSans = Plus_Jakarta_Sans({
+  subsets: ['latin'],
+  weight: ['300', '400', '500', '600', '700', '800'],
+  variable: '--font-jakarta',
+  display: 'swap',
+});
 
 export const metadata: Metadata = {
   title: 'Filmanesia - Watch Movies & TV Shows Online',
@@ -34,7 +37,7 @@ export default async function RootLayout({
   }
 
   return (
-    <html lang="en" className={inter.className}>
+    <html lang="en" className={`${plusJakartaSans.variable} ${plusJakartaSans.className}`}>
       <body
         style={{
           backgroundColor: '#050816',
@@ -42,20 +45,9 @@ export default async function RootLayout({
           minHeight: '100vh',
         }}
       >
-        {/* Desktop Sidebar */}
-        <Sidebar genres={genres} />
-
-        {/* Mobile Bottom Nav */}
-        <BottomNav genres={genres} />
-
-        {/* Main content - offset for sidebar on desktop, bottom nav on mobile */}
-        <div className="lg:pl-[240px] transition-all duration-300">
-          <main className="pb-20 lg:pb-0 min-h-screen">
-            {children}
-          </main>
-          <Footer />
-        </div>
-
+        <AppLayout genres={genres}>
+          {children}
+        </AppLayout>
         <BackToTop />
       </body>
     </html>

@@ -1,4 +1,5 @@
-@import url('https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700;800;900&display=swap');
+/* Font: Plus Jakarta Sans — premium humanist sans-serif */
+@import url('https://fonts.googleapis.com/css2?family=Plus+Jakarta+Sans:wght@300;400;500;600;700;800&display=swap');
 
 @tailwind base;
 @tailwind components;
@@ -29,7 +30,7 @@ body {
   overflow-x: hidden;
   background-color: var(--neo-dark);
   color: var(--neo-text-primary);
-  font-family: 'Inter', sans-serif;
+  font-family: 'Plus Jakarta Sans', var(--font-jakarta), sans-serif;
   scroll-behavior: smooth;
 }
 
@@ -403,5 +404,20 @@ input:focus-visible {
 @media (min-width: 1024px) {
   .movie-card-container:hover {
     transform: scale(1.04) translateY(-3px);
+  }
+}
+
+/* ===== APP LAYOUT: dynamic sidebar padding ===== */
+.app-main {
+  transition: padding-left 0.3s cubic-bezier(0.4, 0, 0.2, 1);
+}
+
+@media (min-width: 1024px) {
+  [data-sidebar="open"] .app-main {
+    padding-left: 240px;
+  }
+
+  [data-sidebar="closed"] .app-main {
+    padding-left: 72px;
   }
 }

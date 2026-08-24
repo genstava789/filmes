@@ -3,7 +3,7 @@
 import React, { useState } from 'react';
 import Image from 'next/image';
 import Link from 'next/link';
-import { Play, Star } from 'lucide-react';
+import { Play, Star, Tv, Film } from 'lucide-react';
 import { Movie, TVShow } from '@/types/tmdb';
 import { getImageUrl } from '@/lib/tmdb';
 
@@ -22,103 +22,212 @@ export default function MovieCard({ item, type = 'movie' }: MovieCardProps) {
 
   const title = isMovie(item) ? item.title : item.name;
   const date = isMovie(item) ? item.release_date : item.first_air_date;
-  const year = date ? new Date(date).getFullYear() : 'N/A';
+  const year = date ? new Date(date).getFullYear() : null;
   const rating = Math.round(item.vote_average * 10) / 10;
   const href = type === 'tv' ? `/tv/${item.id}` : `/movie/${item.id}`;
 
   const getRatingColor = (r: number) => {
-    if (r >= 7) return '#22c55e';
-    if (r >= 5) return '#eab308';
-    return '#ef4444';
-  };
-
-  const getRatingBg = (r: number) => {
-    if (r >= 7) return 'rgba(34,197,94,0.15)';
-    if (r >= 5) return 'rgba(234,179,8,0.15)';
-    return 'rgba(239,68,68,0.15)';
+    if (r >= 7) return '#4ade80';
+    if (r >= 5) return '#facc15';
+    return '#f87171';
   };
 
   return (
     <Link href={href} className="block">
       <div
-        className="relative rounded-xl overflow-hidden cursor-pointer"
         style={{
-          background: '#0f172a',
-          border: isHovered ? '1px solid rgba(6,182,212,0.5)' : '1px solid rgba(255,255,255,0.06)',
-          transform: isHovered ? 'scale(1.05) translateY(-4px)' : 'scale(1) translateY(0)',
+          position: 'relative',
+          borderRadius: '14px',
+          overflow: 'hidden',
+          background: '#0c1224',
+          border: isHovered
+            ? '1px solid rgba(6,182,212,0.45)'
+            : '1px solid rgba(255,255,255,0.07)',
+          transform: isHovered ? 'translateY(-6px) scale(1.02)' : 'translateY(0) scale(1)',
           boxShadow: isHovered
-            ? '0 0 25px rgba(6,182,212,0.25), 0 20px 40px rgba(0,0,0,0.5)'
-            : '0 4px 15px rgba(0,0,0,0.3)',
-          transition: 'all 0.3s ease',
+            ? '0 24px 48px rgba(0,0,0,0.65), 0 0 0 1px rgba(6,182,212,0.1)'
+            : '0 4px 20px rgba(0,0,0,0.45)',
+          transition: 'all 0.28s cubic-bezier(0.4,0,0.2,1)',
+          cursor: 'pointer',
         }}
         onMouseEnter={() => setIsHovered(true)}
         onMouseLeave={() => setIsHovered(false)}
       >
-        {/* Poster */}
-        <div className="relative aspect-[2/3] w-full overflow-hidden">
+        {/* ── Poster area ── */}
+        <div style={{ position: 'relative', aspectRatio: '2/3', width: '100%', overflow: 'hidden' }}>
+
+          {/* Image */}
           {item.poster_path && !imgError ? (
             <Image
               src={getImageUrl(item.poster_path, 'w500')}
               alt={title}
               fill
-              className="object-cover transition-transform duration-500"
-              style={{ transform: isHovered ? 'scale(1.08)' : 'scale(1)' }}
+              className="object-cover"
+              style={{
+                transform: isHovered ? 'scale(1.07)' : 'scale(1)',
+                transition: 'transform 0.45s cubic-bezier(0.4,0,0.2,1)',
+              }}
               sizes="(max-width: 640px) 50vw, (max-width: 1024px) 33vw, 20vw"
               onError={() => setImgError(true)}
             />
           ) : (
             <div
-              className="w-full h-full flex flex-col items-center justify-center gap-2"
-              style={{ background: 'linear-gradient(135deg, #0f172a, #1e293b)' }}
+              style={{
+                width: '100%',
+                height: '100%',
+                display: 'flex',
+                flexDirection: 'column',
+                alignItems: 'center',
+                justifyContent: 'center',
+                gap: '8px',
+                background: 'linear-gradient(145deg, #0f1a2e, #1a2540)',
+              }}
             >
-              <Play size={32} className="text-neo-text-muted" />
-              <span className="text-neo-text-muted text-xs text-center px-2">{title}</span>
+              <Film size={28} style={{ color: '#334155' }} />
+              <span style={{ color: '#334155', fontSize: '11px', textAlign: 'center', padding: '0 8px' }}>{title}</span>
             </div>
           )}
 
-          {/* Hover overlay */}
+          {/* Permanent deep gradient at bottom — title info lives here */}
           <div
-            className="absolute inset-0 flex items-center justify-center transition-opacity duration-300"
             style={{
-              background: 'rgba(5,8,22,0.7)',
+              position: 'absolute',
+              bottom: 0,
+              left: 0,
+              right: 0,
+              height: '62%',
+              background: 'linear-gradient(to top, rgba(8,12,28,1) 0%, rgba(8,12,28,0.85) 35%, rgba(8,12,28,0.4) 65%, transparent 100%)',
+              zIndex: 1,
+            }}
+          />
+
+          {/* ── Rating badge — top right ── */}
+          <div
+            style={{
+              position: 'absolute',
+              top: '8px',
+              right: '8px',
+              zIndex: 3,
+              display: 'flex',
+              alignItems: 'center',
+              gap: '3px',
+              padding: '3px 7px',
+              borderRadius: '6px',
+              background: 'rgba(8,12,28,0.75)',
+              backdropFilter: 'blur(8px)',
+              WebkitBackdropFilter: 'blur(8px)',
+              border: `1px solid ${getRatingColor(rating)}35`,
+              color: getRatingColor(rating),
+              fontSize: '11px',
+              fontWeight: 700,
+              letterSpacing: '0.02em',
+            }}
+          >
+            <Star size={9} fill="currentColor" />
+            {rating.toFixed(1)}
+          </div>
+
+          {/* ── Type badge — top left ── */}
+          <div
+            style={{
+              position: 'absolute',
+              top: '8px',
+              left: '8px',
+              zIndex: 3,
+              display: 'flex',
+              alignItems: 'center',
+              gap: '3px',
+              padding: '3px 7px',
+              borderRadius: '6px',
+              background: 'rgba(8,12,28,0.75)',
+              backdropFilter: 'blur(8px)',
+              WebkitBackdropFilter: 'blur(8px)',
+              border: '1px solid rgba(255,255,255,0.1)',
+              color: '#94a3b8',
+              fontSize: '9px',
+              fontWeight: 700,
+              letterSpacing: '0.08em',
+              textTransform: 'uppercase' as const,
+            }}
+          >
+            {type === 'tv' ? <Tv size={8} /> : <Film size={8} />}
+            {type === 'tv' ? 'Series' : 'Film'}
+          </div>
+
+          {/* ── Title + year — bottom overlay ── */}
+          <div
+            style={{
+              position: 'absolute',
+              bottom: 0,
+              left: 0,
+              right: 0,
+              padding: '0 10px 10px',
+              zIndex: 2,
+              transform: isHovered ? 'translateY(-4px)' : 'translateY(0)',
+              transition: 'transform 0.28s cubic-bezier(0.4,0,0.2,1)',
+            }}
+          >
+            <h3
+              title={title}
+              style={{
+                color: '#f1f5f9',
+                fontSize: '12.5px',
+                fontWeight: 700,
+                lineHeight: 1.35,
+                display: '-webkit-box',
+                WebkitLineClamp: 2,
+                WebkitBoxOrient: 'vertical' as const,
+                overflow: 'hidden',
+                marginBottom: year ? '3px' : 0,
+              }}
+            >
+              {title}
+            </h3>
+            {year && (
+              <span
+                style={{
+                  color: '#64748b',
+                  fontSize: '10.5px',
+                  fontWeight: 500,
+                  letterSpacing: '0.04em',
+                }}
+              >
+                {year}
+              </span>
+            )}
+          </div>
+
+          {/* ── Hover play overlay ── */}
+          <div
+            style={{
+              position: 'absolute',
+              inset: 0,
+              background: 'rgba(4,8,20,0.55)',
+              display: 'flex',
+              alignItems: 'center',
+              justifyContent: 'center',
               opacity: isHovered ? 1 : 0,
+              transition: 'opacity 0.25s ease',
+              zIndex: 4,
             }}
           >
             <div
-              className="p-4 rounded-full"
               style={{
+                width: '50px',
+                height: '50px',
+                borderRadius: '50%',
                 background: 'linear-gradient(135deg, #06b6d4, #7c3aed)',
-                boxShadow: '0 0 30px rgba(6,182,212,0.5)',
+                boxShadow: '0 0 28px rgba(6,182,212,0.55), 0 0 60px rgba(124,58,237,0.25)',
+                display: 'flex',
+                alignItems: 'center',
+                justifyContent: 'center',
+                transform: isHovered ? 'scale(1)' : 'scale(0.75)',
+                transition: 'transform 0.28s cubic-bezier(0.4,0,0.2,1)',
               }}
             >
-              <Play size={24} className="text-white" fill="white" />
+              <Play size={20} fill="white" color="white" style={{ marginLeft: '2px' }} />
             </div>
           </div>
-
-          {/* Rating badge */}
-          <div
-            className="absolute top-2 right-2 flex items-center gap-1 px-2 py-1 rounded-md text-xs font-bold"
-            style={{
-              background: getRatingBg(rating),
-              border: `1px solid ${getRatingColor(rating)}40`,
-              color: getRatingColor(rating),
-              backdropFilter: 'blur(4px)',
-            }}
-          >
-            <Star size={10} fill="currentColor" />
-            {rating.toFixed(1)}
-          </div>
-        </div>
-
-        {/* Info */}
-        <div className="p-3">
-          <h3
-            className="text-neo-text-primary text-sm font-semibold leading-tight truncate"
-            title={title}
-          >
-            {title}
-          </h3>
-          <p className="text-neo-text-muted text-xs mt-1">{year}</p>
         </div>
       </div>
     </Link>
@@ -127,12 +236,18 @@ export default function MovieCard({ item, type = 'movie' }: MovieCardProps) {
 
 export function MovieCardSkeleton() {
   return (
-    <div className="rounded-xl overflow-hidden" style={{ background: '#0f172a' }}>
-      <div className="aspect-[2/3] w-full skeleton" />
-      <div className="p-3 space-y-2">
-        <div className="h-4 rounded skeleton" />
-        <div className="h-3 w-1/2 rounded skeleton" />
-      </div>
+    <div
+      style={{
+        borderRadius: '14px',
+        overflow: 'hidden',
+        background: '#0c1224',
+        border: '1px solid rgba(255,255,255,0.05)',
+      }}
+    >
+      <div
+        className="skeleton"
+        style={{ aspectRatio: '2/3', width: '100%' }}
+      />
     </div>
   );
 }
