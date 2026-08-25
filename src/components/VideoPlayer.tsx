@@ -152,8 +152,7 @@ export default function VideoPlayer({
   const [showNextPrompt, setShowNextPrompt] = useState(false);
   const [nextCountdown, setNextCountdown] = useState(8);
 
-  const containerRef = useRef<HTMLDivElement>(null);
-  const videoElementRef = useRef<HTMLVideoElement | null>(null);
+  const videoRef = useRef<HTMLVideoElement | null>(null);
   const playerInstanceRef = useRef<any>(null);
   const hlsInstanceRef = useRef<any>(null);
   const mkvTracksMapRef = useRef<Map<number, TextTrack>>(new Map());
@@ -191,6 +190,10 @@ export default function VideoPlayer({
     return [];
   }, [subtitles]);
 
+  const extSubs = normalizeSubtitles();
+  const isHls = videoUrl.includes('.m3u8');
+  const isMkv = videoUrl.toLowerCase().includes('.mkv') || videoUrl.includes('matroska');
+
   // Main video player initialization effect
   useEffect(() => {
     if (typeof window === 'undefined') return;
@@ -224,74 +227,33 @@ export default function VideoPlayer({
       }
     }
 
-    const container = containerRef.current;
-    if (!container) return;
+    const videoElement = videoRef.current;
+    if (!videoElement) return;
 
-    // Clean container imperatively (safe from React DOM reconciler)
-    container.innerHTML = '';
-
-    // Create video element dynamically
-    const videoElement = document.createElement('video');
-    videoElement.className = 'plyr-react plyr w-full h-full';
-    videoElement.playsInline = true;
-    videoElement.crossOrigin = 'anonymous';
-    if (poster) {
-      videoElement.poster = poster;
-    }
-
-    // Attach external subtitle tracks if present
-    const extSubs = normalizeSubtitles();
-    extSubs.forEach((sub, idx) => {
-      const track = document.createElement('track');
-      track.kind = 'subtitles';
-      track.label = sub.label || `Subtitle ${idx + 1}`;
-      track.srclang = sub.srcLang || 'id';
-      track.src = sub.src;
-      if (sub.default || idx === 0) {
-        track.default = true;
-      }
-      videoElement.appendChild(track);
-    });
-
-    const isHls = videoUrl.includes('.m3u8');
-    const isMkv = videoUrl.toLowerCase().includes('.mkv') || videoUrl.includes('matroska');
-
-    if (!isHls) {
-      const source = document.createElement('source');
-      source.src = videoUrl;
-      if (videoUrl.includes('.mp4')) {
-        source.type = 'video/mp4';
-      } else if (videoUrl.includes('.webm')) {
-        source.type = 'video/webm';
-      } else if (isMkv) {
-        source.type = 'video/x-matroska';
-      }
-      videoElement.appendChild(source);
-    }
-
-    videoElement.addEventListener('error', () => {
-      if (!isCancelled) setHasError(true);
-    });
-
-    videoElement.addEventListener('waiting', () => {
+    const onWaiting = () => {
       if (!isCancelled) setIsBuffering(true);
-    });
+    };
 
-    videoElement.addEventListener('playing', () => {
+    const onError = () => {
+      if (!isCancelled) setHasError(true);
+    };
+
+    const onPlaying = () => {
       if (!isCancelled) {
         setIsBuffering(false);
         setIsPlaying(true);
         // Requirement: dismiss continue watching popup on playback start
         setShowResumePrompt(false);
       }
-    });
+    };
 
-    container.appendChild(videoElement);
-    videoElementRef.current = videoElement;
+    videoElement.addEventListener('error', onError);
+    videoElement.addEventListener('waiting', onWaiting);
+    videoElement.addEventListener('playing', onPlaying);
 
     // Scan native HTML5 TextTracks & HLS subtitle tracks
     const scanSubtitleTracks = (hlsInstance?: any) => {
-      if (isCancelled) return;
+      if (isCancelled || !videoElement) return;
       const found: DetectedSubtitle[] = [];
 
       // 1. Check external and native softcoded TextTracks in HTML5 video
@@ -350,9 +312,11 @@ export default function VideoPlayer({
       }
     };
 
-    videoElement.addEventListener('loadedmetadata', () => {
+    const onLoadedMetadata = () => {
       scanSubtitleTracks(hlsInstanceRef.current);
-    });
+    };
+
+    videoElement.addEventListener('loadedmetadata', onLoadedMetadata);
 
     if (videoElement.textTracks) {
       videoElement.textTracks.addEventListener('addtrack', () => {
@@ -370,7 +334,7 @@ export default function VideoPlayer({
         const parser = new SubtitleParser();
 
         parser.once('tracks', (tracks: any[]) => {
-          if (isCancelled) return;
+          if (isCancelled || !videoRef.current) return;
           const mkvDetected: DetectedSubtitle[] = [];
 
           tracks.forEach((t) => {
@@ -378,9 +342,9 @@ export default function VideoPlayer({
             const langCode = t.language || 'und';
             const langLabel = getLanguageLabel(langCode, t.name);
 
-            if (videoElementRef.current) {
+            if (videoRef.current) {
               try {
-                const textTrack = videoElementRef.current.addTextTrack(
+                const textTrack = videoRef.current.addTextTrack(
                   'subtitles',
                   langLabel,
                   langCode
@@ -461,7 +425,7 @@ export default function VideoPlayer({
       try {
         if (isHls) {
           const HlsModule = (await import('hls.js')).default;
-          if (HlsModule.isSupported() && !isCancelled) {
+          if (HlsModule.isSupported() && !isCancelled && videoElement) {
             const hls = new HlsModule({
               enableWorker: true,
               lowLatencyMode: true,
@@ -500,9 +464,9 @@ export default function VideoPlayer({
         }
 
         const PlyrModule = (await import('plyr')).default;
-        if (isCancelled) return;
+        if (isCancelled || !videoRef.current) return;
 
-        const player = new PlyrModule(videoElement, {
+        const player = new PlyrModule(videoRef.current, {
           controls: [
             'play-large',
             'play',
@@ -615,12 +579,14 @@ export default function VideoPlayer({
         } catch (e) {}
         hlsInstanceRef.current = null;
       }
-      if (containerRef.current) {
-        containerRef.current.innerHTML = '';
+      if (videoElement) {
+        videoElement.removeEventListener('error', onError);
+        videoElement.removeEventListener('waiting', onWaiting);
+        videoElement.removeEventListener('playing', onPlaying);
+        videoElement.removeEventListener('loadedmetadata', onLoadedMetadata);
       }
-      videoElementRef.current = null;
     };
-  }, [videoUrl, youtubeId, vimeoId, storageKey, normalizeSubtitles, onNextEpisode]);
+  }, [videoUrl, youtubeId, vimeoId, storageKey, isHls, isMkv, onNextEpisode]);
 
   // Next episode countdown timer
   useEffect(() => {
@@ -852,7 +818,7 @@ export default function VideoPlayer({
             </div>
           )}
 
-          {/* ── 5. Video Canvas Container (Unmanaged DOM Container) ── */}
+          {/* ── 5. Video Canvas Container with Declarative <video> in JSX ── */}
           <div
             className="relative w-full overflow-hidden bg-black flex items-center justify-center plyr-custom-wrapper"
             style={{
@@ -927,11 +893,45 @@ export default function VideoPlayer({
                 className="w-full h-full border-0"
               />
             ) : (
-              /* Unmanaged DOM container: React does not touch video or plyr children */
+              /* Declarative <video> tag in JSX isolated with key */
               <div
-                ref={containerRef}
-                className="w-full h-full flex items-center justify-center"
-              />
+                key={videoUrl}
+                className="w-full h-full flex items-center justify-center plyr-custom-wrapper"
+              >
+                <video
+                  ref={videoRef}
+                  className="plyr-react plyr w-full h-full"
+                  playsInline
+                  crossOrigin="anonymous"
+                  poster={poster}
+                >
+                  {!isHls && (
+                    <source
+                      src={videoUrl}
+                      type={
+                        videoUrl.includes('.mp4')
+                          ? 'video/mp4'
+                          : videoUrl.includes('.webm')
+                          ? 'video/webm'
+                          : isMkv
+                          ? 'video/x-matroska'
+                          : undefined
+                      }
+                    />
+                  )}
+
+                  {extSubs.map((sub, idx) => (
+                    <track
+                      key={`${sub.src}-${idx}`}
+                      kind="subtitles"
+                      label={sub.label || `Subtitle ${idx + 1}`}
+                      srcLang={sub.srcLang || 'id'}
+                      src={sub.src}
+                      default={sub.default || idx === 0}
+                    />
+                  ))}
+                </video>
+              </div>
             )}
           </div>
         </div>
