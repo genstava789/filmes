@@ -1,6 +1,6 @@
 'use client';
 
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect, useRef } from 'react';
 import Link from 'next/link';
 import { usePathname } from 'next/navigation';
 import {
@@ -11,7 +11,8 @@ import {
   Film,
   Tv,
   Search,
-  ChevronRight,
+  Sparkles,
+  Compass,
   Flame,
   Clapperboard,
   Star,
@@ -28,21 +29,25 @@ interface MobileHeaderProps {
 export default function MobileHeader({ genres = [] }: MobileHeaderProps) {
   const [menuOpen, setMenuOpen] = useState(false);
   const pathname = usePathname();
+  const menuRef = useRef<HTMLDivElement>(null);
 
   // Close menu on route change
   useEffect(() => {
     setMenuOpen(false);
   }, [pathname]);
 
-  // Lock body scroll when drawer is open
+  // Close menu when clicking outside
   useEffect(() => {
+    const handleClickOutside = (event: MouseEvent) => {
+      if (menuRef.current && !menuRef.current.contains(event.target as Node)) {
+        setMenuOpen(false);
+      }
+    };
     if (menuOpen) {
-      document.body.style.overflow = 'hidden';
-    } else {
-      document.body.style.overflow = '';
+      document.addEventListener('mousedown', handleClickOutside);
     }
     return () => {
-      document.body.style.overflow = '';
+      document.removeEventListener('mousedown', handleClickOutside);
     };
   }, [menuOpen]);
 
@@ -51,11 +56,43 @@ export default function MobileHeader({ genres = [] }: MobileHeaderProps) {
     return pathname.startsWith(href);
   };
 
-  const mainNav = [
-    { href: '/', icon: Home, label: 'Home' },
-    { href: '/movie', icon: Film, label: 'Movies' },
-    { href: '/tv', icon: Tv, label: 'TV Shows' },
-    { href: '/search', icon: Search, label: 'Search' },
+  const navCards = [
+    {
+      href: '/',
+      icon: Home,
+      title: 'Home',
+      desc: 'Trending & curated',
+      color: '#06b6d4',
+      bg: 'rgba(6, 182, 212, 0.12)',
+      border: 'rgba(6, 182, 212, 0.3)',
+    },
+    {
+      href: '/movie',
+      icon: Film,
+      title: 'Movies',
+      desc: 'Browse movie catalog',
+      color: '#a78bfa',
+      bg: 'rgba(167, 139, 250, 0.12)',
+      border: 'rgba(167, 139, 250, 0.3)',
+    },
+    {
+      href: '/tv',
+      icon: Tv,
+      title: 'TV Shows',
+      desc: 'Series & episodes',
+      color: '#ec4899',
+      bg: 'rgba(236, 72, 153, 0.12)',
+      border: 'rgba(236, 72, 153, 0.3)',
+    },
+    {
+      href: '/search',
+      icon: Search,
+      title: 'Search',
+      desc: 'Find movies & series',
+      color: '#38bdf8',
+      bg: 'rgba(56, 189, 248, 0.12)',
+      border: 'rgba(56, 189, 248, 0.3)',
+    },
   ];
 
   const quickGenres = [
@@ -67,16 +104,16 @@ export default function MobileHeader({ genres = [] }: MobileHeaderProps) {
   ];
 
   return (
-    <header className="lg:hidden relative w-full z-40">
-      {/* ── Glassmorphism Header Bar (Non-fixed) ── */}
+    <header className="lg:hidden relative w-full z-40" ref={menuRef}>
+      {/* ── Frosted Glassmorphism Header Bar (Non-fixed) ── */}
       <div
         className="w-full h-16 px-4 sm:px-6 flex items-center justify-between transition-all duration-300"
         style={{
-          background: 'rgba(11, 16, 32, 0.85)',
-          backdropFilter: 'blur(20px)',
-          WebkitBackdropFilter: 'blur(20px)',
+          background: 'rgba(6, 10, 26, 0.72)',
+          backdropFilter: 'blur(24px) saturate(180%)',
+          WebkitBackdropFilter: 'blur(24px) saturate(180%)',
           borderBottom: '1px solid rgba(255, 255, 255, 0.08)',
-          boxShadow: '0 4px 20px rgba(0, 0, 0, 0.4)',
+          boxShadow: '0 8px 32px rgba(0, 0, 0, 0.45), inset 0 1px 0 rgba(255, 255, 255, 0.08)',
         }}
       >
         {/* Left: Site Title (No Logo) */}
@@ -84,7 +121,7 @@ export default function MobileHeader({ genres = [] }: MobileHeaderProps) {
           <span
             className="text-lg sm:text-xl font-black tracking-wider uppercase transition-opacity duration-200 group-hover:opacity-80"
             style={{
-              background: 'linear-gradient(135deg, #06b6d4, #7c3aed)',
+              background: 'linear-gradient(135deg, #06b6d4 0%, #a78bfa 50%, #ec4899 100%)',
               WebkitBackgroundClip: 'text',
               WebkitTextFillColor: 'transparent',
               backgroundClip: 'text',
@@ -94,191 +131,162 @@ export default function MobileHeader({ genres = [] }: MobileHeaderProps) {
           </span>
         </Link>
 
-        {/* Right: Hamburger Menu followed by Login Button */}
-        <div className="flex items-center gap-2.5">
-          {/* Hamburger Menu Toggle */}
+        {/* Right: Login Button FIRST, followed by Hamburger Menu at the far right */}
+        <div className="flex items-center gap-2 sm:gap-2.5">
+          {/* Distinctive Glassmorphic Login Button */}
+          <button
+            type="button"
+            className="px-3.5 py-1.5 sm:px-4 sm:py-2 rounded-xl text-xs sm:text-sm font-bold text-cyan-300 transition-all duration-200 hover:scale-105 active:scale-95 flex items-center gap-1.5"
+            style={{
+              background:
+                'linear-gradient(135deg, rgba(6, 182, 212, 0.16) 0%, rgba(124, 58, 237, 0.22) 100%)',
+              border: '1px solid rgba(6, 182, 212, 0.45)',
+              boxShadow: '0 0 18px rgba(6, 182, 212, 0.18), inset 0 1px 0 rgba(255, 255, 255, 0.12)',
+            }}
+          >
+            <LogIn size={13} className="text-cyan-400" />
+            <span>Login</span>
+          </button>
+
+          {/* Hamburger Menu Toggle Button (Far Right) */}
           <button
             type="button"
             onClick={() => setMenuOpen(!menuOpen)}
-            className="w-9 h-9 rounded-xl flex items-center justify-center text-slate-300 hover:text-cyan-400 transition-all duration-200 active:scale-95"
+            className="w-9 h-9 sm:w-10 sm:h-10 rounded-xl flex items-center justify-center transition-all duration-200 active:scale-95"
             style={{
-              background: menuOpen ? 'rgba(6, 182, 212, 0.15)' : 'rgba(255, 255, 255, 0.06)',
+              background: menuOpen ? 'rgba(6, 182, 212, 0.2)' : 'rgba(255, 255, 255, 0.06)',
               border: menuOpen
-                ? '1px solid rgba(6, 182, 212, 0.4)'
+                ? '1px solid rgba(6, 182, 212, 0.5)'
                 : '1px solid rgba(255, 255, 255, 0.1)',
               color: menuOpen ? '#06b6d4' : '#94a3b8',
+              boxShadow: menuOpen ? '0 0 15px rgba(6, 182, 212, 0.3)' : 'none',
             }}
-            aria-label="Toggle Menu"
+            aria-label="Toggle Navigation Menu"
           >
             {menuOpen ? <X size={18} /> : <Menu size={18} />}
-          </button>
-
-          {/* Login Button (No destination) */}
-          <button
-            type="button"
-            className="px-3.5 sm:px-4 py-2 rounded-xl text-xs sm:text-sm font-bold text-white transition-all duration-200 hover:scale-105 active:scale-95 flex items-center gap-1.5 shadow-lg"
-            style={{
-              background: 'linear-gradient(135deg, #06b6d4, #7c3aed)',
-              boxShadow: '0 0 15px rgba(6, 182, 212, 0.35)',
-            }}
-          >
-            <LogIn size={13} />
-            <span>Login</span>
           </button>
         </div>
       </div>
 
-      {/* ── Slide-Out Drawer Navigation (Consistent with Sidebar) ── */}
+      {/* ── Modern Floating Glassmorphism Mobile Menu ── */}
       {menuOpen && (
-        <div className="fixed inset-0 z-50 flex">
-          {/* Backdrop */}
-          <div
-            className="fixed inset-0 bg-black/70 backdrop-blur-sm transition-opacity duration-300"
-            onClick={() => setMenuOpen(false)}
-          />
-
-          {/* Drawer Panel */}
-          <div
-            className="relative ml-auto w-72 max-w-[85vw] h-full flex flex-col z-10 shadow-2xl animate-in slide-in-from-right duration-300"
-            style={{
-              background: 'rgba(11, 16, 32, 0.98)',
-              backdropFilter: 'blur(24px)',
-              WebkitBackdropFilter: 'blur(24px)',
-              borderLeft: '1px solid rgba(255, 255, 255, 0.08)',
-            }}
-          >
-            {/* Drawer Header */}
-            <div className="flex items-center justify-between px-5 h-16 border-b border-white/[0.08]">
-              <span
-                className="text-base font-black tracking-wider uppercase"
-                style={{
-                  background: 'linear-gradient(135deg, #06b6d4, #7c3aed)',
-                  WebkitBackgroundClip: 'text',
-                  WebkitTextFillColor: 'transparent',
-                  backgroundClip: 'text',
-                }}
-              >
-                Menu Navigation
-              </span>
-              <button
-                type="button"
-                onClick={() => setMenuOpen(false)}
-                className="w-8 h-8 rounded-lg flex items-center justify-center text-slate-400 hover:text-white hover:bg-white/10 transition-colors"
-              >
-                <X size={18} />
-              </button>
-            </div>
-
-            {/* Drawer Nav Links */}
-            <div className="flex-1 overflow-y-auto px-4 py-4 space-y-6">
-              {/* Main Navigation */}
-              <div>
-                <p className="px-3 text-[11px] font-bold uppercase tracking-wider text-slate-400 mb-2">
-                  Explore
-                </p>
-                <div className="space-y-1">
-                  {mainNav.map((item) => {
-                    const active = isActive(item.href);
-                    const Icon = item.icon;
-                    return (
-                      <Link
-                        key={item.href}
-                        href={item.href}
-                        onClick={() => setMenuOpen(false)}
-                        className={`flex items-center justify-between px-3.5 py-2.5 rounded-xl text-sm font-semibold transition-all duration-200 ${
-                          active
-                            ? 'text-cyan-400 border border-cyan-500/30'
-                            : 'text-slate-300 hover:text-white hover:bg-white/[0.06]'
-                        }`}
-                        style={{
-                          background: active
-                            ? 'linear-gradient(135deg, rgba(6, 182, 212, 0.15), rgba(124, 58, 237, 0.15))'
-                            : 'transparent',
-                        }}
-                      >
-                        <div className="flex items-center gap-3">
-                          <Icon size={16} className={active ? 'text-cyan-400' : 'text-slate-400'} />
-                          <span>{item.label}</span>
-                        </div>
-                        <ChevronRight size={14} className="text-slate-500" />
-                      </Link>
-                    );
-                  })}
-                </div>
-              </div>
-
-              {/* Movie Genres */}
-              <div>
-                <p className="px-3 text-[11px] font-bold uppercase tracking-wider text-slate-400 mb-2">
-                  Popular Movie Genres
-                </p>
-                <div className="space-y-1">
-                  {quickGenres.map((item) => {
-                    const active = pathname === item.href;
-                    const Icon = item.icon;
-                    return (
-                      <Link
-                        key={item.href}
-                        href={item.href}
-                        onClick={() => setMenuOpen(false)}
-                        className={`flex items-center justify-between px-3.5 py-2 rounded-xl text-xs sm:text-sm font-medium transition-all duration-200 ${
-                          active
-                            ? 'text-cyan-400 border border-cyan-500/30'
-                            : 'text-slate-400 hover:text-white hover:bg-white/[0.04]'
-                        }`}
-                        style={{
-                          background: active
-                            ? 'linear-gradient(135deg, rgba(6, 182, 212, 0.12), rgba(124, 58, 237, 0.12))'
-                            : 'transparent',
-                        }}
-                      >
-                        <div className="flex items-center gap-2.5">
-                          <Icon size={14} className={active ? 'text-cyan-400' : 'text-slate-500'} />
-                          <span>{item.label}</span>
-                        </div>
-                        <ChevronRight size={13} className="text-slate-600" />
-                      </Link>
-                    );
-                  })}
-                </div>
-              </div>
-
-              {/* All Genres Direct Link */}
-              {genres.length > 0 && (
-                <div className="pt-2 border-t border-white/[0.06]">
-                  <p className="px-3 text-[11px] font-bold uppercase tracking-wider text-slate-400 mb-2">
-                    All Genres
-                  </p>
-                  <div className="grid grid-cols-2 gap-1.5">
-                    {genres.slice(0, 10).map((g) => (
-                      <Link
-                        key={g.id}
-                        href={`/genre/${g.id}`}
-                        onClick={() => setMenuOpen(false)}
-                        className="px-3 py-1.5 rounded-lg text-xs font-medium text-slate-400 hover:text-cyan-400 hover:bg-white/[0.04] transition-colors truncate"
-                      >
-                        {g.name}
-                      </Link>
-                    ))}
+        <div
+          className="absolute top-full left-0 right-0 p-4 sm:p-5 rounded-b-3xl border-b border-x transition-all duration-300 animate-in fade-in slide-in-from-top-4"
+          style={{
+            background: 'rgba(8, 12, 28, 0.96)',
+            backdropFilter: 'blur(30px) saturate(190%)',
+            WebkitBackdropFilter: 'blur(30px) saturate(190%)',
+            borderColor: 'rgba(255, 255, 255, 0.1)',
+            boxShadow:
+              '0 25px 60px rgba(0, 0, 0, 0.8), 0 0 30px rgba(6, 182, 212, 0.1), inset 0 1px 0 rgba(255, 255, 255, 0.1)',
+          }}
+        >
+          {/* Section 1: Primary Navigation Cards (2x2 Grid) */}
+          <div className="grid grid-cols-2 gap-2.5 mb-4">
+            {navCards.map((card) => {
+              const active = isActive(card.href);
+              const Icon = card.icon;
+              return (
+                <Link
+                  key={card.href}
+                  href={card.href}
+                  onClick={() => setMenuOpen(false)}
+                  className="p-3 sm:p-3.5 rounded-2xl transition-all duration-200 hover:scale-[1.02] active:scale-[0.98] flex flex-col justify-between group"
+                  style={{
+                    background: active ? card.bg : 'rgba(255, 255, 255, 0.03)',
+                    border: active ? `1px solid ${card.border}` : '1px solid rgba(255, 255, 255, 0.06)',
+                    boxShadow: active ? `0 0 18px ${card.bg}` : 'none',
+                  }}
+                >
+                  <div className="flex items-center justify-between mb-2">
+                    <div
+                      className="w-8 h-8 rounded-xl flex items-center justify-center"
+                      style={{
+                        background: active ? card.bg : 'rgba(255, 255, 255, 0.06)',
+                        color: card.color,
+                      }}
+                    >
+                      <Icon size={16} />
+                    </div>
+                    {active && (
+                      <span className="w-1.5 h-1.5 rounded-full" style={{ background: card.color }} />
+                    )}
                   </div>
-                </div>
-              )}
+                  <div>
+                    <h3 className="font-bold text-sm text-white group-hover:text-cyan-300 transition-colors">
+                      {card.title}
+                    </h3>
+                    <p className="text-[11px] font-medium text-slate-400">{card.desc}</p>
+                  </div>
+                </Link>
+              );
+            })}
+          </div>
+
+          {/* Section 2: Quick Popular Genres (Pill Row) */}
+          <div className="pt-3 border-t border-white/[0.08]">
+            <div className="flex items-center gap-1.5 mb-2.5 px-1">
+              <Sparkles size={12} className="text-cyan-400" />
+              <span className="text-[11px] font-extrabold uppercase tracking-wider text-slate-400">
+                Popular Genres
+              </span>
             </div>
 
-            {/* Drawer Footer Login Action */}
-            <div className="p-4 border-t border-white/[0.08]">
-              <button
-                type="button"
-                className="w-full py-3 rounded-xl font-bold text-sm text-white flex items-center justify-center gap-2 transition-all hover:scale-[1.02] active:scale-98"
-                style={{
-                  background: 'linear-gradient(135deg, #06b6d4, #7c3aed)',
-                  boxShadow: '0 0 20px rgba(6, 182, 212, 0.3)',
-                }}
-              >
-                <LogIn size={15} />
-                <span>Account Login</span>
-              </button>
+            <div className="flex flex-wrap gap-1.5">
+              {quickGenres.map((genre) => {
+                const active = pathname === genre.href;
+                const Icon = genre.icon;
+                return (
+                  <Link
+                    key={genre.href}
+                    href={genre.href}
+                    onClick={() => setMenuOpen(false)}
+                    className="flex items-center gap-1.5 px-3 py-1.5 rounded-xl text-xs font-semibold transition-all duration-150 hover:scale-105 active:scale-95"
+                    style={{
+                      background: active
+                        ? 'linear-gradient(135deg, rgba(6, 182, 212, 0.25), rgba(124, 58, 237, 0.25))'
+                        : 'rgba(255, 255, 255, 0.05)',
+                      border: active
+                        ? '1px solid rgba(6, 182, 212, 0.5)'
+                        : '1px solid rgba(255, 255, 255, 0.08)',
+                      color: active ? '#06b6d4' : '#cbd5e1',
+                    }}
+                  >
+                    <Icon size={12} className={active ? 'text-cyan-400' : 'text-slate-400'} />
+                    <span>{genre.label}</span>
+                  </Link>
+                );
+              })}
             </div>
+          </div>
+
+          {/* Section 3: Direct Link to All Movies & Series */}
+          <div className="pt-3 mt-3 border-t border-white/[0.08] flex items-center justify-between">
+            <Link
+              href="/movie"
+              onClick={() => setMenuOpen(false)}
+              className="flex-1 mr-2 py-2 px-3 rounded-xl text-center text-xs font-bold text-slate-300 hover:text-white transition-all flex items-center justify-center gap-1.5"
+              style={{
+                background: 'rgba(255, 255, 255, 0.04)',
+                border: '1px solid rgba(255, 255, 255, 0.08)',
+              }}
+            >
+              <Compass size={13} className="text-cyan-400" />
+              <span>Browse Catalog</span>
+            </Link>
+
+            <Link
+              href="/tv/browse"
+              onClick={() => setMenuOpen(false)}
+              className="flex-1 py-2 px-3 rounded-xl text-center text-xs font-bold text-slate-300 hover:text-white transition-all flex items-center justify-center gap-1.5"
+              style={{
+                background: 'rgba(255, 255, 255, 0.04)',
+                border: '1px solid rgba(255, 255, 255, 0.08)',
+              }}
+            >
+              <Tv size={13} className="text-pink-400" />
+              <span>All TV Series</span>
+            </Link>
           </div>
         </div>
       )}
