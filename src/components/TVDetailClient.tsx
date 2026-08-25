@@ -113,6 +113,17 @@ export default function TVDetailClient({
   const scrollContainerRef = useRef<HTMLDivElement>(null);
   const dropdownRef = useRef<HTMLDivElement>(null);
 
+  const allEpisodes = React.useMemo(() => {
+    return seasons.flatMap((s) => s.episodes);
+  }, [seasons]);
+
+  const currentEpisodeIndex = allEpisodes.findIndex((e) => e.slug === activeEpisode?.slug);
+  const prevEpisode = currentEpisodeIndex > 0 ? allEpisodes[currentEpisodeIndex - 1] : null;
+  const nextEpisode =
+    currentEpisodeIndex >= 0 && currentEpisodeIndex < allEpisodes.length - 1
+      ? allEpisodes[currentEpisodeIndex + 1]
+      : null;
+
   // Sync selected season when activeEpisode slug changes
   useEffect(() => {
     if (activeEpisode) {
@@ -124,6 +135,23 @@ export default function TVDetailClient({
       }
     }
   }, [activeEpisode?.slug, seasons]);
+
+  // Sync with browser Back/Forward navigation
+  useEffect(() => {
+    const handlePopState = () => {
+      if (typeof window !== 'undefined') {
+        const currentPath = window.location.pathname;
+        const matched = allEpisodes.find((ep) => ep.urlPath === currentPath);
+        if (matched) {
+          setActiveEpisode(matched);
+        }
+      }
+    };
+    window.addEventListener('popstate', handlePopState);
+    return () => {
+      window.removeEventListener('popstate', handlePopState);
+    };
+  }, [allEpisodes]);
 
   // Click outside to close dropdown
   useEffect(() => {
@@ -175,16 +203,66 @@ export default function TVDetailClient({
       {activeEpisode?.videoUrl && (
         <div className="w-full bg-black mb-4">
           <VideoPlayer
-            key={activeEpisode.slug}
             videoUrl={activeEpisode.videoUrl}
             title={currentVideoTitle}
             poster={activeEpisode.imageUrl || defaultBackdrop}
+            subtitles={activeEpisode.subtitles}
+            onNextEpisode={nextEpisode ? () => handleSelectEpisode(nextEpisode) : undefined}
+            onPrevEpisode={prevEpisode ? () => handleSelectEpisode(prevEpisode) : undefined}
+            nextEpisodeTitle={nextEpisode ? `${nextEpisode.episodeLabel}: ${nextEpisode.title}` : undefined}
+            prevEpisodeTitle={prevEpisode ? `${prevEpisode.episodeLabel}: ${prevEpisode.title}` : undefined}
           />
         </div>
       )}
 
-      {/* ── 2. Open Episode Details & Actions (No Enclosing Card Container) ── */}
+      {/* ── 2. Open Episode Details & Actions ── */}
       <div className="w-full px-4 sm:px-6 md:px-8 lg:px-10 xl:px-12 2xl:px-14 pt-2">
+        {/* Episode Navigation Quick Bar (Prev / Next Episode Buttons) */}
+        {allEpisodes.length > 1 && (
+          <div className="flex items-center justify-between gap-3 mb-4 pb-3 border-b border-white/[0.08]">
+            <button
+              type="button"
+              onClick={() => prevEpisode && handleSelectEpisode(prevEpisode)}
+              disabled={!prevEpisode}
+              className={`flex items-center gap-1.5 px-3 py-1.5 rounded-xl text-xs font-bold transition-all duration-200 ${
+                prevEpisode
+                  ? 'text-slate-200 bg-white/5 hover:bg-white/10 hover:text-white active:scale-95 border border-white/10'
+                  : 'text-slate-600 bg-white/[0.02] border border-white/5 cursor-not-allowed opacity-50'
+              }`}
+              title={prevEpisode ? `Episode Sebelumnya: ${prevEpisode.title}` : 'Episode Pertama'}
+            >
+              <ChevronLeft size={15} />
+              <span className="hidden xs:inline">Episode Sebelumnya</span>
+              <span className="xs:hidden">Prev</span>
+            </button>
+
+            <div className="text-center">
+              <span className="text-xs font-bold text-cyan-300">
+                {activeEpisode?.episodeLabel || 'Episode'}
+              </span>
+              <span className="text-[11px] text-slate-400 ml-1.5">
+                ({currentEpisodeIndex + 1} dari {allEpisodes.length})
+              </span>
+            </div>
+
+            <button
+              type="button"
+              onClick={() => nextEpisode && handleSelectEpisode(nextEpisode)}
+              disabled={!nextEpisode}
+              className={`flex items-center gap-1.5 px-3.5 py-1.5 rounded-xl text-xs font-bold transition-all duration-200 shadow-md ${
+                nextEpisode
+                  ? 'text-white bg-gradient-to-r from-cyan-500 to-purple-600 hover:scale-105 active:scale-95 shadow-cyan-500/25'
+                  : 'text-slate-600 bg-white/[0.02] border border-white/5 cursor-not-allowed opacity-50'
+              }`}
+              title={nextEpisode ? `Episode Berikutnya: ${nextEpisode.title}` : 'Episode Terakhir'}
+            >
+              <span className="hidden xs:inline">Episode Berikutnya</span>
+              <span className="xs:hidden">Next</span>
+              <ChevronRight size={15} />
+            </button>
+          </div>
+        )}
+
         {/* Episode Title */}
         <h1 className="text-xl sm:text-2xl lg:text-3xl font-black leading-tight mb-2 tracking-tight text-white">
           {activeEpisode ? `${activeEpisode.episodeLabel}: ${activeEpisode.title}` : showTitle}

@@ -29,6 +29,11 @@ export interface CustomEpisodeFrontmatter {
   duration?: string;
   episode_number?: number | string;
   season_number?: number | string;
+  subtitle?: string;
+  subtitles?: any;
+  subtitle_url?: string;
+  sub_url?: string;
+  caption_url?: string;
   [key: string]: any;
 }
 
@@ -45,6 +50,7 @@ export interface CustomEpisode {
   overview: string;
   rating?: number | null;
   duration?: string | null;
+  subtitles?: any;
   contentHtml: string | null;
   rawContent: string;
   urlPath: string; // e.g. "/tv/lanterns/s1/e1"
@@ -290,6 +296,7 @@ export async function getCustomTVShowBySlug(showSlugOrTmdbId: string | number): 
             const title = frontmatter.title?.trim() || `Episode ${epNum}`;
             const videoUrl = frontmatter.videourl || frontmatter.video_url || null;
             const imageUrl = frontmatter.image_url || null;
+            const subtitles = frontmatter.subtitles || frontmatter.subtitle || frontmatter.subtitle_url || frontmatter.sub_url || frontmatter.caption_url || null;
             const overview = (frontmatter.deskripsi || frontmatter.description || '').trim();
             const rating = frontmatter.rating !== undefined && frontmatter.rating !== null ? Number(frontmatter.rating) : null;
             const duration = frontmatter.duration || null;
@@ -309,6 +316,7 @@ export async function getCustomTVShowBySlug(showSlugOrTmdbId: string | number): 
               overview,
               rating,
               duration,
+              subtitles,
               contentHtml,
               rawContent: content,
               urlPath,
@@ -357,6 +365,7 @@ export async function getCustomTVShowBySlug(showSlugOrTmdbId: string | number): 
           const title = frontmatter.title?.trim() || `Episode ${epNum}`;
           const videoUrl = frontmatter.videourl || frontmatter.video_url || null;
           const imageUrl = frontmatter.image_url || null;
+          const subtitles = frontmatter.subtitles || frontmatter.subtitle || frontmatter.subtitle_url || frontmatter.sub_url || frontmatter.caption_url || null;
           const overview = (frontmatter.deskripsi || frontmatter.description || '').trim();
           const rating = frontmatter.rating !== undefined && frontmatter.rating !== null ? Number(frontmatter.rating) : null;
           const duration = frontmatter.duration || null;
@@ -376,6 +385,7 @@ export async function getCustomTVShowBySlug(showSlugOrTmdbId: string | number): 
             overview,
             rating,
             duration,
+            subtitles,
             contentHtml,
             rawContent: content,
             urlPath,

@@ -17,6 +17,11 @@ export interface CustomMovieFrontmatter {
   image_url?: string;
   tagline?: string;
   featured?: boolean | string;
+  subtitle?: string;
+  subtitles?: any;
+  subtitle_url?: string;
+  sub_url?: string;
+  caption_url?: string;
   [key: string]: any;
 }
 
@@ -33,6 +38,7 @@ export interface MergedMovieDetail extends MovieDetail {
   customSlug?: string;
   customVideoUrl?: string | null;
   customImageUrl?: string | null;
+  customSubtitles?: any;
   customContentHtml?: string | null;
 }
 
@@ -221,6 +227,7 @@ export async function getMovieDetailsWithCustomOverride(
 
   const videoUrl = frontmatter.videourl || frontmatter.video_url || null;
   const imageUrl = frontmatter.image_url || null;
+  const subtitles = frontmatter.subtitles || frontmatter.subtitle || frontmatter.subtitle_url || frontmatter.sub_url || frontmatter.caption_url || null;
 
   return {
     ...tmdbMovie,
@@ -232,6 +239,7 @@ export async function getMovieDetailsWithCustomOverride(
     customSlug: customMovie.slug,
     customVideoUrl: videoUrl,
     customImageUrl: imageUrl,
+    customSubtitles: subtitles,
     customContentHtml: contentHtml && contentHtml.trim().length > 0 ? contentHtml : null,
   };
 }

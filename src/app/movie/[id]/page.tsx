@@ -186,6 +186,7 @@ export default async function MovieDetailPage({ params }: PageProps) {
             videoUrl={videoUrl}
             title={videoTitle}
             poster={thumbnailImage}
+            subtitles={movie.customSubtitles}
           />
         </div>
       )}

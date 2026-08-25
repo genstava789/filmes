@@ -1,6 +1,6 @@
 'use client';
 
-import React, { useState, useEffect, useRef } from 'react';
+import React, { useState, useEffect, useRef, useCallback } from 'react';
 import {
   AlertCircle,
   Flag,
@@ -8,13 +8,45 @@ import {
   RotateCcw,
   Play,
   X,
+  Subtitles,
+  Check,
+  ChevronRight,
+  Sparkles,
+  Loader2,
 } from 'lucide-react';
 import 'plyr/dist/plyr.css';
+
+export interface SubtitleTrackItem {
+  src: string;
+  label?: string;
+  srcLang?: string;
+  default?: boolean;
+}
+
+export type SubtitlesProp =
+  | string
+  | SubtitleTrackItem
+  | SubtitleTrackItem[]
+  | null
+  | undefined;
 
 interface VideoPlayerProps {
   videoUrl: string;
   title?: string;
   poster?: string;
+  subtitles?: SubtitlesProp;
+  onNextEpisode?: () => void;
+  onPrevEpisode?: () => void;
+  nextEpisodeTitle?: string;
+  prevEpisodeTitle?: string;
+}
+
+interface DetectedSubtitle {
+  id: string | number;
+  label: string;
+  language: string;
+  type: 'native' | 'hls' | 'external';
+  trackIndex?: number;
 }
 
 function getYouTubeId(url: string): string | null {
@@ -45,25 +77,134 @@ function formatSeconds(sec: number): string {
   return `${mm}:${ss}`;
 }
 
-export default function VideoPlayer({ videoUrl, title, poster }: VideoPlayerProps) {
+export default function VideoPlayer({
+  videoUrl,
+  title,
+  poster,
+  subtitles,
+  onNextEpisode,
+  onPrevEpisode,
+  nextEpisodeTitle,
+  prevEpisodeTitle,
+}: VideoPlayerProps) {
   const [hasError, setHasError] = useState(false);
   const [reported, setReported] = useState(false);
   const [isPlaying, setIsPlaying] = useState(false);
+  const [isBuffering, setIsBuffering] = useState(false);
   const [resumeTime, setResumeTime] = useState<number | null>(null);
   const [showResumePrompt, setShowResumePrompt] = useState(false);
 
-  const videoRef = useRef<HTMLVideoElement>(null);
+  // Subtitle management state
+  const [detectedSubtitles, setDetectedSubtitles] = useState<DetectedSubtitle[]>([]);
+  const [activeSubtitleId, setActiveSubtitleId] = useState<string | number>('off');
+  const [showSubtitleMenu, setShowSubtitleMenu] = useState(false);
+
+  // Next episode prompt state
+  const [showNextPrompt, setShowNextPrompt] = useState(false);
+  const [nextCountdown, setNextCountdown] = useState(8);
+
+  const containerRef = useRef<HTMLDivElement>(null);
+  const videoElementRef = useRef<HTMLVideoElement | null>(null);
   const playerInstanceRef = useRef<any>(null);
   const hlsInstanceRef = useRef<any>(null);
   const lastSavedTimeRef = useRef<number>(0);
+  const countdownTimerRef = useRef<NodeJS.Timeout | null>(null);
+  const subtitleMenuRef = useRef<HTMLDivElement>(null);
 
   const youtubeId = getYouTubeId(videoUrl);
   const vimeoId = getVimeoId(videoUrl);
 
-  const storageKey = typeof window !== 'undefined' && videoUrl
-    ? `levistream_progress_${encodeURIComponent(videoUrl.split('?')[0])}`
-    : null;
+  const storageKey =
+    typeof window !== 'undefined' && videoUrl
+      ? `filmes_progress_${encodeURIComponent(videoUrl.split('?')[0])}`
+      : null;
 
+  // Helper to normalize subtitle prop into array
+  const normalizeSubtitles = useCallback((): SubtitleTrackItem[] => {
+    if (!subtitles) return [];
+    if (typeof subtitles === 'string') {
+      const isId = subtitles.toLowerCase().includes('id') || subtitles.toLowerCase().includes('indo');
+      return [
+        {
+          src: subtitles,
+          label: isId ? 'Indonesia' : 'Subtitles',
+          srcLang: isId ? 'id' : 'en',
+          default: true,
+        },
+      ];
+    }
+    if (Array.isArray(subtitles)) {
+      return subtitles;
+    }
+    if (typeof subtitles === 'object' && subtitles.src) {
+      return [subtitles];
+    }
+    return [];
+  }, [subtitles]);
+
+  // Click outside to close subtitle menu
+  useEffect(() => {
+    const handleClickOutside = (e: MouseEvent) => {
+      if (subtitleMenuRef.current && !subtitleMenuRef.current.contains(e.target as Node)) {
+        setShowSubtitleMenu(false);
+      }
+    };
+    if (showSubtitleMenu) {
+      document.addEventListener('mousedown', handleClickOutside);
+    }
+    return () => {
+      document.removeEventListener('mousedown', handleClickOutside);
+    };
+  }, [showSubtitleMenu]);
+
+  // Subtitle track selection handler
+  const handleSelectSubtitle = (subId: string | number) => {
+    setActiveSubtitleId(subId);
+    setShowSubtitleMenu(false);
+
+    const videoEl = videoElementRef.current;
+    const hls = hlsInstanceRef.current;
+    const player = playerInstanceRef.current;
+
+    if (subId === 'off') {
+      if (videoEl && videoEl.textTracks) {
+        for (let i = 0; i < videoEl.textTracks.length; i++) {
+          videoEl.textTracks[i].mode = 'disabled';
+        }
+      }
+      if (hls) {
+        hls.subtitleTrack = -1;
+      }
+      if (player && player.captions) {
+        try {
+          player.currentCaption = -1;
+        } catch (e) {}
+      }
+      return;
+    }
+
+    const targetSub = detectedSubtitles.find((s) => s.id === subId);
+    if (!targetSub) return;
+
+    if (targetSub.type === 'hls' && hls && typeof targetSub.trackIndex === 'number') {
+      hls.subtitleTrack = targetSub.trackIndex;
+    } else if (videoEl && videoEl.textTracks && typeof targetSub.trackIndex === 'number') {
+      for (let i = 0; i < videoEl.textTracks.length; i++) {
+        if (i === targetSub.trackIndex) {
+          videoEl.textTracks[i].mode = 'showing';
+        } else {
+          videoEl.textTracks[i].mode = 'disabled';
+        }
+      }
+      if (player && player.captions) {
+        try {
+          player.currentCaption = targetSub.trackIndex;
+        } catch (e) {}
+      }
+    }
+  };
+
+  // Main video player initialization effect
   useEffect(() => {
     if (typeof window === 'undefined') return;
     if (youtubeId || vimeoId) return;
@@ -72,10 +213,14 @@ export default function VideoPlayer({ videoUrl, title, poster }: VideoPlayerProp
     setHasError(false);
     setReported(false);
     setIsPlaying(false);
+    setIsBuffering(false);
     setShowResumePrompt(false);
+    setShowNextPrompt(false);
     setResumeTime(null);
+    setDetectedSubtitles([]);
+    setActiveSubtitleId('off');
 
-    // Check for saved playback progress in localStorage
+    // Check saved playback progress
     if (storageKey) {
       try {
         const saved = localStorage.getItem(storageKey);
@@ -91,11 +236,140 @@ export default function VideoPlayer({ videoUrl, title, poster }: VideoPlayerProp
       }
     }
 
-    const videoElement = videoRef.current;
-    if (!videoElement) return;
+    const container = containerRef.current;
+    if (!container) return;
+
+    // Clean container imperatively (safe from React DOM reconciler)
+    container.innerHTML = '';
+
+    // Create video element dynamically
+    const videoElement = document.createElement('video');
+    videoElement.className = 'plyr-react plyr w-full h-full';
+    videoElement.playsInline = true;
+    videoElement.crossOrigin = 'anonymous';
+    if (poster) {
+      videoElement.poster = poster;
+    }
+
+    // Attach external subtitle tracks if present
+    const extSubs = normalizeSubtitles();
+    extSubs.forEach((sub, idx) => {
+      const track = document.createElement('track');
+      track.kind = 'subtitles';
+      track.label = sub.label || `Subtitle ${idx + 1}`;
+      track.srclang = sub.srcLang || 'id';
+      track.src = sub.src;
+      if (sub.default || idx === 0) {
+        track.default = true;
+      }
+      videoElement.appendChild(track);
+    });
+
+    const isHls = videoUrl.includes('.m3u8');
+    if (!isHls) {
+      const source = document.createElement('source');
+      source.src = videoUrl;
+      if (videoUrl.includes('.mp4')) {
+        source.type = 'video/mp4';
+      } else if (videoUrl.includes('.webm')) {
+        source.type = 'video/webm';
+      } else if (videoUrl.includes('.mkv')) {
+        source.type = 'video/x-matroska';
+      }
+      videoElement.appendChild(source);
+    }
+
+    videoElement.addEventListener('error', () => {
+      if (!isCancelled) setHasError(true);
+    });
+
+    videoElement.addEventListener('waiting', () => {
+      if (!isCancelled) setIsBuffering(true);
+    });
+
+    videoElement.addEventListener('playing', () => {
+      if (!isCancelled) {
+        setIsBuffering(false);
+        setIsPlaying(true);
+        // Requirement: dismiss continue watching popup on playback start
+        setShowResumePrompt(false);
+      }
+    });
+
+    container.appendChild(videoElement);
+    videoElementRef.current = videoElement;
+
+    // Scan and collect softcoded and external subtitle tracks
+    const scanSubtitleTracks = (hlsInstance?: any) => {
+      if (isCancelled) return;
+      const found: DetectedSubtitle[] = [];
+
+      // 1. Check external and native softcoded TextTracks in HTML5 video
+      if (videoElement.textTracks && videoElement.textTracks.length > 0) {
+        for (let i = 0; i < videoElement.textTracks.length; i++) {
+          const track = videoElement.textTracks[i];
+          if (track.kind === 'subtitles' || track.kind === 'captions') {
+            const label =
+              track.label ||
+              (track.language ? `Subtitel (${track.language.toUpperCase()})` : `Track ${i + 1}`);
+            found.push({
+              id: `native-${i}`,
+              label,
+              language: track.language || 'id',
+              type: 'native',
+              trackIndex: i,
+            });
+
+            if (track.mode === 'showing') {
+              setActiveSubtitleId(`native-${i}`);
+            }
+          }
+        }
+      }
+
+      // 2. Check HLS subtitle tracks
+      if (hlsInstance && hlsInstance.subtitleTracks && hlsInstance.subtitleTracks.length > 0) {
+        hlsInstance.subtitleTracks.forEach((track: any, idx: number) => {
+          const label = track.name || (track.lang ? `HLS (${track.lang.toUpperCase()})` : `Sub ${idx + 1}`);
+          found.push({
+            id: `hls-${idx}`,
+            label,
+            language: track.lang || 'id',
+            type: 'hls',
+            trackIndex: idx,
+          });
+
+          if (hlsInstance.subtitleTrack === idx) {
+            setActiveSubtitleId(`hls-${idx}`);
+          }
+        });
+      }
+
+      if (found.length > 0) {
+        setDetectedSubtitles(found);
+        if (found.length > 0 && activeSubtitleId === 'off') {
+          const defaultTrack = found[0];
+          setActiveSubtitleId(defaultTrack.id);
+          if (defaultTrack.type === 'native' && videoElement.textTracks && typeof defaultTrack.trackIndex === 'number') {
+            try {
+              videoElement.textTracks[defaultTrack.trackIndex].mode = 'showing';
+            } catch (e) {}
+          }
+        }
+      }
+    };
+
+    videoElement.addEventListener('loadedmetadata', () => {
+      scanSubtitleTracks(hlsInstanceRef.current);
+    });
+
+    if (videoElement.textTracks) {
+      videoElement.textTracks.addEventListener('addtrack', () => {
+        scanSubtitleTracks(hlsInstanceRef.current);
+      });
+    }
 
     const initModules = async () => {
-      const isHls = videoUrl.includes('.m3u8');
       try {
         if (isHls) {
           const HlsModule = (await import('hls.js')).default;
@@ -103,9 +377,36 @@ export default function VideoPlayer({ videoUrl, title, poster }: VideoPlayerProp
             const hls = new HlsModule({
               enableWorker: true,
               lowLatencyMode: true,
+              backBufferLength: 90,
             });
             hls.loadSource(videoUrl);
             hls.attachMedia(videoElement);
+
+            hls.on(HlsModule.Events.SUBTITLE_TRACKS_UPDATED, () => {
+              scanSubtitleTracks(hls);
+            });
+
+            hls.on(HlsModule.Events.MANIFEST_PARSED, () => {
+              scanSubtitleTracks(hls);
+            });
+
+            hls.on(HlsModule.Events.ERROR, (_: any, data: any) => {
+              if (data.fatal) {
+                switch (data.type) {
+                  case HlsModule.ErrorTypes.NETWORK_ERROR:
+                    hls.startLoad();
+                    break;
+                  case HlsModule.ErrorTypes.MEDIA_ERROR:
+                    hls.recoverMediaError();
+                    break;
+                  default:
+                    if (!isCancelled) setHasError(true);
+                    hls.destroy();
+                    break;
+                }
+              }
+            });
+
             hlsInstanceRef.current = hls;
           }
         }
@@ -127,7 +428,12 @@ export default function VideoPlayer({ videoUrl, title, poster }: VideoPlayerProp
             'pip',
             'fullscreen',
           ],
-          settings: ['speed', 'quality', 'loop'],
+          settings: ['captions', 'quality', 'speed', 'loop'],
+          captions: {
+            active: true,
+            language: 'auto',
+            update: true,
+          },
           speed: { selected: 1, options: [0.5, 0.75, 1, 1.25, 1.5, 2] },
           seekTime: 10,
           keyboard: { focused: true, global: true },
@@ -135,12 +441,28 @@ export default function VideoPlayer({ videoUrl, title, poster }: VideoPlayerProp
           fullscreen: { enabled: true, fallback: true, iosNative: true },
         });
 
+        // ── USER REQUIREMENT: Direct Play in Player Dismisses Continue Watching Prompt ──
         player.on('play', () => {
           setIsPlaying(true);
+          setShowResumePrompt(false);
+        });
+
+        player.on('playing', () => {
+          setIsPlaying(true);
+          setIsBuffering(false);
+          setShowResumePrompt(false);
+        });
+
+        player.on('seeking', () => {
+          setShowResumePrompt(false);
         });
 
         player.on('pause', () => {
           setIsPlaying(false);
+        });
+
+        player.on('waiting', () => {
+          setIsBuffering(true);
         });
 
         // Track and persist playback progress
@@ -149,7 +471,6 @@ export default function VideoPlayer({ videoUrl, title, poster }: VideoPlayerProp
           const dur = Math.floor(player.duration || 0);
 
           if (cur > 5 && (dur === 0 || cur < dur - 10)) {
-            // Save every 3 seconds
             if (Math.abs(cur - lastSavedTimeRef.current) >= 3 && storageKey) {
               lastSavedTimeRef.current = cur;
               try {
@@ -167,9 +488,16 @@ export default function VideoPlayer({ videoUrl, title, poster }: VideoPlayerProp
               localStorage.removeItem(storageKey);
             } catch (e) {}
           }
+
+          // Trigger next episode prompt if handler is available
+          if (onNextEpisode) {
+            setShowNextPrompt(true);
+            setNextCountdown(8);
+          }
         });
 
         playerInstanceRef.current = player;
+        scanSubtitleTracks(hlsInstanceRef.current);
       } catch (err) {
         console.error('Error loading video player modules:', err);
       }
@@ -179,6 +507,10 @@ export default function VideoPlayer({ videoUrl, title, poster }: VideoPlayerProp
 
     return () => {
       isCancelled = true;
+      if (countdownTimerRef.current) {
+        clearInterval(countdownTimerRef.current);
+        countdownTimerRef.current = null;
+      }
       if (playerInstanceRef.current) {
         try {
           playerInstanceRef.current.destroy();
@@ -191,8 +523,42 @@ export default function VideoPlayer({ videoUrl, title, poster }: VideoPlayerProp
         } catch (e) {}
         hlsInstanceRef.current = null;
       }
+      if (containerRef.current) {
+        containerRef.current.innerHTML = '';
+      }
+      videoElementRef.current = null;
     };
-  }, [videoUrl, youtubeId, vimeoId, storageKey]);
+  }, [videoUrl, youtubeId, vimeoId, storageKey, normalizeSubtitles, onNextEpisode]);
+
+  // Next episode countdown timer
+  useEffect(() => {
+    if (showNextPrompt && onNextEpisode) {
+      countdownTimerRef.current = setInterval(() => {
+        setNextCountdown((prev) => {
+          if (prev <= 1) {
+            if (countdownTimerRef.current) {
+              clearInterval(countdownTimerRef.current);
+              countdownTimerRef.current = null;
+            }
+            setShowNextPrompt(false);
+            onNextEpisode();
+            return 0;
+          }
+          return prev - 1;
+        });
+      }, 1000);
+    } else if (countdownTimerRef.current) {
+      clearInterval(countdownTimerRef.current);
+      countdownTimerRef.current = null;
+    }
+
+    return () => {
+      if (countdownTimerRef.current) {
+        clearInterval(countdownTimerRef.current);
+        countdownTimerRef.current = null;
+      }
+    };
+  }, [showNextPrompt, onNextEpisode]);
 
   // Handle Resume Playback button action
   const handleResumePlayback = () => {
@@ -207,7 +573,7 @@ export default function VideoPlayer({ videoUrl, title, poster }: VideoPlayerProp
     setShowResumePrompt(false);
   };
 
-  // Handle Dismiss Resume button action (Restart from beginning)
+  // Handle Dismiss Resume button action
   const handleDismissResume = () => {
     setShowResumePrompt(false);
     if (storageKey) {
@@ -217,10 +583,13 @@ export default function VideoPlayer({ videoUrl, title, poster }: VideoPlayerProp
     }
   };
 
+  const hasSoftSubtitles = detectedSubtitles.length > 0;
+  const isSubtitleActive = activeSubtitleId !== 'off';
+
   return (
     <div
       id="video-player-section"
-      className="w-full transition-all duration-500 ease-in-out relative"
+      className="w-full transition-all duration-500 ease-in-out relative select-none"
     >
       {/* Ambient Backlight Glow */}
       <div className="relative group">
@@ -244,11 +613,11 @@ export default function VideoPlayer({ videoUrl, title, poster }: VideoPlayerProp
         >
           {/* ── 1. Floating Preview Title (Always Top-Left, Multi-line Safe) ── */}
           {title && !hasError && !isPlaying && (
-            <div className="absolute top-2.5 sm:top-4 left-2.5 sm:left-4 z-20 pointer-events-none max-w-[calc(100%-20px)] sm:max-w-[85%] md:max-w-[75%] transition-opacity duration-300 animate-in fade-in">
+            <div className="absolute top-2.5 sm:top-4 left-2.5 sm:left-4 z-20 pointer-events-none max-w-[calc(100%-20px)] sm:max-w-[80%] transition-opacity duration-300 animate-in fade-in">
               <div
                 className="inline-flex items-center px-3 sm:px-4 py-1.5 sm:py-2 rounded-2xl backdrop-blur-md"
                 style={{
-                  background: 'rgba(6, 10, 26, 0.78)',
+                  background: 'rgba(6, 10, 26, 0.82)',
                   border: '1px solid rgba(255, 255, 255, 0.12)',
                   boxShadow: '0 8px 32px rgba(0, 0, 0, 0.7), 0 0 15px rgba(6, 182, 212, 0.15)',
                 }}
@@ -269,8 +638,97 @@ export default function VideoPlayer({ videoUrl, title, poster }: VideoPlayerProp
             </div>
           )}
 
-          {/* ── 2. Continue Watching Notification Banner in Player ── */}
-          {showResumePrompt && resumeTime && !hasError && (
+          {/* ── 2. Top-Right Quick Controls Overlay: Subtitle (CC) Switcher ── */}
+          {!hasError && hasSoftSubtitles && (
+            <div
+              className={`absolute top-2.5 sm:top-4 right-2.5 sm:right-4 z-30 transition-opacity duration-300 ${
+                isPlaying ? 'opacity-0 hover:opacity-100 focus-within:opacity-100' : 'opacity-100'
+              }`}
+              ref={subtitleMenuRef}
+            >
+              <div className="relative">
+                <button
+                  type="button"
+                  onClick={() => setShowSubtitleMenu(!showSubtitleMenu)}
+                  className={`flex items-center gap-1.5 px-2.5 sm:px-3 py-1.5 rounded-xl text-xs font-bold transition-all duration-200 shadow-lg ${
+                    isSubtitleActive
+                      ? 'text-cyan-300 border-cyan-400/60 bg-cyan-950/80 shadow-cyan-500/20'
+                      : 'text-slate-300 border-white/10 bg-black/70 hover:text-white hover:bg-black/90'
+                  }`}
+                  style={{
+                    backdropFilter: 'blur(16px)',
+                    border: '1px solid',
+                    boxShadow: isSubtitleActive
+                      ? '0 0 15px rgba(6, 182, 212, 0.35), 0 4px 20px rgba(0, 0, 0, 0.6)'
+                      : '0 4px 15px rgba(0, 0, 0, 0.5)',
+                  }}
+                  title="Pilih Subtitel / CC"
+                >
+                  <Subtitles size={14} className={isSubtitleActive ? 'text-cyan-400' : 'text-slate-400'} />
+                  <span className="text-[11px] sm:text-xs">
+                    {isSubtitleActive
+                      ? detectedSubtitles.find((s) => s.id === activeSubtitleId)?.label || 'CC ON'
+                      : 'CC'}
+                  </span>
+                </button>
+
+                {/* Subtitle Selection Dropdown Menu */}
+                {showSubtitleMenu && (
+                  <div
+                    className="absolute right-0 top-full mt-2 w-48 sm:w-56 p-2 rounded-2xl border z-40 shadow-2xl animate-in fade-in slide-in-from-top-2"
+                    style={{
+                      background: 'rgba(9, 13, 30, 0.96)',
+                      backdropFilter: 'blur(24px)',
+                      borderColor: 'rgba(6, 182, 212, 0.4)',
+                      boxShadow: '0 20px 40px rgba(0, 0, 0, 0.85), 0 0 25px rgba(6, 182, 212, 0.2)',
+                    }}
+                  >
+                    <div className="px-2.5 py-1 text-[10px] font-extrabold uppercase tracking-wider text-slate-400 border-b border-white/[0.08] mb-1.5 flex items-center justify-between">
+                      <span>Pilihan Subtitel (CC)</span>
+                      <Sparkles size={11} className="text-cyan-400" />
+                    </div>
+
+                    {/* Off Option */}
+                    <button
+                      type="button"
+                      onClick={() => handleSelectSubtitle('off')}
+                      className={`w-full flex items-center justify-between px-3 py-1.5 rounded-xl text-xs font-semibold transition-all mb-1 ${
+                        activeSubtitleId === 'off'
+                          ? 'text-cyan-300 bg-cyan-950/60 border border-cyan-500/30'
+                          : 'text-slate-300 hover:text-white hover:bg-white/[0.06]'
+                      }`}
+                    >
+                      <span>Mati (Off)</span>
+                      {activeSubtitleId === 'off' && <Check size={13} className="text-cyan-400" />}
+                    </button>
+
+                    {/* Detected Softcoded & External Subtitles */}
+                    {detectedSubtitles.map((sub) => {
+                      const isSelected = activeSubtitleId === sub.id;
+                      return (
+                        <button
+                          key={sub.id}
+                          type="button"
+                          onClick={() => handleSelectSubtitle(sub.id)}
+                          className={`w-full flex items-center justify-between px-3 py-1.5 rounded-xl text-xs font-semibold transition-all mb-0.5 ${
+                            isSelected
+                              ? 'text-cyan-300 bg-gradient-to-r from-cyan-950/70 to-purple-950/70 border border-cyan-500/40'
+                              : 'text-slate-300 hover:text-white hover:bg-white/[0.06]'
+                          }`}
+                        >
+                          <span className="truncate max-w-[140px]">{sub.label}</span>
+                          {isSelected && <Check size={13} className="text-cyan-400 flex-shrink-0" />}
+                        </button>
+                      );
+                    })}
+                  </div>
+                )}
+              </div>
+            </div>
+          )}
+
+          {/* ── 3. Continue Watching Notification Banner in Player ── */}
+          {showResumePrompt && resumeTime && !hasError && !isPlaying && (
             <div className="absolute bottom-16 sm:bottom-20 left-3 sm:left-6 z-30 animate-in fade-in slide-in-from-bottom-3 duration-300 max-w-[90%] sm:max-w-md">
               <div
                 className="flex items-center gap-3 p-2.5 sm:p-3.5 rounded-2xl backdrop-blur-xl border shadow-2xl"
@@ -326,7 +784,75 @@ export default function VideoPlayer({ videoUrl, title, poster }: VideoPlayerProp
             </div>
           )}
 
-          {/* ── 3. Video Canvas Container ── */}
+          {/* ── 4. Next Episode Auto-Prompt Banner when Video Ends ── */}
+          {showNextPrompt && onNextEpisode && (
+            <div className="absolute inset-0 z-30 flex items-center justify-center bg-black/80 backdrop-blur-md animate-in fade-in duration-300 p-4">
+              <div
+                className="max-w-md w-full p-5 rounded-3xl border shadow-2xl text-center"
+                style={{
+                  background: 'rgba(9, 13, 30, 0.95)',
+                  borderColor: 'rgba(6, 182, 212, 0.4)',
+                  boxShadow: '0 20px 50px rgba(0, 0, 0, 0.9), 0 0 30px rgba(6, 182, 212, 0.25)',
+                }}
+              >
+                <div className="w-12 h-12 rounded-2xl mx-auto mb-3 flex items-center justify-center bg-cyan-950/80 border border-cyan-400/50 shadow-lg">
+                  <Play size={20} fill="#06b6d4" className="text-cyan-400 ml-0.5" />
+                </div>
+
+                <h3 className="text-base sm:text-lg font-black text-white mb-1">
+                  Putar Episode Berikutnya?
+                </h3>
+                {nextEpisodeTitle && (
+                  <p className="text-xs sm:text-sm text-cyan-300 font-bold mb-2 line-clamp-1">
+                    {nextEpisodeTitle}
+                  </p>
+                )}
+                <p className="text-xs text-slate-400 mb-5">
+                  Memutar otomatis dalam <span className="text-white font-bold">{nextCountdown}s</span>
+                </p>
+
+                <div className="flex items-center justify-center gap-3">
+                  <button
+                    type="button"
+                    onClick={() => {
+                      setShowNextPrompt(false);
+                      onNextEpisode();
+                    }}
+                    className="flex items-center gap-2 px-5 py-2.5 rounded-xl text-xs sm:text-sm font-bold text-white transition-all hover:scale-105 active:scale-95 shadow-lg"
+                    style={{
+                      background: 'linear-gradient(135deg, #06b6d4, #7c3aed)',
+                      boxShadow: '0 0 20px rgba(6, 182, 212, 0.4)',
+                    }}
+                  >
+                    <span>Putar Sekarang</span>
+                    <ChevronRight size={16} />
+                  </button>
+
+                  <button
+                    type="button"
+                    onClick={() => setShowNextPrompt(false)}
+                    className="px-4 py-2.5 rounded-xl text-xs sm:text-sm font-bold text-slate-300 hover:text-white bg-white/5 hover:bg-white/10 transition-colors"
+                  >
+                    Batal
+                  </button>
+                </div>
+              </div>
+            </div>
+          )}
+
+          {/* ── 5. Buffering Spinner ── */}
+          {isBuffering && isPlaying && !hasError && (
+            <div className="absolute inset-0 z-20 pointer-events-none flex items-center justify-center bg-black/20 backdrop-blur-[2px]">
+              <div className="flex flex-col items-center gap-2 p-3 rounded-2xl bg-black/60 border border-white/10 backdrop-blur-md">
+                <Loader2 size={28} className="text-cyan-400 animate-spin" />
+                <span className="text-[10px] font-bold tracking-wider text-slate-300 uppercase">
+                  Memuat...
+                </span>
+              </div>
+            </div>
+          )}
+
+          {/* ── 6. Video Canvas Container (Unmanaged DOM Container) ── */}
           <div
             className="relative w-full overflow-hidden bg-black flex items-center justify-center plyr-custom-wrapper"
             style={{
@@ -401,17 +927,11 @@ export default function VideoPlayer({ videoUrl, title, poster }: VideoPlayerProp
                 className="w-full h-full border-0"
               />
             ) : (
-              <video
-                ref={videoRef}
-                className="plyr-react plyr w-full h-full"
-                poster={poster}
-                playsInline
-                crossOrigin="anonymous"
-                onError={() => setHasError(true)}
-              >
-                <source src={videoUrl} type="video/mp4" />
-                Your browser does not support the video tag.
-              </video>
+              /* Unmanaged DOM container: React does not touch video or plyr children */
+              <div
+                ref={containerRef}
+                className="w-full h-full flex items-center justify-center"
+              />
             )}
           </div>
         </div>

@@ -659,4 +659,45 @@ input:focus-visible {
   }
 }
 
+/* ===== PLYR SUBTITLES & CAPTIONS STYLING ===== */
+.plyr-custom-wrapper .plyr__control[data-plyr='captions'] {
+  position: relative;
+  transition: all 0.2s ease;
+}
+
+.plyr-custom-wrapper .plyr__control[data-plyr='captions'][aria-pressed='true'],
+.plyr-custom-wrapper .plyr__control--pressed[data-plyr='captions'] {
+  background: rgba(6, 182, 212, 0.25) !important;
+  color: #06b6d4 !important;
+  box-shadow: 0 0 12px rgba(6, 182, 212, 0.5) !important;
+}
+
+/* High Contrast Modern Subtitle Cue Rendering */
+.plyr-custom-wrapper video::cue,
+.plyr-custom-wrapper .plyr__captions,
+.plyr-custom-wrapper .plyr__caption {
+  font-family: inherit;
+  font-size: 15px !important;
+  line-height: 1.4 !important;
+  color: #ffffff !important;
+  background-color: rgba(5, 8, 22, 0.85) !important;
+  backdrop-filter: blur(8px) !important;
+  padding: 4px 10px !important;
+  border-radius: 8px !important;
+  text-shadow: 0 2px 4px rgba(0, 0, 0, 0.9), 0 0 8px rgba(0, 0, 0, 0.8) !important;
+  letter-spacing: 0.02em !important;
+  border: 1px solid rgba(255, 255, 255, 0.1) !important;
+}
+
+@media (max-width: 640px) {
+  .plyr-custom-wrapper video::cue,
+  .plyr-custom-wrapper .plyr__captions,
+  .plyr-custom-wrapper .plyr__caption {
+    font-size: 12px !important;
+    padding: 3px 6px !important;
+    border-radius: 6px !important;
+  }
+}
+
+
 
