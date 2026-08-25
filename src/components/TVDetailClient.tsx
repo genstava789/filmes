@@ -65,7 +65,7 @@ export function TVDetailHeaderActions({
           }}
         >
           <Bookmark size={16} fill={bookmarked ? 'currentColor' : 'none'} />
-          <span>{bookmarked ? 'Saved' : 'Watchlist'}</span>
+          <span>{bookmarked ? 'Saved in Watchlist' : 'Add to Watchlist'}</span>
         </button>
 
         {/* Share Button */}
@@ -112,17 +112,17 @@ export default function TVDetailClient({
   const scrollContainerRef = useRef<HTMLDivElement>(null);
   const dropdownRef = useRef<HTMLDivElement>(null);
 
-  // Sync selected season when activeEpisode changes
+  // Sync selected season when activeEpisode slug changes
   useEffect(() => {
     if (activeEpisode) {
       const idx = seasons.findIndex((s) =>
         s.episodes.some((e) => e.slug === activeEpisode.slug)
       );
-      if (idx >= 0 && idx !== selectedSeasonIndex) {
+      if (idx >= 0) {
         setSelectedSeasonIndex(idx);
       }
     }
-  }, [activeEpisode, seasons, selectedSeasonIndex]);
+  }, [activeEpisode?.slug, seasons]);
 
   // Click outside to close dropdown
   useEffect(() => {
@@ -148,9 +148,18 @@ export default function TVDetailClient({
     }
   };
 
+  const handleSelectSeason = (idx: number) => {
+    setSelectedSeasonIndex(idx);
+    setDropdownOpen(false);
+    const targetSeason = seasons[idx];
+    if (targetSeason && targetSeason.episodes.length > 0) {
+      handleSelectEpisode(targetSeason.episodes[0]);
+    }
+  };
+
   const scrollHorizontally = (direction: 'left' | 'right') => {
     if (scrollContainerRef.current) {
-      const scrollAmount = direction === 'left' ? -200 : 200;
+      const scrollAmount = direction === 'left' ? -180 : 180;
       scrollContainerRef.current.scrollBy({ left: scrollAmount, behavior: 'smooth' });
     }
   };
@@ -216,7 +225,7 @@ export default function TVDetailClient({
         )}
 
         {/* Dedicated Action Buttons (Watchlist & Share) */}
-        <div className="flex flex-wrap items-center gap-3 mb-8">
+        <div className="flex flex-wrap items-center gap-3 mb-6">
           <button
             type="button"
             onClick={() => setBookmarked(!bookmarked)}
@@ -236,9 +245,9 @@ export default function TVDetailClient({
           <ShareButton title={`${showTitle} - ${activeEpisode?.episodeLabel || 'Episode'}`} />
         </div>
 
-        {/* ── 3. Bilibili.tv-Style Pill Badges Episode Selector (Open & Clean) ── */}
+        {/* ── 3. Bilibili.tv-Style Pill Badges Episode Selector (Clean Outline Active Hover) ── */}
         {seasons.length > 0 && (
-          <div className="pt-5 border-t border-white/[0.08]">
+          <div className="pt-4 border-t border-white/[0.08]">
             {/* Header: Title & Season Dropdown */}
             <div className="flex items-center justify-between gap-3 mb-3">
               <div className="flex items-center gap-2">
@@ -287,10 +296,7 @@ export default function TVDetailClient({
                           <button
                             key={season.seasonName}
                             type="button"
-                            onClick={() => {
-                              setSelectedSeasonIndex(idx);
-                              setDropdownOpen(false);
-                            }}
+                            onClick={() => handleSelectSeason(idx)}
                             className={`w-full flex items-center justify-between px-3 py-2 rounded-xl text-xs font-bold transition-all duration-150 ${
                               isSelected
                                 ? 'text-cyan-300'
@@ -313,7 +319,7 @@ export default function TVDetailClient({
               )}
             </div>
 
-            {/* Bilibili.tv Pill Badges (E1, E2, E3...) Horizontal Scroll */}
+            {/* Bilibili.tv Pill Badges (E1, E2, E3...) with Simple Outline Active & Safe Margins */}
             <div className="relative flex items-center">
               <button
                 onClick={() => scrollHorizontally('left')}
@@ -327,7 +333,7 @@ export default function TVDetailClient({
 
               <div
                 ref={scrollContainerRef}
-                className="w-full flex items-center gap-2 overflow-x-auto py-2 sm:px-8 hide-scrollbar scroll-smooth"
+                className="w-full flex items-center gap-2 overflow-x-auto py-2 px-1 sm:px-8 hide-scrollbar scroll-smooth"
               >
                 {currentSeason.episodes.map((ep) => {
                   const isActive = activeEpisode?.slug === ep.slug;
@@ -338,25 +344,25 @@ export default function TVDetailClient({
                       key={ep.slug}
                       type="button"
                       onClick={() => handleSelectEpisode(ep)}
-                      className={`flex-shrink-0 flex items-center justify-center rounded-xl font-bold transition-all duration-200 min-w-[56px] h-10 px-3.5 ${
+                      className={`flex-shrink-0 flex items-center justify-center rounded-xl font-bold transition-all duration-150 min-w-[50px] sm:min-w-[56px] h-9 sm:h-10 px-3 ${
                         isActive
-                          ? 'text-cyan-300 scale-105'
+                          ? 'text-cyan-400 font-extrabold'
                           : 'text-slate-400 hover:text-white hover:border-cyan-400/40'
                       }`}
                       style={{
                         background: isActive
-                          ? 'linear-gradient(135deg, rgba(6, 182, 212, 0.25), rgba(124, 58, 237, 0.25))'
+                          ? 'rgba(6, 182, 212, 0.12)'
                           : 'rgba(255, 255, 255, 0.04)',
                         border: isActive
-                          ? '1.5px solid rgba(6, 182, 212, 0.8)'
+                          ? '1.5px solid #06b6d4'
                           : '1px solid rgba(255, 255, 255, 0.08)',
                         boxShadow: isActive
-                          ? '0 0 18px rgba(6, 182, 212, 0.4)'
+                          ? '0 0 12px rgba(6, 182, 212, 0.3)'
                           : 'none',
                       }}
                       title={`${ep.episodeLabel}: ${ep.title}`}
                     >
-                      <span className="text-xs font-black">{badgeText}</span>
+                      <span className="text-xs sm:text-sm font-black">{badgeText}</span>
                     </button>
                   );
                 })}
