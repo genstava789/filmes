@@ -5,6 +5,9 @@ import {
   AlertCircle,
   Flag,
   CheckCircle2,
+  RotateCcw,
+  Play,
+  X,
 } from 'lucide-react';
 import 'plyr/dist/plyr.css';
 
@@ -26,17 +29,40 @@ function getVimeoId(url: string): string | null {
   return match && match[1] ? match[1] : null;
 }
 
+function formatSeconds(sec: number): string {
+  const totalSeconds = Math.floor(sec);
+  const hours = Math.floor(totalSeconds / 3600);
+  const minutes = Math.floor((totalSeconds % 3600) / 60);
+  const seconds = totalSeconds % 60;
+
+  const mm = String(minutes).padStart(2, '0');
+  const ss = String(seconds).padStart(2, '0');
+
+  if (hours > 0) {
+    const hh = String(hours).padStart(2, '0');
+    return `${hh}:${mm}:${ss}`;
+  }
+  return `${mm}:${ss}`;
+}
+
 export default function VideoPlayer({ videoUrl, title, poster }: VideoPlayerProps) {
   const [hasError, setHasError] = useState(false);
   const [reported, setReported] = useState(false);
   const [isPlaying, setIsPlaying] = useState(false);
+  const [resumeTime, setResumeTime] = useState<number | null>(null);
+  const [showResumePrompt, setShowResumePrompt] = useState(false);
 
   const videoRef = useRef<HTMLVideoElement>(null);
   const playerInstanceRef = useRef<any>(null);
   const hlsInstanceRef = useRef<any>(null);
+  const lastSavedTimeRef = useRef<number>(0);
 
   const youtubeId = getYouTubeId(videoUrl);
   const vimeoId = getVimeoId(videoUrl);
+
+  const storageKey = typeof window !== 'undefined' && videoUrl
+    ? `levistream_progress_${encodeURIComponent(videoUrl.split('?')[0])}`
+    : null;
 
   useEffect(() => {
     if (typeof window === 'undefined') return;
@@ -46,6 +72,24 @@ export default function VideoPlayer({ videoUrl, title, poster }: VideoPlayerProp
     setHasError(false);
     setReported(false);
     setIsPlaying(false);
+    setShowResumePrompt(false);
+    setResumeTime(null);
+
+    // Check for saved playback progress in localStorage
+    if (storageKey) {
+      try {
+        const saved = localStorage.getItem(storageKey);
+        if (saved) {
+          const parsed = parseFloat(saved);
+          if (!isNaN(parsed) && parsed > 5) {
+            setResumeTime(parsed);
+            setShowResumePrompt(true);
+          }
+        }
+      } catch (e) {
+        console.error('Failed to read playback progress:', e);
+      }
+    }
 
     const videoElement = videoRef.current;
     if (!videoElement) return;
@@ -91,9 +135,39 @@ export default function VideoPlayer({ videoUrl, title, poster }: VideoPlayerProp
           fullscreen: { enabled: true, fallback: true, iosNative: true },
         });
 
-        player.on('play', () => setIsPlaying(true));
-        player.on('pause', () => setIsPlaying(false));
-        player.on('ended', () => setIsPlaying(false));
+        player.on('play', () => {
+          setIsPlaying(true);
+        });
+
+        player.on('pause', () => {
+          setIsPlaying(false);
+        });
+
+        // Track and persist playback progress
+        player.on('timeupdate', () => {
+          const cur = Math.floor(player.currentTime);
+          const dur = Math.floor(player.duration || 0);
+
+          if (cur > 5 && (dur === 0 || cur < dur - 10)) {
+            // Save every 3 seconds
+            if (Math.abs(cur - lastSavedTimeRef.current) >= 3 && storageKey) {
+              lastSavedTimeRef.current = cur;
+              try {
+                localStorage.setItem(storageKey, String(cur));
+              } catch (e) {}
+            }
+          }
+        });
+
+        player.on('ended', () => {
+          setIsPlaying(false);
+          setShowResumePrompt(false);
+          if (storageKey) {
+            try {
+              localStorage.removeItem(storageKey);
+            } catch (e) {}
+          }
+        });
 
         playerInstanceRef.current = player;
       } catch (err) {
@@ -118,7 +192,30 @@ export default function VideoPlayer({ videoUrl, title, poster }: VideoPlayerProp
         hlsInstanceRef.current = null;
       }
     };
-  }, [videoUrl, youtubeId, vimeoId]);
+  }, [videoUrl, youtubeId, vimeoId, storageKey]);
+
+  // Handle Resume Playback button action
+  const handleResumePlayback = () => {
+    if (playerInstanceRef.current && resumeTime) {
+      try {
+        playerInstanceRef.current.currentTime = resumeTime;
+        playerInstanceRef.current.play();
+      } catch (e) {
+        console.error('Failed to seek player:', e);
+      }
+    }
+    setShowResumePrompt(false);
+  };
+
+  // Handle Dismiss Resume button action (Restart from beginning)
+  const handleDismissResume = () => {
+    setShowResumePrompt(false);
+    if (storageKey) {
+      try {
+        localStorage.removeItem(storageKey);
+      } catch (e) {}
+    }
+  };
 
   return (
     <div
@@ -145,21 +242,21 @@ export default function VideoPlayer({ videoUrl, title, poster }: VideoPlayerProp
             boxShadow: '0 25px 60px -15px rgba(0, 0, 0, 0.9), 0 0 35px rgba(6, 182, 212, 0.18)',
           }}
         >
-          {/* Floating Stylish Title Badge on Preview (Hidden when playing or when error occurs) */}
+          {/* ── 1. Floating Preview Title (Always Top-Left, Multi-line Safe) ── */}
           {title && !hasError && !isPlaying && (
-            <div className="absolute top-3 sm:top-5 left-3 sm:left-6 z-20 pointer-events-none max-w-[85%] sm:max-w-xl transition-opacity duration-300 animate-in fade-in">
+            <div className="absolute top-2.5 sm:top-4 left-2.5 sm:left-4 z-20 pointer-events-none max-w-[calc(100%-20px)] sm:max-w-[85%] md:max-w-[75%] transition-opacity duration-300 animate-in fade-in">
               <div
-                className="inline-flex items-center gap-2 px-3 sm:px-4 py-1.5 sm:py-2 rounded-2xl backdrop-blur-md"
+                className="inline-flex items-center px-3 sm:px-4 py-1.5 sm:py-2 rounded-2xl backdrop-blur-md"
                 style={{
-                  background: 'rgba(6, 10, 26, 0.72)',
+                  background: 'rgba(6, 10, 26, 0.78)',
                   border: '1px solid rgba(255, 255, 255, 0.12)',
-                  boxShadow: '0 8px 32px rgba(0, 0, 0, 0.6), 0 0 15px rgba(6, 182, 212, 0.15)',
+                  boxShadow: '0 8px 32px rgba(0, 0, 0, 0.7), 0 0 15px rgba(6, 182, 212, 0.15)',
                 }}
               >
                 <h2
-                  className="text-xs sm:text-sm md:text-base lg:text-lg font-black tracking-wide truncate"
+                  className="text-xs sm:text-sm md:text-base font-bold tracking-tight text-white line-clamp-2 leading-snug break-words whitespace-normal"
                   style={{
-                    background: 'linear-gradient(135deg, #ffffff 0%, #06b6d4 50%, #a78bfa 100%)',
+                    background: 'linear-gradient(135deg, #ffffff 0%, #06b6d4 60%, #a78bfa 100%)',
                     WebkitBackgroundClip: 'text',
                     WebkitTextFillColor: 'transparent',
                     backgroundClip: 'text',
@@ -172,7 +269,64 @@ export default function VideoPlayer({ videoUrl, title, poster }: VideoPlayerProp
             </div>
           )}
 
-          {/* Video Canvas Container */}
+          {/* ── 2. Continue Watching Notification Banner in Player ── */}
+          {showResumePrompt && resumeTime && !hasError && (
+            <div className="absolute bottom-16 sm:bottom-20 left-3 sm:left-6 z-30 animate-in fade-in slide-in-from-bottom-3 duration-300 max-w-[90%] sm:max-w-md">
+              <div
+                className="flex items-center gap-3 p-2.5 sm:p-3.5 rounded-2xl backdrop-blur-xl border shadow-2xl"
+                style={{
+                  background: 'rgba(8, 12, 28, 0.92)',
+                  borderColor: 'rgba(6, 182, 212, 0.45)',
+                  boxShadow: '0 15px 35px rgba(0, 0, 0, 0.85), 0 0 25px rgba(6, 182, 212, 0.25)',
+                }}
+              >
+                <div
+                  className="w-8 h-8 rounded-xl flex items-center justify-center flex-shrink-0"
+                  style={{
+                    background: 'linear-gradient(135deg, rgba(6, 182, 212, 0.25), rgba(124, 58, 237, 0.25))',
+                    border: '1px solid rgba(6, 182, 212, 0.4)',
+                  }}
+                >
+                  <RotateCcw size={15} className="text-cyan-400 animate-pulse" />
+                </div>
+
+                <div className="flex-1 min-w-0">
+                  <p className="text-xs font-bold text-white leading-tight">
+                    Lanjutkan Menonton?
+                  </p>
+                  <p className="text-[11px] text-slate-300 mt-0.5">
+                    Tersimpan di menit <span className="font-bold text-cyan-300">{formatSeconds(resumeTime)}</span>
+                  </p>
+                </div>
+
+                <div className="flex items-center gap-1.5 flex-shrink-0">
+                  <button
+                    type="button"
+                    onClick={handleResumePlayback}
+                    className="flex items-center gap-1 px-3 py-1.5 rounded-xl text-xs font-bold text-white transition-all duration-200 hover:scale-105 active:scale-95 shadow-md"
+                    style={{
+                      background: 'linear-gradient(135deg, #06b6d4, #7c3aed)',
+                      boxShadow: '0 0 12px rgba(6, 182, 212, 0.4)',
+                    }}
+                  >
+                    <Play size={11} fill="white" />
+                    <span>Lanjut</span>
+                  </button>
+
+                  <button
+                    type="button"
+                    onClick={handleDismissResume}
+                    className="p-1.5 rounded-xl text-slate-400 hover:text-white hover:bg-white/10 transition-colors"
+                    title="Mulai dari awal"
+                  >
+                    <X size={14} />
+                  </button>
+                </div>
+              </div>
+            </div>
+          )}
+
+          {/* ── 3. Video Canvas Container ── */}
           <div
             className="relative w-full overflow-hidden bg-black flex items-center justify-center plyr-custom-wrapper"
             style={{
@@ -219,56 +373,45 @@ export default function VideoPlayer({ videoUrl, title, poster }: VideoPlayerProp
                 >
                   {reported ? (
                     <>
-                      <CheckCircle2 size={13} />
+                      <CheckCircle2 size={14} />
                       <span>Laporan Terkirim</span>
                     </>
                   ) : (
                     <>
-                      <Flag size={13} />
-                      <span>Laporkan Masalah</span>
+                      <Flag size={14} />
+                      <span>Lapor Masalah</span>
                     </>
                   )}
                 </button>
               </div>
             ) : youtubeId ? (
               <iframe
-                src={`https://www.youtube-nocookie.com/embed/${youtubeId}?autoplay=0&rel=0&modestbranding=1`}
-                title="Stream Video Player"
-                className="w-full h-full border-0"
+                src={`https://www.youtube.com/embed/${youtubeId}?autoplay=0&rel=0&modestbranding=1`}
+                title={title || 'YouTube video player'}
                 allow="accelerometer; autoplay; clipboard-write; encrypted-media; gyroscope; picture-in-picture; web-share"
                 allowFullScreen
+                className="w-full h-full border-0"
               />
             ) : vimeoId ? (
               <iframe
-                src={`https://player.vimeo.com/video/${vimeoId}`}
-                title="Stream Video Player"
-                className="w-full h-full border-0"
+                src={`https://player.vimeo.com/video/${vimeoId}?autoplay=0`}
+                title={title || 'Vimeo video player'}
                 allow="autoplay; fullscreen; picture-in-picture"
                 allowFullScreen
+                className="w-full h-full border-0"
               />
             ) : (
-              <div key={videoUrl} className="w-full h-full flex items-center justify-center">
-                <video
-                  ref={videoRef}
-                  src={videoUrl}
-                  poster={poster}
-                  playsInline
-                  crossOrigin="anonymous"
-                  preload="metadata"
-                  controls
-                  onPlay={() => setIsPlaying(true)}
-                  onPause={() => setIsPlaying(false)}
-                  onEnded={() => setIsPlaying(false)}
-                  onError={() => setHasError(true)}
-                  className="w-full h-full object-contain"
-                >
-                  <source
-                    src={videoUrl}
-                    type={videoUrl.includes('.m3u8') ? 'application/x-mpegURL' : 'video/mp4'}
-                  />
-                  Your browser does not support the video tag.
-                </video>
-              </div>
+              <video
+                ref={videoRef}
+                className="plyr-react plyr w-full h-full"
+                poster={poster}
+                playsInline
+                crossOrigin="anonymous"
+                onError={() => setHasError(true)}
+              >
+                <source src={videoUrl} type="video/mp4" />
+                Your browser does not support the video tag.
+              </video>
             )}
           </div>
         </div>
