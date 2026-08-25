@@ -53,7 +53,6 @@ export default async function MoviePage({ searchParams }: MoviePageProps) {
       initialPage={page}
       initialSort={sort}
       initialGenreId={genreId}
-      initialQuery={query}
       allGenres={allGenres}
     />
   );
