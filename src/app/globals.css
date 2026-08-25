@@ -675,10 +675,20 @@ input:focus-visible {
   margin-bottom: 10px !important;
   right: -4px !important;
   z-index: 60 !important;
+  max-height: 200px !important;
+  overflow: hidden !important;
+}
+
+.plyr-custom-wrapper .plyr__menu__container > div {
+  max-height: 200px !important;
+  overflow-y: auto !important;
+  -webkit-overflow-scrolling: touch !important;
 }
 
 .plyr-custom-wrapper .plyr__menu__container [role=menu] {
   padding: 6px !important;
+  max-height: 200px !important;
+  overflow-y: auto !important;
 }
 
 .plyr-custom-wrapper .plyr__menu__container .plyr__control {
@@ -695,13 +705,20 @@ input:focus-visible {
   color: #ffffff !important;
 }
 
+/* Sticky Back Button: Always visible at the top of submenu on small screens */
 .plyr-custom-wrapper .plyr__menu__container .plyr__control--back {
+  position: sticky !important;
+  top: 0 !important;
+  z-index: 20 !important;
+  background: rgba(10, 15, 34, 0.98) !important;
   font-size: 12px !important;
   font-weight: 700 !important;
   color: #06b6d4 !important;
-  border-bottom: 1px solid rgba(255, 255, 255, 0.08) !important;
-  padding-bottom: 8px !important;
+  border-bottom: 1px solid rgba(255, 255, 255, 0.12) !important;
+  padding: 8px 12px !important;
+  margin: 0 !important;
   margin-bottom: 4px !important;
+  box-shadow: 0 4px 10px rgba(0, 0, 0, 0.5) !important;
 }
 
 /* Responsive Adaptation for Mobile / Small Screens */
@@ -730,6 +747,17 @@ input:focus-visible {
   .plyr-custom-wrapper .plyr__time {
     font-size: 11px !important;
     padding: 0 2px !important;
+  }
+
+  .plyr-custom-wrapper .plyr__menu__container {
+    max-height: 155px !important;
+    margin-bottom: 6px !important;
+    right: 0 !important;
+  }
+
+  .plyr-custom-wrapper .plyr__menu__container > div,
+  .plyr-custom-wrapper .plyr__menu__container [role=menu] {
+    max-height: 155px !important;
   }
 
   /* On mobile screens, hide bulky volume slider and extra controls so layout stays spacious */
@@ -762,9 +790,34 @@ input:focus-visible {
   .plyr-custom-wrapper .plyr__time--duration {
     display: none !important;
   }
+
+  .plyr-custom-wrapper .plyr__menu__container {
+    max-height: 140px !important;
+  }
+
+  .plyr-custom-wrapper .plyr__menu__container > div,
+  .plyr-custom-wrapper .plyr__menu__container [role=menu] {
+    max-height: 140px !important;
+  }
 }
 
-/* Clean & Simple Subtitle Cue Rendering (Transparent Background, High Readability Outline) */
+/* Clean & Simple Subtitle Cue Rendering (Transparent Background, High Readability Outline, Lifted Position) */
+.plyr-custom-wrapper .plyr__captions {
+  bottom: 36px !important;
+  padding-bottom: 0 !important;
+  transition: transform 0.3s ease-in-out !important;
+}
+
+/* When controls are active/shown */
+.plyr-custom-wrapper .plyr:not(.plyr--hide-controls) .plyr__controls:not(:empty) ~ .plyr__captions {
+  transform: translateY(-56px) !important;
+}
+
+/* When controls are hidden (active playback) */
+.plyr-custom-wrapper .plyr.plyr--hide-controls .plyr__captions {
+  transform: translateY(-16px) !important;
+}
+
 .plyr-custom-wrapper video::cue,
 .plyr-custom-wrapper .plyr__captions,
 .plyr-custom-wrapper .plyr__caption {
@@ -792,6 +845,18 @@ input:focus-visible {
 }
 
 @media (max-width: 640px) {
+  .plyr-custom-wrapper .plyr__captions {
+    bottom: 28px !important;
+  }
+
+  .plyr-custom-wrapper .plyr:not(.plyr--hide-controls) .plyr__controls:not(:empty) ~ .plyr__captions {
+    transform: translateY(-46px) !important;
+  }
+
+  .plyr-custom-wrapper .plyr.plyr--hide-controls .plyr__captions {
+    transform: translateY(-12px) !important;
+  }
+
   .plyr-custom-wrapper video::cue,
   .plyr-custom-wrapper .plyr__captions,
   .plyr-custom-wrapper .plyr__caption {
