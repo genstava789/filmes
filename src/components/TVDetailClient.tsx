@@ -173,20 +173,74 @@ export default function TVDetailClient({
         </div>
       )}
 
-      {/* ── 2. Bilibili.tv-Style Grid / Pill Episode Selector Directly Below Player ── */}
-      {seasons.length > 0 && (
-        <div className="w-full px-4 sm:px-6 md:px-8 lg:px-10 xl:px-12 2xl:px-14">
-          <div
-            className="rounded-3xl p-4 sm:p-5 transition-all duration-300"
+      {/* ── 2. Open Episode Details & Actions (No Enclosing Card Container) ── */}
+      <div className="w-full px-4 sm:px-6 md:px-8 lg:px-10 xl:px-12 2xl:px-14 pt-2">
+        {/* Episode Title */}
+        <h1 className="text-xl sm:text-2xl lg:text-3xl font-black leading-tight mb-2 tracking-tight text-white">
+          {activeEpisode ? `${activeEpisode.episodeLabel}: ${activeEpisode.title}` : showTitle}
+        </h1>
+
+        {/* Episode Metadata Badges Row */}
+        <div className="flex flex-wrap items-center gap-3 mb-4">
+          <span
+            className="px-2 py-0.5 rounded-md text-[11px] font-black tracking-wider"
             style={{
-              background: 'rgba(8, 12, 28, 0.75)',
-              border: '1px solid rgba(255, 255, 255, 0.08)',
-              boxShadow: '0 20px 40px rgba(0, 0, 0, 0.5), inset 0 1px 0 rgba(255, 255, 255, 0.06)',
-              backdropFilter: 'blur(20px)',
+              background: 'rgba(6, 182, 212, 0.15)',
+              border: '1px solid rgba(6, 182, 212, 0.4)',
+              color: '#06b6d4',
             }}
           >
+            HD
+          </span>
+          {activeEpisode?.rating && (
+            <span className="text-xs font-bold text-amber-400 flex items-center gap-1">
+              ★ {activeEpisode.rating}
+            </span>
+          )}
+          {activeEpisode?.duration && (
+            <div className="flex items-center gap-1.5 text-xs sm:text-sm text-slate-400">
+              <Clock size={14} />
+              {activeEpisode.duration}
+            </div>
+          )}
+          <span className="text-xs text-slate-500 font-medium">
+            {showTitle}
+          </span>
+        </div>
+
+        {/* Episode Overview Snippet */}
+        {activeEpisode?.overview && (
+          <p className="text-xs sm:text-sm sm:leading-relaxed leading-normal mb-5 max-w-4xl text-slate-300">
+            {activeEpisode.overview}
+          </p>
+        )}
+
+        {/* Dedicated Action Buttons (Watchlist & Share) */}
+        <div className="flex flex-wrap items-center gap-3 mb-8">
+          <button
+            type="button"
+            onClick={() => setBookmarked(!bookmarked)}
+            className="flex items-center gap-2 px-4 py-2.5 rounded-xl font-bold text-xs sm:text-sm transition-all duration-200 hover:scale-105 active:scale-95"
+            style={{
+              background: bookmarked ? 'rgba(236,72,153,0.18)' : 'rgba(255,255,255,0.06)',
+              border: bookmarked
+                ? '1px solid rgba(236,72,153,0.5)'
+                : '1px solid rgba(255,255,255,0.1)',
+              color: bookmarked ? '#ec4899' : '#f1f5f9',
+            }}
+          >
+            <Bookmark size={16} fill={bookmarked ? 'currentColor' : 'none'} />
+            <span>{bookmarked ? 'Saved in Watchlist' : 'Add to Watchlist'}</span>
+          </button>
+
+          <ShareButton title={`${showTitle} - ${activeEpisode?.episodeLabel || 'Episode'}`} />
+        </div>
+
+        {/* ── 3. Bilibili.tv-Style Pill Badges Episode Selector (Open & Clean) ── */}
+        {seasons.length > 0 && (
+          <div className="pt-5 border-t border-white/[0.08]">
             {/* Header: Title & Season Dropdown */}
-            <div className="flex items-center justify-between gap-3 pb-3 mb-3 border-b border-white/[0.08]">
+            <div className="flex items-center justify-between gap-3 mb-3">
               <div className="flex items-center gap-2">
                 <Tv size={16} className="text-cyan-400" />
                 <h3 className="text-sm font-bold text-white tracking-wide">
@@ -260,12 +314,12 @@ export default function TVDetailClient({
             </div>
 
             {/* Bilibili.tv Pill Badges (E1, E2, E3...) Horizontal Scroll */}
-            <div className="relative flex items-center mb-4">
+            <div className="relative flex items-center">
               <button
                 onClick={() => scrollHorizontally('left')}
                 className="hidden sm:flex absolute left-0 z-10 w-7 h-10 items-center justify-center rounded-l-xl text-slate-300 hover:text-white transition-all"
                 style={{
-                  background: 'linear-gradient(90deg, rgba(8, 12, 28, 0.95) 0%, rgba(8, 12, 28, 0.6) 100%)',
+                  background: 'linear-gradient(90deg, rgba(5, 8, 22, 0.95) 0%, rgba(5, 8, 22, 0.6) 100%)',
                 }}
               >
                 <ChevronLeft size={16} />
@@ -273,7 +327,7 @@ export default function TVDetailClient({
 
               <div
                 ref={scrollContainerRef}
-                className="w-full flex items-center gap-2 overflow-x-auto py-1 sm:px-8 hide-scrollbar scroll-smooth"
+                className="w-full flex items-center gap-2 overflow-x-auto py-2 sm:px-8 hide-scrollbar scroll-smooth"
               >
                 {currentSeason.episodes.map((ep) => {
                   const isActive = activeEpisode?.slug === ep.slug;
@@ -312,67 +366,19 @@ export default function TVDetailClient({
                 onClick={() => scrollHorizontally('right')}
                 className="hidden sm:flex absolute right-0 z-10 w-7 h-10 items-center justify-center rounded-r-xl text-slate-300 hover:text-white transition-all"
                 style={{
-                  background: 'linear-gradient(-90deg, rgba(8, 12, 28, 0.95) 0%, rgba(8, 12, 28, 0.6) 100%)',
+                  background: 'linear-gradient(-90deg, rgba(5, 8, 22, 0.95) 0%, rgba(5, 8, 22, 0.6) 100%)',
                 }}
               >
                 <ChevronRight size={16} />
               </button>
             </div>
-
-            {/* Active Episode Details & Action Buttons (Watchlist & Share) */}
-            {activeEpisode && (
-              <div className="pt-3 border-t border-white/[0.08] flex flex-col sm:flex-row items-start sm:items-center justify-between gap-3">
-                <div className="min-w-0 flex-1">
-                  <div className="flex items-center gap-2 mb-1">
-                    <span
-                      className="text-[10px] font-black uppercase px-2 py-0.5 rounded-md"
-                      style={{
-                        background: 'rgba(6, 182, 212, 0.2)',
-                        color: '#06b6d4',
-                      }}
-                    >
-                      {activeEpisode.episodeLabel}
-                    </span>
-                    <h4 className="text-xs sm:text-sm font-bold text-white truncate">
-                      {activeEpisode.title}
-                    </h4>
-                  </div>
-                  {activeEpisode.overview && (
-                    <p className="text-[11px] text-slate-400 line-clamp-1">
-                      {activeEpisode.overview}
-                    </p>
-                  )}
-                </div>
-
-                {/* Actions: Bookmark & Share */}
-                <div className="flex items-center gap-2 flex-shrink-0">
-                  <button
-                    type="button"
-                    onClick={() => setBookmarked(!bookmarked)}
-                    className="flex items-center gap-1.5 px-3 py-1.5 rounded-xl font-bold text-xs transition-all duration-200 hover:scale-105 active:scale-95"
-                    style={{
-                      background: bookmarked ? 'rgba(236,72,153,0.18)' : 'rgba(255,255,255,0.06)',
-                      border: bookmarked
-                        ? '1px solid rgba(236,72,153,0.5)'
-                        : '1px solid rgba(255,255,255,0.1)',
-                      color: bookmarked ? '#ec4899' : '#f1f5f9',
-                    }}
-                  >
-                    <Bookmark size={13} fill={bookmarked ? 'currentColor' : 'none'} />
-                    <span>{bookmarked ? 'Saved' : 'Watchlist'}</span>
-                  </button>
-
-                  <ShareButton title={`${showTitle} - ${activeEpisode.episodeLabel}`} />
-                </div>
-              </div>
-            )}
           </div>
-        </div>
-      )}
+        )}
+      </div>
 
-      {/* ── 3. Active Episode Markdown Content / Notes ── */}
+      {/* ── 4. Active Episode Markdown Content / Notes ── */}
       {activeEpisode?.contentHtml && (
-        <div className="w-full px-4 sm:px-6 md:px-8 lg:px-10 xl:px-12 2xl:px-14 mt-6">
+        <div className="w-full px-4 sm:px-6 md:px-8 lg:px-10 xl:px-12 2xl:px-14 mt-8">
           <MarkdownRenderer
             contentHtml={activeEpisode.contentHtml}
             title={`${showTitle} - ${activeEpisode.episodeLabel}: ${activeEpisode.title}`}
