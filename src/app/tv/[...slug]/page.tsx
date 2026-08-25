@@ -1,18 +1,13 @@
 import React from 'react';
 import Link from 'next/link';
 import { Metadata } from 'next';
-import {
-  Calendar,
-  Clock,
-  ArrowLeft,
-  Sparkles,
-} from 'lucide-react';
+import { Calendar, Clock } from 'lucide-react';
 import { getImageUrl } from '@/lib/tmdb';
 import {
   getTVShowDetailsWithCustomOverride,
   getAllCustomTVSlugPaths,
 } from '@/lib/markdownTV';
-import MovieRow from '@/components/MovieRow';
+import MovieCard from '@/components/MovieCard';
 import CastCard from '@/components/CastCard';
 import RatingBadge from '@/components/RatingBadge';
 import MarkdownRenderer from '@/components/MarkdownRenderer';
@@ -108,7 +103,6 @@ export default async function TVShowPage({ params }: PageProps) {
               color: 'white',
             }}
           >
-            <ArrowLeft size={16} />
             Kembali ke TV Shows
           </Link>
         </div>
@@ -116,8 +110,8 @@ export default async function TVShowPage({ params }: PageProps) {
     );
   }
 
-  const cast = data.credits?.cast?.slice(0, 12) || [];
-  const similarShows = data.similar?.results?.slice(0, 12) || [];
+  const cast = data.credits?.cast?.slice(0, 14) || [];
+  const similarShows = data.similar?.results?.slice(0, 14) || [];
   const year = data.first_air_date ? new Date(data.first_air_date).getFullYear() : '';
   const runtime = data.episode_run_time?.[0] ? `${data.episode_run_time[0]}m / ep` : null;
 
@@ -162,7 +156,7 @@ export default async function TVShowPage({ params }: PageProps) {
     : null;
 
   return (
-    <div className="min-h-screen pb-16" style={{ background: '#050816' }}>
+    <div className="min-h-screen pb-12" style={{ background: '#050816' }}>
       {/* OpenGraph Video & Schema.org VideoObject */}
       {videoUrl && (
         <>
@@ -177,56 +171,34 @@ export default async function TVShowPage({ params }: PageProps) {
         </>
       )}
 
-      {/* Top Header Navigation Bar */}
-      <div className="w-full px-4 sm:px-6 md:px-8 lg:px-10 xl:px-12 2xl:px-14 pt-4 sm:pt-6 pb-2">
-        <Link
-          href="/tv"
-          className="inline-flex items-center gap-2 px-3.5 py-1.5 rounded-xl text-xs sm:text-sm font-semibold transition-all duration-200 hover:scale-105"
-          style={{
-            background: 'rgba(255, 255, 255, 0.06)',
-            border: '1px solid rgba(255, 255, 255, 0.12)',
-            color: '#f1f5f9',
-            boxShadow: '0 4px 20px rgba(0, 0, 0, 0.5)',
-          }}
-        >
-          <ArrowLeft size={16} />
-          <span>TV Shows</span>
-        </Link>
+      {/* ── 1. FULL-VIEW VIDEO PLAYER & EPISODE SELECTOR (At the very top) ── */}
+      <div className="w-full mb-6">
+        <TVDetailClient
+          showTitle={data.name}
+          seasons={data.seasonsList || []}
+          hasSeasons={Boolean(data.hasSeasons)}
+          initialActiveEpisode={data.activeEpisode || null}
+          defaultBackdrop={defaultBackdrop}
+        />
       </div>
 
-      {/* ── TOP SECTION: Clean Full-View TV Show Details (No Poster, Direct Focus) ── */}
-      <div className="w-full px-4 sm:px-6 md:px-8 lg:px-10 xl:px-12 2xl:px-14 pt-4">
-        {/* Custom Static Badge */}
-        {data.isCustomTV && (
-          <div
-            className="inline-flex items-center gap-1.5 px-3 py-1 rounded-full text-xs font-semibold mb-3"
-            style={{
-              background: 'rgba(6,182,212,0.15)',
-              border: '1px solid rgba(6,182,212,0.4)',
-              color: '#06b6d4',
-            }}
-          >
-            <Sparkles size={12} />
-            Static Custom Serial
-          </div>
-        )}
-
+      {/* ── 2. TV SHOW DETAILS SECTION ── */}
+      <div className="w-full px-4 sm:px-6 md:px-8 lg:px-10 xl:px-12 2xl:px-14 pt-2">
         {/* Title */}
         <h1
-          className="text-3xl sm:text-4xl lg:text-5xl font-black leading-tight mb-2 tracking-tight"
-          style={{ color: '#f1f5f9' }}
+          className="text-2xl sm:text-3xl lg:text-4xl font-black leading-tight mb-2 tracking-tight text-white"
         >
           {data.name}
         </h1>
 
         {/* Tagline */}
         {data.tagline && (
-          <p className="text-base sm:text-lg italic mb-4" style={{ color: '#7c3aed' }}>
+          <p className="text-sm sm:text-base italic mb-4" style={{ color: '#a78bfa' }}>
             &ldquo;{data.tagline}&rdquo;
           </p>
         )}
 
-        {/* Meta Badges Row (with HD icon badge) */}
+        {/* Meta Badges Row */}
         <div className="flex flex-wrap items-center gap-3 mb-5">
           <RatingBadge rating={data.vote_average} size="md" />
           <span
@@ -240,13 +212,13 @@ export default async function TVShowPage({ params }: PageProps) {
             HD
           </span>
           {year && (
-            <div className="flex items-center gap-1.5 text-sm" style={{ color: '#94a3b8' }}>
+            <div className="flex items-center gap-1.5 text-xs sm:text-sm text-slate-400">
               <Calendar size={14} />
               {year}
             </div>
           )}
           {runtime && (
-            <div className="flex items-center gap-1.5 text-sm" style={{ color: '#94a3b8' }}>
+            <div className="flex items-center gap-1.5 text-xs sm:text-sm text-slate-400">
               <Clock size={14} />
               {runtime}
             </div>
@@ -284,10 +256,10 @@ export default async function TVShowPage({ params }: PageProps) {
               <Link
                 key={genre.id}
                 href={`/genre/${genre.id}`}
-                className="px-3 py-1 rounded-full text-xs font-medium transition-all duration-200 hover:scale-105"
+                className="px-3 py-1 rounded-full text-xs font-semibold transition-all duration-200 hover:scale-105"
                 style={{
                   background: 'rgba(124,58,237,0.15)',
-                  border: '1px solid rgba(124,58,237,0.4)',
+                  border: '1px solid rgba(124,58,237,0.35)',
                   color: '#a78bfa',
                 }}
               >
@@ -298,11 +270,11 @@ export default async function TVShowPage({ params }: PageProps) {
         )}
 
         {/* Overview / Sinopsis */}
-        <p className="text-sm sm:text-base leading-relaxed mb-6 max-w-4xl" style={{ color: '#94a3b8' }}>
+        <p className="text-xs sm:text-sm sm:leading-relaxed leading-normal mb-5 max-w-4xl text-slate-300">
           {data.overview}
         </p>
 
-        {/* Action Buttons (Watch Trailer, Watchlist, Official Site) */}
+        {/* Action Buttons (Watch Trailer, Watchlist) */}
         <TVDetailHeaderActions
           activeEpisodeLabel={data.activeEpisode?.episodeLabel}
           activeEpisodeTitle={data.activeEpisode?.title}
@@ -313,44 +285,9 @@ export default async function TVShowPage({ params }: PageProps) {
         />
       </div>
 
-      {/* ── VIDEO PLAYER & EPISODE SELECTOR: Positioned Directly Below Action Buttons ── */}
-      <TVDetailClient
-        showTitle={data.name}
-        seasons={data.seasonsList || []}
-        hasSeasons={Boolean(data.hasSeasons)}
-        initialActiveEpisode={data.activeEpisode || null}
-        defaultBackdrop={defaultBackdrop}
-      />
-
-      {/* ── STATS / RETURNING SERIES / STATUS: Positioned Below the Video Player & Episode Selector ── */}
-      <div className="w-full px-4 sm:px-6 md:px-8 lg:px-10 xl:px-12 2xl:px-14 mt-8">
-        <div className="grid grid-cols-2 sm:grid-cols-4 gap-4">
-          {[
-            { label: 'Status', value: data.status || 'Returning Series' },
-            {
-              label: 'Seasons',
-              value: data.hasSeasons
-                ? (data.number_of_seasons?.toString() || '1')
-                : '1 Season',
-            },
-            { label: 'Total Episodes', value: data.number_of_episodes?.toString() || 'N/A' },
-            { label: 'Vote Count', value: data.vote_count?.toLocaleString() || '1,000+' },
-          ].map(({ label, value }) => (
-            <div
-              key={label}
-              className="rounded-xl p-4 text-center"
-              style={{ background: 'rgba(255,255,255,0.04)', border: '1px solid rgba(255,255,255,0.08)' }}
-            >
-              <p className="text-lg font-bold" style={{ color: '#06b6d4' }}>{value}</p>
-              <p className="text-xs mt-1" style={{ color: '#475569' }}>{label}</p>
-            </div>
-          ))}
-        </div>
-      </div>
-
-      {/* Show Overview Markdown Content */}
+      {/* ── 3. SHOW OVERVIEW MARKDOWN CONTENT ── */}
       {data.customContentHtml && (
-        <div className="w-full px-4 sm:px-6 md:px-8 lg:px-10 xl:px-12 2xl:px-14 mt-12">
+        <div className="w-full px-4 sm:px-6 md:px-8 lg:px-10 xl:px-12 2xl:px-14 mt-10">
           <MarkdownRenderer
             contentHtml={data.customContentHtml}
             title={`${data.name} - Informasi & Sinopsis Serial`}
@@ -358,11 +295,13 @@ export default async function TVShowPage({ params }: PageProps) {
         </div>
       )}
 
-      {/* Cast Section */}
+      {/* ── 4. CAST SECTION (Bigger & Clearer UI on Small Screen) ── */}
       {cast.length > 0 && (
-        <section className="mt-16 w-full px-4 sm:px-6 md:px-8 lg:px-10 xl:px-12 2xl:px-14">
-          <h2 className="section-title text-xl sm:text-2xl font-bold text-neo-text-primary mb-4">Cast & Karakter</h2>
-          <div className="flex gap-3 sm:gap-4 overflow-x-auto hide-scrollbar pb-2">
+        <section className="mt-12 w-full px-4 sm:px-6 md:px-8 lg:px-10 xl:px-12 2xl:px-14">
+          <h2 className="text-lg sm:text-xl font-bold text-white mb-4 tracking-tight">
+            Top Cast
+          </h2>
+          <div className="flex gap-3 sm:gap-4 overflow-x-auto hide-scrollbar pb-3">
             {cast.map((member) => (
               <CastCard key={member.id} cast={member} />
             ))}
@@ -370,14 +309,17 @@ export default async function TVShowPage({ params }: PageProps) {
         </section>
       )}
 
-      {/* Similar TV Shows */}
+      {/* ── 5. SIMILAR TV SHOWS (GRID LAYOUT) ── */}
       {similarShows.length > 0 && (
-        <section className="mt-16 w-full">
-          <MovieRow
-            title="Serial TV Serupa"
-            items={similarShows}
-            type="tv"
-          />
+        <section className="mt-12 w-full px-4 sm:px-6 md:px-8 lg:px-10 xl:px-12 2xl:px-14">
+          <h2 className="text-lg sm:text-xl font-bold text-white mb-5 tracking-tight">
+            Similar TV Shows
+          </h2>
+          <div className="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-4 lg:grid-cols-5 xl:grid-cols-6 2xl:grid-cols-7 3xl:grid-cols-8 gap-4">
+            {similarShows.map((item) => (
+              <MovieCard key={item.id} item={item} type="tv" />
+            ))}
+          </div>
         </section>
       )}
     </div>

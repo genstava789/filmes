@@ -1,19 +1,13 @@
 import React from 'react';
 import Link from 'next/link';
 import { Metadata } from 'next';
-import {
-  Calendar,
-  Clock,
-  Globe,
-  ArrowLeft,
-  Sparkles,
-} from 'lucide-react';
+import { Calendar, Clock, Globe } from 'lucide-react';
 import { getImageUrl } from '@/lib/tmdb';
 import {
   getMovieDetailsWithCustomOverride,
   getAllCustomMovieSlugs,
 } from '@/lib/markdownMovies';
-import MovieRow from '@/components/MovieRow';
+import MovieCard from '@/components/MovieCard';
 import CastCard from '@/components/CastCard';
 import RatingBadge from '@/components/RatingBadge';
 import MarkdownRenderer from '@/components/MarkdownRenderer';
@@ -111,7 +105,6 @@ export default async function MovieDetailPage({ params }: PageProps) {
               color: 'white',
             }}
           >
-            <ArrowLeft size={16} />
             Kembali ke Beranda
           </Link>
         </div>
@@ -120,8 +113,8 @@ export default async function MovieDetailPage({ params }: PageProps) {
   }
 
   const director = movie.credits?.crew?.find((c) => c.job === 'Director');
-  const cast = movie.credits?.cast?.slice(0, 12) || [];
-  const similarMovies = movie.similar?.results?.slice(0, 12) || [];
+  const cast = movie.credits?.cast?.slice(0, 14) || [];
+  const similarMovies = movie.similar?.results?.slice(0, 14) || [];
   const runtime = movie.runtime
     ? `${Math.floor(movie.runtime / 60)}h ${movie.runtime % 60}m`
     : null;
@@ -171,7 +164,7 @@ export default async function MovieDetailPage({ params }: PageProps) {
     : null;
 
   return (
-    <div className="min-h-screen pb-16" style={{ background: '#050816' }}>
+    <div className="min-h-screen pb-12" style={{ background: '#050816' }}>
       {/* OpenGraph Video & Schema.org VideoObject */}
       {videoUrl && (
         <>
@@ -186,56 +179,34 @@ export default async function MovieDetailPage({ params }: PageProps) {
         </>
       )}
 
-      {/* Top Header Navigation Bar */}
-      <div className="w-full px-4 sm:px-6 md:px-8 lg:px-10 xl:px-12 2xl:px-14 pt-4 sm:pt-6 pb-2">
-        <Link
-          href="/"
-          className="inline-flex items-center gap-2 px-3.5 py-1.5 rounded-xl text-xs sm:text-sm font-semibold transition-all duration-200 hover:scale-105"
-          style={{
-            background: 'rgba(255, 255, 255, 0.06)',
-            border: '1px solid rgba(255, 255, 255, 0.12)',
-            color: '#f1f5f9',
-            boxShadow: '0 4px 20px rgba(0, 0, 0, 0.5)',
-          }}
-        >
-          <ArrowLeft size={16} />
-          <span>Kembali</span>
-        </Link>
-      </div>
+      {/* ── 1. FULL-VIEW VIDEO PLAYER (Directly at top, fit all body, edge-to-edge) ── */}
+      {videoUrl && (
+        <div className="w-full bg-black mb-6">
+          <VideoPlayer
+            videoUrl={videoUrl}
+            title={movie.title}
+            poster={thumbnailImage}
+          />
+        </div>
+      )}
 
-      {/* ── TOP SECTION: Clean Full-View Movie Details (No Poster, Direct Focus) ── */}
-      <div className="w-full px-4 sm:px-6 md:px-8 lg:px-10 xl:px-12 2xl:px-14 pt-4">
-        {/* Custom Edition Badge */}
-        {movie.isCustomMarkdown && (
-          <div
-            className="inline-flex items-center gap-1.5 px-3 py-1 rounded-full text-xs font-bold uppercase tracking-wider mb-3"
-            style={{
-              background: 'linear-gradient(135deg, rgba(6,182,212,0.2), rgba(124,58,237,0.2))',
-              border: '1px solid rgba(6,182,212,0.5)',
-              color: '#06b6d4',
-            }}
-          >
-            <Sparkles size={12} />
-            Static Custom Edition
-          </div>
-        )}
-
+      {/* ── 2. MOVIE DETAILS SECTION ── */}
+      <div className={`w-full px-4 sm:px-6 md:px-8 lg:px-10 xl:px-12 2xl:px-14 ${videoUrl ? 'pt-2' : 'pt-6'}`}>
         {/* Title */}
         <h1
-          className="text-3xl sm:text-4xl lg:text-5xl font-black leading-tight mb-2 tracking-tight"
-          style={{ color: '#f1f5f9' }}
+          className="text-2xl sm:text-3xl lg:text-4xl font-black leading-tight mb-2 tracking-tight text-white"
         >
           {movie.title}
         </h1>
 
         {/* Tagline */}
         {movie.tagline && (
-          <p className="text-base sm:text-lg italic mb-4" style={{ color: '#7c3aed' }}>
+          <p className="text-sm sm:text-base italic mb-4" style={{ color: '#a78bfa' }}>
             &ldquo;{movie.tagline}&rdquo;
           </p>
         )}
 
-        {/* Meta badges row (with HD badge) */}
+        {/* Meta Badges Row */}
         <div className="flex flex-wrap items-center gap-3 mb-5">
           <RatingBadge rating={movie.vote_average} size="md" />
           <span
@@ -249,19 +220,19 @@ export default async function MovieDetailPage({ params }: PageProps) {
             HD
           </span>
           {year && (
-            <div className="flex items-center gap-1.5 text-sm" style={{ color: '#94a3b8' }}>
+            <div className="flex items-center gap-1.5 text-xs sm:text-sm text-slate-400">
               <Calendar size={14} />
               {year}
             </div>
           )}
           {runtime && (
-            <div className="flex items-center gap-1.5 text-sm" style={{ color: '#94a3b8' }}>
+            <div className="flex items-center gap-1.5 text-xs sm:text-sm text-slate-400">
               <Clock size={14} />
               {runtime}
             </div>
           )}
           {movie.original_language && (
-            <div className="flex items-center gap-1.5 text-sm" style={{ color: '#94a3b8' }}>
+            <div className="flex items-center gap-1.5 text-xs sm:text-sm text-slate-400">
               <Globe size={14} />
               {movie.original_language.toUpperCase()}
             </div>
@@ -275,10 +246,10 @@ export default async function MovieDetailPage({ params }: PageProps) {
               <Link
                 key={genre.id}
                 href={`/genre/${genre.id}`}
-                className="px-3 py-1 rounded-full text-xs font-medium transition-all duration-200 hover:scale-105"
+                className="px-3 py-1 rounded-full text-xs font-semibold transition-all duration-200 hover:scale-105"
                 style={{
                   background: 'rgba(124,58,237,0.15)',
-                  border: '1px solid rgba(124,58,237,0.4)',
+                  border: '1px solid rgba(124,58,237,0.35)',
                   color: '#a78bfa',
                 }}
               >
@@ -289,19 +260,19 @@ export default async function MovieDetailPage({ params }: PageProps) {
         )}
 
         {/* Overview / Sinopsis */}
-        <p className="text-sm sm:text-base leading-relaxed mb-5 max-w-4xl" style={{ color: '#94a3b8' }}>
+        <p className="text-xs sm:text-sm sm:leading-relaxed leading-normal mb-5 max-w-4xl text-slate-300">
           {movie.overview}
         </p>
 
         {/* Director */}
         {director && (
-          <p className="text-sm mb-6" style={{ color: '#94a3b8' }}>
-            <span style={{ color: '#f1f5f9', fontWeight: 600 }}>Director: </span>
+          <p className="text-xs sm:text-sm mb-6 text-slate-400">
+            <span className="text-white font-semibold">Director: </span>
             {director.name}
           </p>
         )}
 
-        {/* Action buttons (Watch Trailer, Watchlist, Official Site) */}
+        {/* Action Buttons (Watch Trailer, Watchlist) */}
         <MovieDetailClient
           movieTitle={movie.title}
           trailerKey={trailerKey}
@@ -310,44 +281,9 @@ export default async function MovieDetailPage({ params }: PageProps) {
         />
       </div>
 
-      {/* ── VIDEO PLAYER: Positioned Directly Below Director & Action Buttons ── */}
-      {videoUrl && (
-        <div className="w-full px-4 sm:px-6 md:px-8 lg:px-10 xl:px-12 2xl:px-14 mt-10">
-          <VideoPlayer
-            videoUrl={videoUrl}
-            title={movie.title}
-            poster={thumbnailImage}
-          />
-        </div>
-      )}
-
-      {/* ── STATS / VIEWS / POPULARITY: Positioned Below the Video Player ── */}
-      <div className="w-full px-4 sm:px-6 md:px-8 lg:px-10 xl:px-12 2xl:px-14 mt-8">
-        <div className="grid grid-cols-2 sm:grid-cols-4 gap-4">
-          {[
-            { label: 'Popularity (Views)', value: Math.round(movie.popularity || 100).toLocaleString() },
-            { label: 'Vote Count', value: movie.vote_count?.toLocaleString() || '1,000+' },
-            { label: 'Budget', value: movie.budget ? `$${(movie.budget / 1e6).toFixed(1)}M` : 'N/A' },
-            { label: 'Revenue', value: movie.revenue ? `$${(movie.revenue / 1e6).toFixed(1)}M` : 'N/A' },
-          ].map(({ label, value }) => (
-            <div
-              key={label}
-              className="rounded-xl p-4 text-center"
-              style={{
-                background: 'rgba(255,255,255,0.04)',
-                border: '1px solid rgba(255,255,255,0.08)',
-              }}
-            >
-              <p className="text-lg font-bold" style={{ color: '#06b6d4' }}>{value}</p>
-              <p className="text-xs mt-1" style={{ color: '#475569' }}>{label}</p>
-            </div>
-          ))}
-        </div>
-      </div>
-
-      {/* Custom Markdown Body Rendered Section */}
+      {/* ── 3. CUSTOM MARKDOWN BODY CONTENT ── */}
       {movie.customContentHtml && (
-        <div className="w-full px-4 sm:px-6 md:px-8 lg:px-10 xl:px-12 2xl:px-14 mt-12">
+        <div className="w-full px-4 sm:px-6 md:px-8 lg:px-10 xl:px-12 2xl:px-14 mt-10">
           <MarkdownRenderer
             contentHtml={movie.customContentHtml}
             title={movie.title}
@@ -355,13 +291,13 @@ export default async function MovieDetailPage({ params }: PageProps) {
         </div>
       )}
 
-      {/* Cast Section */}
+      {/* ── 4. CAST SECTION (Bigger & Clearer UI on Small Screen) ── */}
       {cast.length > 0 && (
-        <section className="mt-16 w-full px-4 sm:px-6 md:px-8 lg:px-10 xl:px-12 2xl:px-14">
-          <h2 className="section-title text-xl sm:text-2xl font-bold text-neo-text-primary mb-4">
-            Cast
+        <section className="mt-12 w-full px-4 sm:px-6 md:px-8 lg:px-10 xl:px-12 2xl:px-14">
+          <h2 className="text-lg sm:text-xl font-bold text-white mb-4 tracking-tight">
+            Top Cast
           </h2>
-          <div className="flex gap-3 sm:gap-4 overflow-x-auto hide-scrollbar pb-2">
+          <div className="flex gap-3 sm:gap-4 overflow-x-auto hide-scrollbar pb-3">
             {cast.map((member) => (
               <CastCard key={member.id} cast={member} />
             ))}
@@ -369,14 +305,17 @@ export default async function MovieDetailPage({ params }: PageProps) {
         </section>
       )}
 
-      {/* Similar Movies Section */}
+      {/* ── 5. SIMILAR MOVIES (GRID LAYOUT) ── */}
       {similarMovies.length > 0 && (
-        <section className="mt-16 w-full">
-          <MovieRow
-            title="Similar Movies"
-            items={similarMovies}
-            type="movie"
-          />
+        <section className="mt-12 w-full px-4 sm:px-6 md:px-8 lg:px-10 xl:px-12 2xl:px-14">
+          <h2 className="text-lg sm:text-xl font-bold text-white mb-5 tracking-tight">
+            Similar Movies
+          </h2>
+          <div className="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-4 lg:grid-cols-5 xl:grid-cols-6 2xl:grid-cols-7 3xl:grid-cols-8 gap-4">
+            {similarMovies.map((item) => (
+              <MovieCard key={item.id} item={item} type="movie" />
+            ))}
+          </div>
         </section>
       )}
     </div>

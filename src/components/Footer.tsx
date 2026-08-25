@@ -31,12 +31,6 @@ export default function Footer() {
             </span>
             . All rights reserved.
           </p>
-
-          {siteConfig.footerText && (
-            <p className="text-[11px] font-normal tracking-normal text-slate-500 max-w-md mx-auto">
-              {siteConfig.footerText}
-            </p>
-          )}
         </div>
       </div>
     </footer>

@@ -142,10 +142,11 @@ export default function VideoPlayer({ videoUrl, poster }: VideoPlayerProps) {
 
         {/* Clean Outer Player Frame */}
         <div
-          className="relative rounded-2xl overflow-hidden shadow-2xl transition-all duration-300"
+          className="relative rounded-none lg:rounded-2xl overflow-hidden shadow-2xl transition-all duration-300"
           style={{
             background: 'linear-gradient(180deg, #090e1f 0%, #050814 100%)',
-            border: '1px solid rgba(6, 182, 212, 0.35)',
+            borderTop: '1px solid rgba(6, 182, 212, 0.35)',
+            borderBottom: '1px solid rgba(6, 182, 212, 0.35)',
             boxShadow: '0 25px 60px -15px rgba(0, 0, 0, 0.9), 0 0 35px rgba(6, 182, 212, 0.18)',
           }}
         >

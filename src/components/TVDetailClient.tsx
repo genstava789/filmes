@@ -1,7 +1,7 @@
 'use client';
 
 import React, { useState } from 'react';
-import { Play, Bookmark, ExternalLink, Film } from 'lucide-react';
+import { Bookmark, Film } from 'lucide-react';
 import TrailerModal from '@/components/TrailerModal';
 import VideoPlayer from '@/components/VideoPlayer';
 import EpisodeSelector from '@/components/EpisodeSelector';
@@ -18,94 +18,45 @@ interface TVDetailHeaderActionsProps {
 }
 
 export function TVDetailHeaderActions({
-  activeEpisodeLabel,
-  activeEpisodeTitle,
-  hasVideo = true,
   trailerKey,
-  homepage,
   showTitle,
 }: TVDetailHeaderActionsProps) {
   const [showTrailer, setShowTrailer] = useState(false);
   const [bookmarked, setBookmarked] = useState(false);
 
-  const scrollToPlayer = () => {
-    const playerEl = document.getElementById('video-player-section');
-    if (playerEl) {
-      playerEl.scrollIntoView({ behavior: 'smooth', block: 'center' });
-    }
-  };
-
   return (
     <>
-      <div className="flex flex-wrap gap-3">
-        {hasVideo && (
-          <button
-            onClick={scrollToPlayer}
-            className="flex items-center gap-2 px-6 py-3 rounded-xl font-semibold text-sm transition-all duration-300 hover:scale-105"
-            style={{
-              background: 'linear-gradient(135deg, #06b6d4, #7c3aed)',
-              color: 'white',
-              boxShadow: '0 0 25px rgba(6, 182, 212, 0.5)',
-            }}
-          >
-            <Play size={18} fill="white" />
-            <span>
-              {activeEpisodeLabel
-                ? `Play ${activeEpisodeLabel}: ${activeEpisodeTitle || 'Watch Now'}`
-                : 'Watch Episode Now'}
-            </span>
-          </button>
-        )}
-
+      <div className="flex flex-wrap items-center gap-3">
+        {/* Watch Trailer */}
         {trailerKey && (
           <button
             onClick={() => setShowTrailer(true)}
-            className="flex items-center gap-2 px-6 py-3 rounded-xl font-semibold text-sm transition-all duration-300 hover:scale-105"
+            className="flex items-center gap-2 px-5 py-2.5 rounded-xl font-bold text-xs sm:text-sm text-white transition-all duration-200 hover:scale-105 active:scale-95 shadow-lg"
             style={{
-              background: hasVideo
-                ? 'rgba(255,255,255,0.08)'
-                : 'linear-gradient(135deg, #ec4899, #7c3aed)',
-              color: 'white',
-              border: hasVideo ? '1px solid rgba(255,255,255,0.15)' : 'none',
-              boxShadow: hasVideo ? 'none' : '0 0 20px rgba(236,72,153,0.4)',
+              background: 'linear-gradient(135deg, #ec4899, #7c3aed)',
+              boxShadow: '0 0 18px rgba(236,72,153,0.35)',
             }}
           >
-            <Film size={18} />
-            Watch Trailer
+            <Film size={16} />
+            <span>Watch Trailer</span>
           </button>
         )}
 
+        {/* Bookmark / Watchlist */}
         <button
           onClick={() => setBookmarked(!bookmarked)}
-          className="flex items-center gap-2 px-6 py-3 rounded-xl font-semibold text-sm transition-all duration-300 hover:scale-105"
+          className="flex items-center gap-2 px-4 py-2.5 rounded-xl font-bold text-xs sm:text-sm transition-all duration-200 hover:scale-105 active:scale-95"
           style={{
-            background: bookmarked ? 'rgba(6,182,212,0.15)' : 'rgba(255,255,255,0.08)',
+            background: bookmarked ? 'rgba(236,72,153,0.18)' : 'rgba(255,255,255,0.06)',
             border: bookmarked
-              ? '1px solid rgba(6,182,212,0.5)'
-              : '1px solid rgba(255,255,255,0.15)',
-            color: bookmarked ? '#06b6d4' : '#f1f5f9',
+              ? '1px solid rgba(236,72,153,0.5)'
+              : '1px solid rgba(255,255,255,0.1)',
+            color: bookmarked ? '#ec4899' : '#f1f5f9',
           }}
         >
-          <Bookmark size={18} fill={bookmarked ? 'currentColor' : 'none'} />
-          {bookmarked ? 'Saved' : 'Watchlist'}
+          <Bookmark size={16} fill={bookmarked ? 'currentColor' : 'none'} />
+          <span>{bookmarked ? 'Saved in Watchlist' : 'Add to Watchlist'}</span>
         </button>
-
-        {homepage && (
-          <a
-            href={homepage}
-            target="_blank"
-            rel="noopener noreferrer"
-            className="flex items-center gap-2 px-6 py-3 rounded-xl font-semibold text-sm transition-all duration-300 hover:scale-105"
-            style={{
-              background: 'rgba(255,255,255,0.06)',
-              border: '1px solid rgba(255,255,255,0.1)',
-              color: '#94a3b8',
-            }}
-          >
-            <ExternalLink size={18} />
-            Official Site
-          </a>
-        )}
       </div>
 
       {showTrailer && trailerKey && (
@@ -142,9 +93,9 @@ export default function TVDetailClient({
 
   return (
     <div className="w-full">
-      {/* Top Video Player Section (Rendered if active episode has video URL) */}
+      {/* Top Video Player (Edge-to-edge / Full view) */}
       {activeEpisode?.videoUrl && (
-        <div className="w-full px-4 sm:px-6 md:px-8 lg:px-10 xl:px-12 2xl:px-14 mt-10">
+        <div className="w-full bg-black mb-6">
           <VideoPlayer
             key={activeEpisode.slug}
             videoUrl={activeEpisode.videoUrl}
@@ -154,16 +105,18 @@ export default function TVDetailClient({
         </div>
       )}
 
-      {/* Episode Selector directly below the player */}
+      {/* Episode Selector */}
       {seasons.length > 0 && (
-        <EpisodeSelector
-          seasons={seasons}
-          hasSeasons={hasSeasons}
-          activeEpisode={activeEpisode}
-          showTitle={showTitle}
-          defaultBackdrop={defaultBackdrop}
-          onSelectEpisode={handleSelectEpisode}
-        />
+        <div className="w-full px-4 sm:px-6 md:px-8 lg:px-10 xl:px-12 2xl:px-14">
+          <EpisodeSelector
+            seasons={seasons}
+            hasSeasons={hasSeasons}
+            activeEpisode={activeEpisode}
+            showTitle={showTitle}
+            defaultBackdrop={defaultBackdrop}
+            onSelectEpisode={handleSelectEpisode}
+          />
+        </div>
       )}
 
       {/* Active Episode Markdown Content / Notes */}
