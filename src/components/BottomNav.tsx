@@ -41,40 +41,35 @@ export default function BottomNav({ genres = [] }: BottomNavProps) {
           paddingBottom: 'env(safe-area-inset-bottom)',
         }}
       >
-        <div className="flex items-center justify-around px-2 py-2">
+        <div className="flex items-center justify-around px-2 py-1.5">
           {navItems.map((item) => {
             const active = item.href ? isActive(item.href) : false;
             const Icon = item.icon;
 
             const content = (
               <div
-                className={`flex flex-col items-center gap-1 px-3 py-1.5 rounded-xl transition-all duration-200 min-w-[58px] ${
-                  active
-                    ? 'text-cyan-400 border border-cyan-500/40 shadow-[0_0_14px_rgba(6,182,212,0.25)]'
-                    : 'text-slate-400 hover:text-cyan-400 hover:bg-white/[0.06] hover:border-white/10 border border-transparent'
+                className={`relative flex flex-col items-center justify-center gap-1 py-1 px-2.5 rounded-xl transition-all duration-200 min-w-[56px] ${
+                  active ? 'text-cyan-400 font-bold' : 'text-slate-400 hover:text-slate-200'
                 }`}
-                style={{
-                  background: active
-                    ? 'linear-gradient(135deg, rgba(6, 182, 212, 0.2), rgba(124, 58, 237, 0.2))'
-                    : 'transparent',
-                }}
               >
-                <div className="relative flex items-center justify-center">
-                  <Icon
-                    size={20}
-                    className={active ? 'drop-shadow-[0_0_6px_rgba(6,182,212,0.8)]' : ''}
-                    style={{
-                      transition: 'all 0.2s ease',
-                    }}
-                  />
-                </div>
-                <span
-                  className={`text-[10px] tracking-wide transition-colors duration-200 ${
-                    active ? 'font-bold text-cyan-400' : 'font-medium text-slate-400'
+                <Icon
+                  size={20}
+                  className={`transition-transform duration-200 ${
+                    active ? 'scale-110 text-cyan-400 drop-shadow-[0_0_8px_rgba(6,182,212,0.6)]' : 'text-slate-400'
                   }`}
-                >
+                />
+                <span className="text-[10px] tracking-tight leading-tight">
                   {item.label}
                 </span>
+                {active && (
+                  <span
+                    className="absolute -bottom-1 w-4 h-0.5 rounded-full"
+                    style={{
+                      background: 'linear-gradient(90deg, #06b6d4, #7c3aed)',
+                      boxShadow: '0 0 6px rgba(6, 182, 212, 0.8)',
+                    }}
+                  />
+                )}
               </div>
             );
 

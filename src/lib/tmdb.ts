@@ -98,6 +98,14 @@ export async function searchMovies(query: string, page: number = 1): Promise<TMD
   });
 }
 
+export async function searchTVShows(query: string, page: number = 1): Promise<TMDBResponse<TVShow>> {
+  return fetchTMDB<TMDBResponse<TVShow>>('/search/tv', {
+    query: encodeURIComponent(query),
+    page: String(page),
+    include_adult: 'false',
+  });
+}
+
 export async function discoverMovies(
   page: number = 1,
   sortBy: string = 'popularity.desc',
