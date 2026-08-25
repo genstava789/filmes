@@ -32,7 +32,7 @@ export default function AppLayout({ children, genres }: AppLayoutProps) {
         {/* Mobile Header (Non-fixed, glassmorphism) */}
         <MobileHeader genres={genres} />
 
-        <main className="flex-1 pb-20 lg:pb-0">
+        <main className="flex-1">
           {children}
         </main>
 

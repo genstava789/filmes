@@ -8,16 +8,36 @@ export default function Footer() {
 
   return (
     <footer
-      className="mt-4 sm:mt-6 pt-4 pb-20 sm:pb-24 lg:pb-6"
+      className="mt-8 sm:mt-10 pt-6 pb-[calc(5.5rem+env(safe-area-inset-bottom,0px))] sm:pb-28 lg:pb-8 relative z-20"
       style={{
-        background: 'linear-gradient(to bottom, transparent, #080c1b)',
+        background: 'linear-gradient(to bottom, transparent 0%, rgba(6, 10, 24, 0.95) 100%)',
         borderTop: '1px solid rgba(255, 255, 255, 0.06)',
       }}
     >
       <div className="w-full px-4 sm:px-6 md:px-8 lg:px-10 xl:px-12 2xl:px-14 text-center">
-        <p className="text-neo-text-muted text-xs text-center">
-          © {currentYear} <span className="font-semibold text-slate-300">{siteConfig.copyright || siteConfig.name}</span>. {siteConfig.footerText}
-        </p>
+        <div className="flex flex-col items-center justify-center gap-1.5">
+          <p className="text-xs sm:text-sm font-medium tracking-wide text-slate-400">
+            © {currentYear}{' '}
+            <span
+              className="font-bold tracking-wider"
+              style={{
+                background: 'linear-gradient(135deg, #06b6d4, #a78bfa)',
+                WebkitBackgroundClip: 'text',
+                WebkitTextFillColor: 'transparent',
+                backgroundClip: 'text',
+              }}
+            >
+              {siteConfig.copyright || siteConfig.name}
+            </span>
+            . All rights reserved.
+          </p>
+
+          {siteConfig.footerText && (
+            <p className="text-[11px] font-normal tracking-normal text-slate-500 max-w-md mx-auto">
+              {siteConfig.footerText}
+            </p>
+          )}
+        </div>
       </div>
     </footer>
   );
