@@ -59,6 +59,8 @@ export default async function TVPage() {
             <GenreFilter
               genres={genreList}
               title={siteConfig.tvSections?.browseGenres || 'Browse Series by Genre'}
+              type="tv"
+              allHref="/tv"
             />
           </section>
         )}

@@ -10,9 +10,17 @@ interface GenreFilterProps {
   genres: Genre[];
   activeGenreId?: number;
   title?: string;
+  type?: 'movie' | 'tv';
+  allHref?: string;
 }
 
-export default function GenreFilter({ genres, activeGenreId, title }: GenreFilterProps) {
+export default function GenreFilter({
+  genres,
+  activeGenreId,
+  title,
+  type = 'movie',
+  allHref,
+}: GenreFilterProps) {
   const router = useRouter();
   const scrollRef = useRef<HTMLDivElement>(null);
   const [canScrollLeft, setCanScrollLeft] = useState(false);
@@ -49,7 +57,21 @@ export default function GenreFilter({ genres, activeGenreId, title }: GenreFilte
   };
 
   const handleGenreClick = (genreId: number) => {
-    router.push(`/genre/${genreId}`);
+    if (type === 'tv') {
+      router.push(`/genre/${genreId}?type=tv`);
+    } else {
+      router.push(`/genre/${genreId}`);
+    }
+  };
+
+  const handleAllClick = () => {
+    if (allHref) {
+      router.push(allHref);
+    } else if (type === 'tv') {
+      router.push('/tv');
+    } else {
+      router.push('/');
+    }
   };
 
   return (
@@ -107,7 +129,7 @@ export default function GenreFilter({ genres, activeGenreId, title }: GenreFilte
         >
           {/* "All" button */}
           <button
-            onClick={() => router.push('/')}
+            onClick={handleAllClick}
             className={`flex-shrink-0 px-4 sm:px-5 py-2 rounded-xl text-xs sm:text-sm font-semibold transition-all duration-200 ${
               !activeGenreId
                 ? 'text-white shadow-[0_0_15px_rgba(6,182,212,0.35)] scale-105'

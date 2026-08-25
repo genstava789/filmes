@@ -137,6 +137,23 @@ export async function getTVGenres(): Promise<Genre[]> {
   return data.genres;
 }
 
+export async function getTVGenreById(genreId: number): Promise<Genre | null> {
+  const genres = await getTVGenres().catch(() => []);
+  return genres.find((g) => g.id === genreId) || null;
+}
+
+export async function getTVShowsByGenre(
+  genreId: number,
+  page: number = 1,
+  sortBy: string = 'popularity.desc'
+): Promise<TMDBResponse<TVShow>> {
+  return fetchTMDB<TMDBResponse<TVShow>>('/discover/tv', {
+    with_genres: String(genreId),
+    page: String(page),
+    sort_by: sortBy,
+  });
+}
+
 export async function getTVShowDetails(id: number): Promise<TVShowDetail> {
   return fetchTMDB<TVShowDetail>(`/tv/${id}`, {
     append_to_response: 'videos,credits,similar',
