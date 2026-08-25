@@ -54,14 +54,11 @@ export default function GenreFilter({ genres, activeGenreId, title }: GenreFilte
 
   return (
     <div className="relative group/genres">
-      {/* Header with Title, horizontal line & Desktop Navigation Arrows */}
+      {/* Header with Title & Desktop Navigation Arrows */}
       <div className="flex items-center justify-between mb-4">
-        <div className="flex items-center gap-3">
-          <h2 className="text-lg sm:text-xl md:text-2xl font-bold text-white tracking-tight">
-            {title || siteConfig.homepageSections?.browseGenres || 'Browse by Genre'}
-          </h2>
-          <div className="h-[2px] w-8 sm:w-12 rounded-full bg-gradient-to-r from-cyan-400 to-transparent" />
-        </div>
+        <h2 className="text-lg sm:text-xl md:text-2xl font-bold text-white tracking-tight">
+          {title || siteConfig.homepageSections?.browseGenres || 'Browse by Genre'}
+        </h2>
 
         {/* Scroll Arrows for Desktop */}
         <div className="hidden sm:flex items-center gap-2">

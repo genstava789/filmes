@@ -129,7 +129,7 @@ export default function MovieCard({ item, type = 'movie' }: MovieCardProps) {
             {rating.toFixed(1)}
           </div>
 
-          {/* ── Type / HD badge — top left ── */}
+          {/* ── Type badge — top left (Movie / Series) ── */}
           <div
             style={{
               position: 'absolute',
@@ -141,13 +141,13 @@ export default function MovieCard({ item, type = 'movie' }: MovieCardProps) {
               gap: '3px',
               padding: '2px 6px',
               borderRadius: '6px',
-              background: type === 'tv' ? 'rgba(8,12,28,0.85)' : 'rgba(6,182,212,0.18)',
+              background: 'rgba(8,12,28,0.85)',
               backdropFilter: 'blur(8px)',
               WebkitBackdropFilter: 'blur(8px)',
-              border: type === 'tv' ? '1px solid rgba(255,255,255,0.14)' : '1px solid rgba(6,182,212,0.45)',
-              color: type === 'tv' ? '#94a3b8' : '#06b6d4',
+              border: '1px solid rgba(255,255,255,0.14)',
+              color: type === 'tv' ? '#94a3b8' : '#38bdf8',
               fontSize: '10px',
-              fontWeight: 800,
+              fontWeight: 700,
               letterSpacing: '0.04em',
               textTransform: 'uppercase' as const,
             }}
@@ -158,7 +158,10 @@ export default function MovieCard({ item, type = 'movie' }: MovieCardProps) {
                 <span>Series</span>
               </>
             ) : (
-              <span>HD</span>
+              <>
+                <Film size={10} />
+                <span>Movie</span>
+              </>
             )}
           </div>
 
