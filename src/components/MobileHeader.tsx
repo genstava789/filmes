@@ -12,7 +12,8 @@ import {
   Tv,
   Search,
   Sparkles,
-  Compass,
+  MessageSquarePlus,
+  Heart,
   Flame,
   Clapperboard,
   Star,
@@ -181,7 +182,7 @@ export default function MobileHeader({ genres = [] }: MobileHeaderProps) {
               '0 25px 60px rgba(0, 0, 0, 0.8), 0 0 30px rgba(6, 182, 212, 0.1), inset 0 1px 0 rgba(255, 255, 255, 0.1)',
           }}
         >
-          {/* Section 1: Primary Navigation Cards (2x2 Grid) */}
+          {/* Section 1: Primary Navigation Cards (2x2 Grid, Clean & Simple) */}
           <div className="grid grid-cols-2 gap-2.5 mb-4">
             {navCards.map((card) => {
               const active = isActive(card.href);
@@ -195,25 +196,24 @@ export default function MobileHeader({ genres = [] }: MobileHeaderProps) {
                   style={{
                     background: active ? card.bg : 'rgba(255, 255, 255, 0.03)',
                     border: active ? `1px solid ${card.border}` : '1px solid rgba(255, 255, 255, 0.06)',
-                    boxShadow: active ? `0 0 18px ${card.bg}` : 'none',
                   }}
                 >
-                  <div className="flex items-center justify-between mb-2">
+                  <div className="flex items-center mb-2">
                     <div
-                      className="w-8 h-8 rounded-xl flex items-center justify-center"
+                      className="w-8 h-8 rounded-xl flex items-center justify-center transition-colors"
                       style={{
                         background: active ? card.bg : 'rgba(255, 255, 255, 0.06)',
-                        color: card.color,
+                        color: active ? card.color : '#94a3b8',
                       }}
                     >
                       <Icon size={16} />
                     </div>
-                    {active && (
-                      <span className="w-1.5 h-1.5 rounded-full" style={{ background: card.color }} />
-                    )}
                   </div>
                   <div>
-                    <h3 className="font-bold text-sm text-white group-hover:text-cyan-300 transition-colors">
+                    <h3
+                      className="font-bold text-sm transition-colors"
+                      style={{ color: active ? card.color : '#f1f5f9' }}
+                    >
                       {card.title}
                     </h3>
                     <p className="text-[11px] font-medium text-slate-400">{card.desc}</p>
@@ -260,33 +260,35 @@ export default function MobileHeader({ genres = [] }: MobileHeaderProps) {
             </div>
           </div>
 
-          {/* Section 3: Direct Link to All Movies & Series */}
-          <div className="pt-3 mt-3 border-t border-white/[0.08] flex items-center justify-between">
-            <Link
-              href="/movie"
-              onClick={() => setMenuOpen(false)}
-              className="flex-1 mr-2 py-2 px-3 rounded-xl text-center text-xs font-bold text-slate-300 hover:text-white transition-all flex items-center justify-center gap-1.5"
+          {/* Section 3: Action Buttons (Request Film & Donasi) */}
+          <div className="pt-3 mt-3 border-t border-white/[0.08] flex items-center justify-between gap-2.5">
+            {/* Request Film Button (No destination) */}
+            <button
+              type="button"
+              className="flex-1 py-2.5 px-3.5 rounded-xl text-xs font-bold text-slate-200 hover:text-cyan-300 transition-all duration-200 hover:scale-[1.02] active:scale-[0.98] flex items-center justify-center gap-2"
               style={{
-                background: 'rgba(255, 255, 255, 0.04)',
-                border: '1px solid rgba(255, 255, 255, 0.08)',
+                background: 'linear-gradient(135deg, rgba(6, 182, 212, 0.15), rgba(124, 58, 237, 0.15))',
+                border: '1px solid rgba(6, 182, 212, 0.35)',
+                boxShadow: '0 0 15px rgba(6, 182, 212, 0.15)',
               }}
             >
-              <Compass size={13} className="text-cyan-400" />
-              <span>Browse Catalog</span>
-            </Link>
+              <MessageSquarePlus size={14} className="text-cyan-400" />
+              <span>Request</span>
+            </button>
 
-            <Link
-              href="/tv/browse"
-              onClick={() => setMenuOpen(false)}
-              className="flex-1 py-2 px-3 rounded-xl text-center text-xs font-bold text-slate-300 hover:text-white transition-all flex items-center justify-center gap-1.5"
+            {/* Donasi Button (No destination) */}
+            <button
+              type="button"
+              className="flex-1 py-2.5 px-3.5 rounded-xl text-xs font-bold text-slate-200 hover:text-rose-300 transition-all duration-200 hover:scale-[1.02] active:scale-[0.98] flex items-center justify-center gap-2"
               style={{
-                background: 'rgba(255, 255, 255, 0.04)',
-                border: '1px solid rgba(255, 255, 255, 0.08)',
+                background: 'linear-gradient(135deg, rgba(244, 63, 94, 0.15), rgba(236, 72, 153, 0.15))',
+                border: '1px solid rgba(244, 63, 94, 0.35)',
+                boxShadow: '0 0 15px rgba(244, 63, 94, 0.15)',
               }}
             >
-              <Tv size={13} className="text-pink-400" />
-              <span>All TV Series</span>
-            </Link>
+              <Heart size={14} className="text-rose-400" />
+              <span>Donasi</span>
+            </button>
           </div>
         </div>
       )}
