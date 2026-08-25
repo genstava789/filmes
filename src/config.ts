@@ -81,6 +81,26 @@ export const siteConfig = {
     },
   ] as FeaturedItem[],
 
+  // Customizable Section Headings for Homepage
+  homepageSections: {
+    browseGenres: 'Browse by Genre',
+    trending: 'Trending This Week',
+    nowPlaying: 'Now Playing',
+    popularMovies: 'Popular Movies',
+    topRated: 'Top Rated',
+    trendingTV: 'Trending TV Shows',
+  },
+
+  // Customizable Section Headings for TV Page
+  tvSections: {
+    pageTitle: 'TV Shows',
+    pageSubtitle: 'Discover the best series',
+    trending: 'Trending This Week',
+    airingToday: 'Airing Today',
+    popular: 'Popular TV Shows',
+    topRated: 'Top Rated Series',
+  },
+
   links: {
     github: 'https://github.com/genstava789/filmes',
   },
@@ -88,3 +108,4 @@ export const siteConfig = {
 
 export type SiteConfig = typeof siteConfig;
 export default siteConfig;
+

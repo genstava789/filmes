@@ -4,13 +4,15 @@ import React, { useRef, useState, useEffect } from 'react';
 import { useRouter } from 'next/navigation';
 import { ChevronLeft, ChevronRight, Sparkles } from 'lucide-react';
 import { Genre } from '@/types/tmdb';
+import siteConfig from '@/config';
 
 interface GenreFilterProps {
   genres: Genre[];
   activeGenreId?: number;
+  title?: string;
 }
 
-export default function GenreFilter({ genres, activeGenreId }: GenreFilterProps) {
+export default function GenreFilter({ genres, activeGenreId, title }: GenreFilterProps) {
   const router = useRouter();
   const scrollRef = useRef<HTMLDivElement>(null);
   const [canScrollLeft, setCanScrollLeft] = useState(false);
@@ -52,13 +54,13 @@ export default function GenreFilter({ genres, activeGenreId }: GenreFilterProps)
 
   return (
     <div className="relative group/genres">
-      {/* Header with Title & Desktop Navigation Arrows */}
+      {/* Header with Title, horizontal line & Desktop Navigation Arrows */}
       <div className="flex items-center justify-between mb-4">
-        <div className="flex items-center gap-2">
-          <Sparkles size={18} className="text-cyan-400" />
-          <h2 className="section-title text-xl sm:text-2xl font-bold text-neo-text-primary">
-            Browse by Genre
+        <div className="flex items-center gap-3">
+          <h2 className="text-lg sm:text-xl md:text-2xl font-bold text-white tracking-tight">
+            {title || siteConfig.homepageSections?.browseGenres || 'Browse by Genre'}
           </h2>
+          <div className="h-[2px] w-8 sm:w-12 rounded-full bg-gradient-to-r from-cyan-400 to-transparent" />
         </div>
 
         {/* Scroll Arrows for Desktop */}

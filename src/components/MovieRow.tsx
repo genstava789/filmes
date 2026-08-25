@@ -45,19 +45,21 @@ export default function MovieRow({
 
   return (
     <section className="relative">
-      {/* Header with previous section-title style */}
+      {/* Header with clean title & horizontal custom accent line */}
       <div className={`flex items-center justify-between mb-4 ${noPadding ? 'px-0' : 'px-4 sm:px-6 lg:px-8 max-w-7xl mx-auto'}`}>
-        <h2 className="section-title text-xl sm:text-2xl font-bold text-neo-text-primary">
-          {title}
-        </h2>
+        <div className="flex items-center gap-3">
+          <h2 className="text-lg sm:text-xl md:text-2xl font-bold text-white tracking-tight">
+            {title}
+          </h2>
+          <div className="h-[2px] w-8 sm:w-12 rounded-full bg-gradient-to-r from-cyan-400 to-transparent" />
+        </div>
         {seeAllHref && (
           <Link
             href={seeAllHref}
-            className="text-xs sm:text-sm font-medium transition-colors duration-200 hover:text-neo-cyan flex items-center gap-1"
-            style={{ color: '#94a3b8' }}
+            className="text-xs sm:text-sm font-semibold transition-colors duration-200 hover:text-cyan-400 flex items-center gap-0.5 text-slate-400"
           >
             <span>See All</span>
-            <ChevronRight size={16} />
+            <ChevronRight size={15} />
           </Link>
         )}
       </div>

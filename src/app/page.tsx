@@ -62,14 +62,17 @@ export default async function HomePage() {
         {/* Genre Filter */}
         {genreList.length > 0 && (
           <section className="px-4 sm:px-6 lg:px-8 max-w-7xl mx-auto">
-            <GenreFilter genres={genreList} />
+            <GenreFilter
+              genres={genreList}
+              title={siteConfig.homepageSections?.browseGenres || 'Browse by Genre'}
+            />
           </section>
         )}
 
         {/* Trending Movies */}
         {trending.length > 0 && (
           <MovieRow
-            title="🔥 Trending This Week"
+            title={siteConfig.homepageSections?.trending || 'Trending This Week'}
             items={trending}
             seeAllHref="/genre/28"
             type="movie"
@@ -79,7 +82,7 @@ export default async function HomePage() {
         {/* Now Playing */}
         {nowPlaying.length > 0 && (
           <MovieRow
-            title="🎬 Now Playing"
+            title={siteConfig.homepageSections?.nowPlaying || 'Now Playing'}
             items={nowPlaying}
             seeAllHref="/genre/28"
             type="movie"
@@ -89,7 +92,7 @@ export default async function HomePage() {
         {/* Popular Movies */}
         {popular.length > 0 && (
           <MovieRow
-            title="⭐ Popular Movies"
+            title={siteConfig.homepageSections?.popularMovies || 'Popular Movies'}
             items={popular}
             seeAllHref="/genre/28"
             type="movie"
@@ -99,7 +102,7 @@ export default async function HomePage() {
         {/* Top Rated */}
         {topRated.length > 0 && (
           <MovieRow
-            title="🏆 Top Rated"
+            title={siteConfig.homepageSections?.topRated || 'Top Rated'}
             items={topRated}
             seeAllHref="/genre/18"
             type="movie"
@@ -109,7 +112,7 @@ export default async function HomePage() {
         {/* Trending TV */}
         {trendingTV.length > 0 && (
           <MovieRow
-            title="📺 Trending TV Shows"
+            title={siteConfig.homepageSections?.trendingTV || 'Trending TV Shows'}
             items={trendingTV}
             seeAllHref="/tv"
             type="tv"

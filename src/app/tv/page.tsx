@@ -153,10 +153,13 @@ export default async function TVPage() {
               border: '1px solid rgba(236,72,153,0.2)',
             }}
           >
-            <span className="text-2xl">📺</span>
             <div>
-              <h2 className="text-xl font-bold" style={{ color: '#f1f5f9' }}>TV Shows</h2>
-              <p className="text-xs" style={{ color: '#94a3b8' }}>Discover the best series</p>
+              <h2 className="text-xl font-bold" style={{ color: '#f1f5f9' }}>
+                {siteConfig.tvSections?.pageTitle || 'TV Shows'}
+              </h2>
+              <p className="text-xs" style={{ color: '#94a3b8' }}>
+                {siteConfig.tvSections?.pageSubtitle || 'Discover the best series'}
+              </p>
             </div>
           </div>
         </div>
@@ -164,7 +167,7 @@ export default async function TVPage() {
         {/* Trending TV */}
         {trending.length > 0 && (
           <MovieRow
-            title="🔥 Trending This Week"
+            title={siteConfig.tvSections?.trending || 'Trending This Week'}
             items={trending}
             type="tv"
           />
@@ -173,7 +176,7 @@ export default async function TVPage() {
         {/* Airing Today */}
         {airingToday.length > 0 && (
           <MovieRow
-            title="📡 Airing Today"
+            title={siteConfig.tvSections?.airingToday || 'Airing Today'}
             items={airingToday}
             type="tv"
           />
@@ -182,7 +185,7 @@ export default async function TVPage() {
         {/* Popular TV */}
         {popular.length > 0 && (
           <MovieRow
-            title="⭐ Popular TV Shows"
+            title={siteConfig.tvSections?.popular || 'Popular TV Shows'}
             items={popular}
             type="tv"
           />
@@ -191,7 +194,7 @@ export default async function TVPage() {
         {/* Top Rated TV */}
         {topRated.length > 0 && (
           <MovieRow
-            title="🏆 Top Rated Series"
+            title={siteConfig.tvSections?.topRated || 'Top Rated Series'}
             items={topRated}
             type="tv"
           />
