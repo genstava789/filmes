@@ -4,7 +4,6 @@ import React, { useState, useEffect, useRef } from 'react';
 import {
   AlertCircle,
   Flag,
-  Tv,
   CheckCircle2,
 } from 'lucide-react';
 import 'plyr/dist/plyr.css';
@@ -27,10 +26,9 @@ function getVimeoId(url: string): string | null {
   return match && match[1] ? match[1] : null;
 }
 
-export default function VideoPlayer({ videoUrl, poster }: VideoPlayerProps) {
+export default function VideoPlayer({ videoUrl, title, poster }: VideoPlayerProps) {
   const [hasError, setHasError] = useState(false);
   const [reported, setReported] = useState(false);
-  const [resolution, setResolution] = useState<string>('1080p FHD');
 
   const videoRef = useRef<HTMLVideoElement>(null);
   const playerInstanceRef = useRef<any>(null);
@@ -116,24 +114,15 @@ export default function VideoPlayer({ videoUrl, poster }: VideoPlayerProps) {
     };
   }, [videoUrl, youtubeId, vimeoId]);
 
-  const handleLoadedMetadata = (e: React.SyntheticEvent<HTMLVideoElement>) => {
-    const v = e.currentTarget;
-    if (v.videoHeight >= 2160) setResolution('4K UHD');
-    else if (v.videoHeight >= 1440) setResolution('2K QHD');
-    else if (v.videoHeight >= 1080) setResolution('1080p FHD');
-    else if (v.videoHeight >= 720) setResolution('720p HD');
-    else if (v.videoHeight >= 480) setResolution('480p SD');
-  };
-
   return (
     <div
       id="video-player-section"
-      className="w-full transition-all duration-500 ease-in-out"
+      className="w-full transition-all duration-500 ease-in-out relative"
     >
-      {/* Netflix Ambient Backlight Glow */}
+      {/* Ambient Backlight Glow */}
       <div className="relative group">
         <div
-          className="absolute -inset-1 rounded-3xl opacity-30 group-hover:opacity-45 transition duration-1000 blur-2xl -z-10"
+          className="absolute -inset-1 opacity-25 group-hover:opacity-40 transition duration-1000 blur-2xl -z-10"
           style={{
             background:
               'radial-gradient(ellipse at center, rgba(6, 182, 212, 0.4) 0%, rgba(124, 58, 237, 0.3) 50%, transparent 80%)',
@@ -150,7 +139,34 @@ export default function VideoPlayer({ videoUrl, poster }: VideoPlayerProps) {
             boxShadow: '0 25px 60px -15px rgba(0, 0, 0, 0.9), 0 0 35px rgba(6, 182, 212, 0.18)',
           }}
         >
-          {/* Video Canvas Container (Direct Video Tag Rendered in JSX) */}
+          {/* Floating Stylish Title Badge on Preview Player */}
+          {title && (
+            <div className="absolute top-3 sm:top-5 left-3 sm:left-6 z-20 pointer-events-none max-w-[85%] sm:max-w-xl transition-all duration-300">
+              <div
+                className="inline-flex items-center gap-2 px-3 sm:px-4 py-1.5 sm:py-2 rounded-2xl backdrop-blur-md"
+                style={{
+                  background: 'rgba(6, 10, 26, 0.72)',
+                  border: '1px solid rgba(255, 255, 255, 0.12)',
+                  boxShadow: '0 8px 32px rgba(0, 0, 0, 0.6), 0 0 15px rgba(6, 182, 212, 0.15)',
+                }}
+              >
+                <h2
+                  className="text-xs sm:text-sm md:text-base lg:text-lg font-black tracking-wide truncate"
+                  style={{
+                    background: 'linear-gradient(135deg, #ffffff 0%, #06b6d4 50%, #a78bfa 100%)',
+                    WebkitBackgroundClip: 'text',
+                    WebkitTextFillColor: 'transparent',
+                    backgroundClip: 'text',
+                    filter: 'drop-shadow(0 2px 8px rgba(0, 0, 0, 0.8))',
+                  }}
+                >
+                  {title}
+                </h2>
+              </div>
+            </div>
+          )}
+
+          {/* Video Canvas Container */}
           <div
             className="relative w-full overflow-hidden bg-black flex items-center justify-center plyr-custom-wrapper"
             style={{
@@ -229,7 +245,6 @@ export default function VideoPlayer({ videoUrl, poster }: VideoPlayerProps) {
                   crossOrigin="anonymous"
                   preload="metadata"
                   controls
-                  onLoadedMetadata={handleLoadedMetadata}
                   onError={() => setHasError(true)}
                   className="w-full h-full object-contain"
                 >

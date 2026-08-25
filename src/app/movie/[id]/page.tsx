@@ -1,7 +1,7 @@
 import React from 'react';
 import Link from 'next/link';
 import { Metadata } from 'next';
-import { Calendar, Clock, Globe } from 'lucide-react';
+import { Calendar, Clock, Globe, Sparkles, Users } from 'lucide-react';
 import { getImageUrl } from '@/lib/tmdb';
 import {
   getMovieDetailsWithCustomOverride,
@@ -179,35 +179,21 @@ export default async function MovieDetailPage({ params }: PageProps) {
         </>
       )}
 
-      {/* ── 1. FULL-VIEW VIDEO PLAYER (Directly at top, fit all body, edge-to-edge) ── */}
+      {/* ── 1. FULL-VIEW VIDEO PLAYER WITH STYLISH FLOATING TITLE (Fit all body) ── */}
       {videoUrl && (
-        <div className="w-full bg-black mb-6">
+        <div className="w-full bg-black mb-5">
           <VideoPlayer
             videoUrl={videoUrl}
-            title={movie.title}
+            title={videoTitle}
             poster={thumbnailImage}
           />
         </div>
       )}
 
-      {/* ── 2. MOVIE DETAILS SECTION ── */}
-      <div className={`w-full px-4 sm:px-6 md:px-8 lg:px-10 xl:px-12 2xl:px-14 ${videoUrl ? 'pt-2' : 'pt-6'}`}>
-        {/* Title */}
-        <h1
-          className="text-2xl sm:text-3xl lg:text-4xl font-black leading-tight mb-2 tracking-tight text-white"
-        >
-          {movie.title}
-        </h1>
-
-        {/* Tagline */}
-        {movie.tagline && (
-          <p className="text-sm sm:text-base italic mb-4" style={{ color: '#a78bfa' }}>
-            &ldquo;{movie.tagline}&rdquo;
-          </p>
-        )}
-
+      {/* ── 2. MOVIE METADATA & ACTIONS (Direct Focus) ── */}
+      <div className={`w-full px-4 sm:px-6 md:px-8 lg:px-10 xl:px-12 2xl:px-14 ${videoUrl ? 'pt-1' : 'pt-6'}`}>
         {/* Meta Badges Row */}
-        <div className="flex flex-wrap items-center gap-3 mb-5">
+        <div className="flex flex-wrap items-center gap-3 mb-4">
           <RatingBadge rating={movie.vote_average} size="md" />
           <span
             className="px-2 py-0.5 rounded-md text-[11px] font-black tracking-wider"
@@ -241,7 +227,7 @@ export default async function MovieDetailPage({ params }: PageProps) {
 
         {/* Genres */}
         {movie.genres && movie.genres.length > 0 && (
-          <div className="flex flex-wrap gap-2 mb-5">
+          <div className="flex flex-wrap gap-2 mb-4">
             {movie.genres.map((genre) => (
               <Link
                 key={genre.id}
@@ -266,7 +252,7 @@ export default async function MovieDetailPage({ params }: PageProps) {
 
         {/* Director */}
         {director && (
-          <p className="text-xs sm:text-sm mb-6 text-slate-400">
+          <p className="text-xs sm:text-sm mb-5 text-slate-400">
             <span className="text-white font-semibold">Director: </span>
             {director.name}
           </p>
@@ -283,7 +269,7 @@ export default async function MovieDetailPage({ params }: PageProps) {
 
       {/* ── 3. CUSTOM MARKDOWN BODY CONTENT ── */}
       {movie.customContentHtml && (
-        <div className="w-full px-4 sm:px-6 md:px-8 lg:px-10 xl:px-12 2xl:px-14 mt-10">
+        <div className="w-full px-4 sm:px-6 md:px-8 lg:px-10 xl:px-12 2xl:px-14 mt-8">
           <MarkdownRenderer
             contentHtml={movie.customContentHtml}
             title={movie.title}
@@ -291,12 +277,15 @@ export default async function MovieDetailPage({ params }: PageProps) {
         </div>
       )}
 
-      {/* ── 4. CAST SECTION (Bigger & Clearer UI on Small Screen) ── */}
+      {/* ── 4. CAST SECTION (Large Circular Profile Avatars) ── */}
       {cast.length > 0 && (
-        <section className="mt-12 w-full px-4 sm:px-6 md:px-8 lg:px-10 xl:px-12 2xl:px-14">
-          <h2 className="text-lg sm:text-xl font-bold text-white mb-4 tracking-tight">
-            Top Cast
-          </h2>
+        <section className="mt-10 w-full px-4 sm:px-6 md:px-8 lg:px-10 xl:px-12 2xl:px-14">
+          <div className="flex items-center gap-2 mb-4">
+            <Users size={18} className="text-cyan-400" />
+            <h2 className="text-base sm:text-lg font-bold text-white tracking-tight">
+              Top Cast & Characters
+            </h2>
+          </div>
           <div className="flex gap-3 sm:gap-4 overflow-x-auto hide-scrollbar pb-3">
             {cast.map((member) => (
               <CastCard key={member.id} cast={member} />
@@ -305,12 +294,30 @@ export default async function MovieDetailPage({ params }: PageProps) {
         </section>
       )}
 
-      {/* ── 5. SIMILAR MOVIES (GRID LAYOUT) ── */}
+      {/* ── 5. SIMILAR MOVIES (GRID LAYOUT WITH ATTRACTIVE ICON) ── */}
       {similarMovies.length > 0 && (
         <section className="mt-12 w-full px-4 sm:px-6 md:px-8 lg:px-10 xl:px-12 2xl:px-14">
-          <h2 className="text-lg sm:text-xl font-bold text-white mb-5 tracking-tight">
-            Similar Movies
-          </h2>
+          <div className="flex items-center gap-2.5 mb-5">
+            <div
+              className="w-8 h-8 rounded-xl flex items-center justify-center flex-shrink-0"
+              style={{
+                background: 'linear-gradient(135deg, rgba(6, 182, 212, 0.2), rgba(124, 58, 237, 0.2))',
+                border: '1px solid rgba(6, 182, 212, 0.35)',
+                boxShadow: '0 0 15px rgba(6, 182, 212, 0.2)',
+              }}
+            >
+              <Sparkles size={16} className="text-cyan-400" />
+            </div>
+            <div>
+              <h2 className="text-base sm:text-lg font-black text-white tracking-tight">
+                Similar Movies
+              </h2>
+              <p className="text-[11px] text-slate-400">
+                Recommendations tailored for you
+              </p>
+            </div>
+          </div>
+
           <div className="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-4 lg:grid-cols-5 xl:grid-cols-6 2xl:grid-cols-7 3xl:grid-cols-8 gap-4">
             {similarMovies.map((item) => (
               <MovieCard key={item.id} item={item} type="movie" />

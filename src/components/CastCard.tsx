@@ -11,18 +11,18 @@ interface CastCardProps {
 export default function CastCard({ cast }: CastCardProps) {
   return (
     <div
-      className="flex flex-col items-center text-center p-2.5 sm:p-3 rounded-2xl min-w-[120px] sm:min-w-[140px] max-w-[130px] sm:max-w-[150px] transition-all duration-200 hover:scale-105 active:scale-95 group flex-shrink-0"
+      className="flex flex-col items-center text-center p-3 rounded-3xl min-w-[115px] sm:min-w-[135px] max-w-[125px] sm:max-w-[145px] transition-all duration-300 hover:scale-105 active:scale-95 group flex-shrink-0"
       style={{
         background: 'rgba(255, 255, 255, 0.03)',
-        border: '1px solid rgba(255, 255, 255, 0.07)',
+        boxShadow: '0 4px 20px rgba(0, 0, 0, 0.25)',
       }}
     >
-      {/* Avatar (Large, clear squircle shape) */}
+      {/* Avatar (Circular, borderless/no outline, soft ambient shadow) */}
       <div
-        className="relative w-20 h-20 sm:w-24 sm:h-24 rounded-2xl overflow-hidden mb-2.5 flex-shrink-0 transition-transform duration-200 group-hover:scale-105"
+        className="relative w-20 h-20 sm:w-24 sm:h-24 rounded-full overflow-hidden mb-2.5 flex-shrink-0 transition-transform duration-300 group-hover:scale-105"
         style={{
-          border: '1.5px solid rgba(6, 182, 212, 0.35)',
-          boxShadow: '0 4px 15px rgba(0, 0, 0, 0.4)',
+          boxShadow: '0 8px 24px rgba(0, 0, 0, 0.55)',
+          background: 'linear-gradient(135deg, rgba(6, 182, 212, 0.15), rgba(124, 58, 237, 0.15))',
         }}
       >
         {cast.profile_path ? (
@@ -30,21 +30,18 @@ export default function CastCard({ cast }: CastCardProps) {
             src={getImageUrl(cast.profile_path, 'w200')}
             alt={cast.name}
             fill
-            className="object-cover"
+            className="object-cover transition-transform duration-300 group-hover:scale-110"
             sizes="(max-width: 640px) 80px, 96px"
           />
         ) : (
-          <div
-            className="w-full h-full flex items-center justify-center"
-            style={{ background: 'rgba(255, 255, 255, 0.05)' }}
-          >
-            <User size={32} className="text-slate-500" />
+          <div className="w-full h-full flex items-center justify-center bg-slate-800/60">
+            <User size={30} className="text-slate-400" />
           </div>
         )}
       </div>
 
       {/* Name & Character */}
-      <div className="w-full">
+      <div className="w-full px-1">
         <p className="text-xs sm:text-sm font-bold text-white leading-tight line-clamp-1 group-hover:text-cyan-300 transition-colors">
           {cast.name}
         </p>
