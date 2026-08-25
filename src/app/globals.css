@@ -694,10 +694,6 @@ input:focus-visible {
 
 .plyr-custom-wrapper .plyr__menu__container .plyr__control {
   color: #cbd5e1 !important;
-  font-size: 13px !important;
-  border-radius: 6px !important;
-  padding: 6px 12px !important;
-  transition: background 0.15s ease, color 0.15s ease !important;
 }
 
 .plyr-custom-wrapper .plyr__menu__container .plyr__control:hover,
@@ -709,7 +705,6 @@ input:focus-visible {
 .plyr-custom-wrapper .plyr__menu__container .plyr__control--back {
   color: #06b6d4 !important;
   font-weight: 700 !important;
-  font-size: 12px !important;
 }
 
 /* Responsive Adaptation for Mobile / Small Screens */
