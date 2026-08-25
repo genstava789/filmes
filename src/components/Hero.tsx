@@ -120,40 +120,33 @@ export default function Hero({ movie, movies = [], genres = [], customFeaturedIt
 
   return (
     <section
-      className="relative w-full overflow-hidden select-none touch-pan-y"
+      className="relative w-full overflow-hidden select-none touch-pan-y aspect-[16/10] xs:aspect-[16/9] sm:aspect-auto sm:h-[420px] md:h-[500px] lg:h-[580px] xl:h-[650px]"
       onMouseEnter={() => setIsHovered(true)}
       onMouseLeave={() => setIsHovered(false)}
       onTouchStart={handleTouchStart}
       onTouchMove={handleTouchMove}
       onTouchEnd={handleTouchEnd}
-      style={{
-        /* Expansive and visible poster height across small and large screens */
-        height: 'clamp(380px, 58vh, 720px)',
-      }}
     >
-      {/* ── Background Slides with Ken-Burns & Crossfade ── */}
+      {/* ── Background Slides with Zero Zoom & Clean Crossfade ── */}
       {items.map((item, idx) => {
         const isCurrent = idx === currentIndex;
         const bgImage = item.backdropUrl || item.posterUrl || '/placeholder-poster.svg';
         return (
           <div
             key={item.id || idx}
-            className={`absolute inset-0 transition-opacity duration-1000 ease-in-out ${
+            className={`absolute inset-0 transition-opacity duration-700 ease-in-out ${
               isCurrent ? 'opacity-100 z-0' : 'opacity-0 pointer-events-none -z-10'
             }`}
           >
             {bgImage && (
-              <div
-                className={`relative w-full h-full transform transition-transform duration-7000 ease-out ${
-                  isCurrent ? 'scale-105' : 'scale-100'
-                }`}
-              >
+              <div className="relative w-full h-full">
                 <Image
                   src={bgImage}
                   alt={item.title || 'Featured item'}
                   fill
                   priority={idx === 0}
-                  className="object-cover object-center sm:object-[center_25%]"
+                  quality={95}
+                  className="object-cover object-center"
                   sizes="100vw"
                 />
               </div>
@@ -167,7 +160,7 @@ export default function Hero({ movie, movies = [], genres = [], customFeaturedIt
         className="absolute inset-0 z-10 pointer-events-none"
         style={{
           background:
-            'linear-gradient(to top, rgba(5,8,22,0.96) 0%, rgba(5,8,22,0.65) 30%, rgba(5,8,22,0.12) 60%, transparent 100%)',
+            'linear-gradient(to top, rgba(5,8,22,0.95) 0%, rgba(5,8,22,0.6) 28%, rgba(5,8,22,0.08) 55%, transparent 100%)',
         }}
       />
       <div
@@ -186,12 +179,12 @@ export default function Hero({ movie, movies = [], genres = [], customFeaturedIt
       />
 
       {/* ── Hero Content (Clean & Focused on Small Screen, Expansive on Desktop) ── */}
-      <div className="relative z-20 h-full flex items-end pb-7 sm:pb-12 md:pb-16">
+      <div className="relative z-20 h-full flex items-end pb-4 xs:pb-6 sm:pb-12 md:pb-16">
         <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 w-full">
           <div className="max-w-xl lg:max-w-2xl">
 
             {/* Badge - Always "Featured" */}
-            <div className="flex items-center gap-2 mb-2 sm:mb-3">
+            <div className="flex items-center gap-2 mb-1.5 sm:mb-3">
               <span
                 className="inline-flex items-center gap-1 px-2.5 py-0.5 sm:px-3 sm:py-1 rounded-full text-[10px] sm:text-xs font-extrabold uppercase tracking-wider"
                 style={{
@@ -208,7 +201,7 @@ export default function Hero({ movie, movies = [], genres = [], customFeaturedIt
 
             {/* Title */}
             <h1
-              className="text-2xl sm:text-4xl md:text-5xl lg:text-6xl font-black leading-tight mb-2 sm:mb-3 text-white tracking-tight line-clamp-2"
+              className="text-xl xs:text-2xl sm:text-4xl md:text-5xl lg:text-6xl font-black leading-tight mb-1.5 sm:mb-3 text-white tracking-tight line-clamp-2"
               style={{
                 textShadow: '0 2px 20px rgba(0,0,0,0.8)',
               }}
