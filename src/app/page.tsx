@@ -69,22 +69,21 @@ export default async function HomePage() {
           </section>
         )}
 
-        {/* Trending Movies */}
+        {/* Trending Movies (no see all) */}
         {trending.length > 0 && (
           <MovieRow
             title={siteConfig.homepageSections?.trending || 'Trending This Week'}
             items={trending}
-            seeAllHref="/movie"
             type="movie"
           />
         )}
 
-        {/* Now Playing */}
+        {/* Recently Added Movies */}
         {nowPlaying.length > 0 && (
           <MovieRow
-            title={siteConfig.homepageSections?.nowPlaying || 'Now Playing'}
+            title={siteConfig.homepageSections?.recentlyAdded || 'Recently Added'}
             items={nowPlaying}
-            seeAllHref="/movie"
+            seeAllHref="/movie?sort=release_date.desc"
             type="movie"
           />
         )}
@@ -94,7 +93,7 @@ export default async function HomePage() {
           <MovieRow
             title={siteConfig.homepageSections?.popularMovies || 'Popular Movies'}
             items={popular}
-            seeAllHref="/movie"
+            seeAllHref="/movie?sort=popularity.desc"
             type="movie"
           />
         )}
@@ -109,12 +108,11 @@ export default async function HomePage() {
           />
         )}
 
-        {/* Trending TV */}
+        {/* Trending TV (no see all) */}
         {trendingTV.length > 0 && (
           <MovieRow
             title={siteConfig.homepageSections?.trendingTV || 'Trending TV Shows'}
             items={trendingTV}
-            seeAllHref="/tv"
             type="tv"
           />
         )}

@@ -2,14 +2,14 @@
 
 import React, { useState, useEffect, useRef } from 'react';
 import { useRouter, useSearchParams } from 'next/navigation';
-import { SlidersHorizontal, ChevronLeft, ChevronRight, Film } from 'lucide-react';
-import { Movie, Genre } from '@/types/tmdb';
-import { discoverMovies } from '@/lib/tmdb';
+import { SlidersHorizontal, ChevronLeft, ChevronRight, Tv } from 'lucide-react';
+import { TVShow, Genre } from '@/types/tmdb';
+import { discoverTVShows } from '@/lib/tmdb';
 import MovieCard, { MovieCardSkeleton } from '@/components/MovieCard';
 import GenreFilter from '@/components/GenreFilter';
 
-interface MoviePageClientProps {
-  initialMovies: Movie[];
+interface TVBrowseClientProps {
+  initialShows: TVShow[];
   totalPages: number;
   totalResults: number;
   initialPage: number;
@@ -21,24 +21,23 @@ interface MoviePageClientProps {
 const SORT_OPTIONS = [
   { value: 'popularity.desc', label: 'Most Popular' },
   { value: 'vote_average.desc', label: 'Top Rated' },
-  { value: 'release_date.desc', label: 'Newest First' },
-  { value: 'release_date.asc', label: 'Oldest First' },
-  { value: 'revenue.desc', label: 'Highest Revenue' },
+  { value: 'first_air_date.desc', label: 'Newest First' },
+  { value: 'first_air_date.asc', label: 'Oldest First' },
 ];
 
-export default function MoviePageClient({
-  initialMovies,
+export default function TVBrowseClient({
+  initialShows,
   totalPages: initialTotalPages,
   totalResults: initialTotalResults,
   initialPage,
   initialSort,
   initialGenreId,
   allGenres,
-}: MoviePageClientProps) {
+}: TVBrowseClientProps) {
   const router = useRouter();
   const searchParams = useSearchParams();
 
-  const [movies, setMovies] = useState<Movie[]>(initialMovies);
+  const [shows, setShows] = useState<TVShow[]>(initialShows);
   const [page, setPage] = useState(initialPage);
   const [sort, setSort] = useState(initialSort);
   const [genreId, setGenreId] = useState<number | undefined>(initialGenreId);
@@ -71,19 +70,19 @@ export default function MoviePageClient({
     setGenreId(g);
   }, [searchParams]);
 
-  // Fetch movies when filter/sort/page change
+  // Fetch TV shows when filter/sort/page change
   useEffect(() => {
     if (page === initialPage && sort === initialSort && genreId === initialGenreId) return;
 
     setLoading(true);
-    discoverMovies(page, sort, genreId)
+    discoverTVShows(page, sort, genreId)
       .then((data) => {
-        setMovies(data.results);
+        setShows(data.results);
         setTotalPages(Math.min(data.total_pages, 20));
         setTotalResults(data.total_results);
         window.scrollTo({ top: 0, behavior: 'smooth' });
       })
-      .catch(() => setMovies([]))
+      .catch(() => setShows([]))
       .finally(() => setLoading(false));
   }, [page, sort, genreId, initialPage, initialSort, initialGenreId]);
 
@@ -94,7 +93,7 @@ export default function MoviePageClient({
     if (newGenreId) params.set('genre', String(newGenreId));
 
     const qs = params.toString();
-    router.push(qs ? `/movie?${qs}` : '/movie', { scroll: false });
+    router.push(qs ? `/tv/browse?${qs}` : '/tv/browse', { scroll: false });
   };
 
   const handleSortChange = (newSort: string) => {
@@ -122,31 +121,31 @@ export default function MoviePageClient({
             className="absolute top-1/2 left-1/2 -translate-x-1/2 -translate-y-1/2 w-72 sm:w-[480px] h-32 sm:h-56 rounded-full pointer-events-none blur-3xl opacity-25"
             style={{
               background:
-                'radial-gradient(circle, rgba(6,182,212,0.45) 0%, rgba(124,58,237,0.35) 50%, transparent 75%)',
+                'radial-gradient(circle, rgba(236,72,153,0.45) 0%, rgba(124,58,237,0.35) 50%, transparent 75%)',
             }}
           />
 
-          {/* Heading: Browse Movies */}
+          {/* Heading: Browse TV Series */}
           <h1 className="relative text-3xl xs:text-4xl sm:text-5xl md:text-6xl font-black text-white tracking-tight mb-3">
             <span
               style={{
-                background: 'linear-gradient(135deg, #06b6d4 0%, #a78bfa 50%, #ec4899 100%)',
+                background: 'linear-gradient(135deg, #ec4899 0%, #a78bfa 50%, #06b6d4 100%)',
                 WebkitBackgroundClip: 'text',
                 WebkitTextFillColor: 'transparent',
                 backgroundClip: 'text',
               }}
             >
-              Browse Movies
+              Browse TV Series
             </span>
           </h1>
 
           {/* Subtitle Paragraph */}
           <p className="relative text-slate-400 font-medium text-sm sm:text-base md:text-lg max-w-md mx-auto leading-relaxed">
             Jelajahi{' '}
-            <span className="text-cyan-400 font-bold">
+            <span className="text-pink-400 font-bold">
               {totalResults > 0 ? totalResults.toLocaleString() : '129'}
             </span>{' '}
-            movie untuk di tonton
+            series untuk di tonton
           </p>
         </div>
 
@@ -156,8 +155,8 @@ export default function MoviePageClient({
             <GenreFilter
               genres={allGenres}
               activeGenreId={genreId}
-              type="movie"
-              allHref="/movie"
+              type="tv"
+              allHref="/tv/browse"
             />
           </div>
         )}
@@ -175,7 +174,7 @@ export default function MoviePageClient({
                 boxShadow: '0 4px 15px rgba(0,0,0,0.3)',
               }}
             >
-              <SlidersHorizontal size={14} className="text-cyan-400" />
+              <SlidersHorizontal size={14} className="text-pink-400" />
               <span className="whitespace-nowrap">{currentSortLabel}</span>
               <ChevronRight
                 size={13}
@@ -189,7 +188,7 @@ export default function MoviePageClient({
                 className="absolute left-0 top-full mt-2 w-44 sm:w-48 rounded-xl overflow-hidden z-30"
                 style={{
                   background: '#0B1020',
-                  border: '1px solid rgba(6,182,212,0.3)',
+                  border: '1px solid rgba(236,72,153,0.3)',
                   boxShadow: '0 20px 40px rgba(0,0,0,0.7)',
                 }}
               >
@@ -199,7 +198,7 @@ export default function MoviePageClient({
                     onClick={() => handleSortChange(option.value)}
                     className="w-full px-4 py-2.5 sm:py-3 text-left text-xs sm:text-sm transition-colors duration-150 hover:bg-white/5"
                     style={{
-                      color: sort === option.value ? '#06b6d4' : '#94a3b8',
+                      color: sort === option.value ? '#ec4899' : '#94a3b8',
                       fontWeight: sort === option.value ? 600 : 400,
                     }}
                   >
@@ -211,25 +210,25 @@ export default function MoviePageClient({
           </div>
         </div>
 
-        {/* ── Movies Grid ── */}
+        {/* ── TV Shows Grid ── */}
         {loading ? (
           <div className="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-4 lg:grid-cols-5 xl:grid-cols-6 2xl:grid-cols-7 3xl:grid-cols-8 gap-4">
             {Array.from({ length: 20 }).map((_, i) => (
               <MovieCardSkeleton key={i} />
             ))}
           </div>
-        ) : movies.length > 0 ? (
+        ) : shows.length > 0 ? (
           <div className="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-4 lg:grid-cols-5 xl:grid-cols-6 2xl:grid-cols-7 3xl:grid-cols-8 gap-4">
-            {movies.map((movie) => (
-              <MovieCard key={movie.id} item={movie} type="movie" />
+            {shows.map((show) => (
+              <MovieCard key={show.id} item={show} type="tv" />
             ))}
           </div>
         ) : (
           <div className="flex flex-col items-center justify-center py-20 gap-4">
             <div className="p-6 rounded-full" style={{ background: 'rgba(255,255,255,0.04)' }}>
-              <Film size={48} style={{ color: '#475569' }} />
+              <Tv size={48} style={{ color: '#475569' }} />
             </div>
-            <p className="text-neo-text-secondary text-lg">No movies found.</p>
+            <p className="text-neo-text-secondary text-lg">No TV series found.</p>
           </div>
         )}
 
@@ -268,9 +267,9 @@ export default function MoviePageClient({
                   style={
                     page === pageNum
                       ? {
-                          background: 'linear-gradient(135deg, #06b6d4, #7c3aed)',
+                          background: 'linear-gradient(135deg, #ec4899, #7c3aed)',
                           color: 'white',
-                          boxShadow: '0 0 15px rgba(6,182,212,0.3)',
+                          boxShadow: '0 0 15px rgba(236,72,153,0.4)',
                         }
                       : {
                           background: 'rgba(255,255,255,0.06)',

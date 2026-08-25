@@ -65,7 +65,7 @@ export default async function TVPage() {
           </section>
         )}
 
-        {/* Trending TV */}
+        {/* Trending TV (no see all) */}
         {trending.length > 0 && (
           <MovieRow
             title={siteConfig.tvSections?.trending || 'Trending This Week'}
@@ -74,11 +74,12 @@ export default async function TVPage() {
           />
         )}
 
-        {/* Airing Today */}
+        {/* Recently Added Series */}
         {airingToday.length > 0 && (
           <MovieRow
-            title={siteConfig.tvSections?.airingToday || 'Airing Today'}
+            title={siteConfig.tvSections?.recentlyAdded || 'Recently Added'}
             items={airingToday}
+            seeAllHref="/tv/browse?sort=first_air_date.desc"
             type="tv"
           />
         )}
@@ -88,6 +89,7 @@ export default async function TVPage() {
           <MovieRow
             title={siteConfig.tvSections?.popular || 'Popular TV Shows'}
             items={popular}
+            seeAllHref="/tv/browse?sort=popularity.desc"
             type="tv"
           />
         )}
@@ -97,6 +99,7 @@ export default async function TVPage() {
           <MovieRow
             title={siteConfig.tvSections?.topRated || 'Top Rated Series'}
             items={topRated}
+            seeAllHref="/tv/browse?sort=vote_average.desc"
             type="tv"
           />
         )}

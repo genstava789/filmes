@@ -85,7 +85,7 @@ export const siteConfig = {
   homepageSections: {
     browseGenres: 'Browse by Genre',
     trending: 'Trending This Week',
-    nowPlaying: 'Now Playing',
+    recentlyAdded: 'Recently Added',
     popularMovies: 'Popular Movies',
     topRated: 'Top Rated',
     trendingTV: 'Trending TV Shows',
@@ -97,7 +97,7 @@ export const siteConfig = {
     pageSubtitle: 'Discover the best series',
     browseGenres: 'Browse Series by Genre',
     trending: 'Trending This Week',
-    airingToday: 'Airing Today',
+    recentlyAdded: 'Recently Added',
     popular: 'Popular TV Shows',
     topRated: 'Top Rated Series',
   },

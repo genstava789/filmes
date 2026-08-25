@@ -162,11 +162,22 @@ export async function getTVShowsByGenre(
   page: number = 1,
   sortBy: string = 'popularity.desc'
 ): Promise<TMDBResponse<TVShow>> {
-  return fetchTMDB<TMDBResponse<TVShow>>('/discover/tv', {
-    with_genres: String(genreId),
+  return discoverTVShows(page, sortBy, genreId);
+}
+
+export async function discoverTVShows(
+  page: number = 1,
+  sortBy: string = 'popularity.desc',
+  genreId?: number
+): Promise<TMDBResponse<TVShow>> {
+  const params: Record<string, string> = {
     page: String(page),
     sort_by: sortBy,
-  });
+  };
+  if (genreId) {
+    params.with_genres = String(genreId);
+  }
+  return fetchTMDB<TMDBResponse<TVShow>>('/discover/tv', params);
 }
 
 export async function getTVShowDetails(id: number): Promise<TVShowDetail> {
