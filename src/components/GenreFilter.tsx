@@ -56,7 +56,7 @@ export default function GenreFilter({ genres, activeGenreId }: GenreFilterProps)
       <div className="flex items-center justify-between mb-4">
         <div className="flex items-center gap-2">
           <Sparkles size={18} className="text-cyan-400" />
-          <h2 className="text-base sm:text-lg md:text-xl font-bold text-white tracking-tight">
+          <h2 className="section-title text-xl sm:text-2xl font-bold text-neo-text-primary">
             Browse by Genre
           </h2>
         </div>

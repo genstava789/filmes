@@ -169,7 +169,7 @@ export default function MovieCard({ item, type = 'movie' }: MovieCardProps) {
               bottom: 0,
               left: 0,
               right: 0,
-              padding: '0 8px 8px',
+              padding: '0 10px 10px',
               zIndex: 2,
               transform: isHovered ? 'translateY(-3px)' : 'translateY(0)',
               transition: 'transform 0.28s cubic-bezier(0.4,0,0.2,1)',
@@ -179,14 +179,14 @@ export default function MovieCard({ item, type = 'movie' }: MovieCardProps) {
               title={title}
               style={{
                 color: '#f1f5f9',
-                fontSize: '12px',
+                fontSize: '13px',
                 fontWeight: 600,
-                lineHeight: 1.3,
+                lineHeight: 1.35,
                 display: '-webkit-box',
                 WebkitLineClamp: 2,
                 WebkitBoxOrient: 'vertical' as const,
                 overflow: 'hidden',
-                marginBottom: year ? '2px' : 0,
+                marginBottom: year ? '3px' : 0,
               }}
             >
               {title}
@@ -195,7 +195,7 @@ export default function MovieCard({ item, type = 'movie' }: MovieCardProps) {
               <span
                 style={{
                   color: '#94a3b8',
-                  fontSize: '10.5px',
+                  fontSize: '11px',
                   fontWeight: 500,
                   letterSpacing: '0.02em',
                 }}
