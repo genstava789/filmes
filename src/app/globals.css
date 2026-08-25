@@ -559,23 +559,27 @@ input:focus-visible {
   margin: 1rem 0;
 }
 
-/* ===== PLYR MODERN VIDEO PLAYER CYBERPUNK THEME ===== */
-:root {
+/* ===== PLYR CUSTOM THEME & RESPONSIVE CONTROLS ===== */
+.plyr-custom-wrapper {
   --plyr-color-main: #06b6d4;
   --plyr-video-background: #050816;
   --plyr-video-control-color: #f1f5f9;
   --plyr-video-control-color-hover: #ffffff;
   --plyr-video-control-background-hover: rgba(6, 182, 212, 0.25);
   --plyr-video-controls-background: linear-gradient(rgba(0, 0, 0, 0), rgba(5, 8, 22, 0.95));
-  --plyr-menu-background: rgba(12, 18, 36, 0.95);
+  --plyr-menu-background: rgba(10, 15, 34, 0.96);
   --plyr-menu-color: #f1f5f9;
-  --plyr-menu-shadow: 0 10px 30px rgba(0, 0, 0, 0.8), 0 0 15px rgba(6, 182, 212, 0.2);
+  --plyr-menu-shadow: 0 12px 36px rgba(0, 0, 0, 0.9), 0 0 20px rgba(6, 182, 212, 0.15);
   --plyr-menu-radius: 12px;
+  --plyr-menu-font-size: 13px;
   --plyr-control-radius: 8px;
+  --plyr-control-icon-size: 18px;
   --plyr-range-fill-background: linear-gradient(135deg, #06b6d4, #7c3aed);
   --plyr-range-thumb-background: #ffffff;
-  --plyr-range-thumb-shadow: 0 0 10px rgba(6, 182, 212, 0.8);
-  --plyr-tooltip-background: rgba(12, 18, 36, 0.9);
+  --plyr-range-thumb-height: 14px;
+  --plyr-range-track-height: 5px;
+  --plyr-range-thumb-shadow: 0 0 12px rgba(6, 182, 212, 0.9);
+  --plyr-tooltip-background: rgba(10, 15, 34, 0.95);
   --plyr-tooltip-color: #f1f5f9;
   --plyr-tooltip-radius: 6px;
   --plyr-tooltip-shadow: 0 4px 15px rgba(0, 0, 0, 0.6);
@@ -607,64 +611,70 @@ input:focus-visible {
   transform: translate(-50%, -50%) scale(0.95) !important;
 }
 
-/* Responsive Plyr controls fix with shift (skip time) buttons for desktop and mobile */
+/* Main Controls Bar Layout */
 .plyr-custom-wrapper .plyr__controls {
-  padding: 8px 14px !important;
-  gap: 5px !important;
+  padding: 10px 14px !important;
+  gap: 4px !important;
   flex-wrap: nowrap !important;
   display: flex !important;
   align-items: center !important;
-  overflow: visible !important;
-  box-sizing: border-box !important;
   width: 100% !important;
+  box-sizing: border-box !important;
 }
 
+.plyr-custom-wrapper .plyr__controls > .plyr__control,
+.plyr-custom-wrapper .plyr__controls > .plyr__menu > .plyr__control {
+  padding: 7px 8px !important;
+  flex-shrink: 0 !important;
+  border-radius: 8px !important;
+  transition: background 0.2s ease, color 0.2s ease !important;
+}
+
+.plyr-custom-wrapper .plyr__controls > .plyr__control svg,
+.plyr-custom-wrapper .plyr__controls > .plyr__menu > .plyr__control svg {
+  width: 18px !important;
+  height: 18px !important;
+}
+
+/* Spacious Runtime / Progress Bar */
 .plyr-custom-wrapper .plyr__progress__container {
   flex: 1 1 auto !important;
-  min-width: 80px !important;
-  margin: 0 4px !important;
+  min-width: 70px !important;
+  margin: 0 6px !important;
 }
 
 .plyr-custom-wrapper .plyr__progress input[type='range'] {
   min-width: 100% !important;
+  height: 18px !important;
 }
 
 .plyr-custom-wrapper .plyr__time {
-  font-size: 11px !important;
-  padding: 0 3px !important;
+  font-size: 12px !important;
+  padding: 0 4px !important;
   flex-shrink: 0 !important;
   font-variant-numeric: tabular-nums !important;
 }
 
+/* Settings Popup Menu (Clean, Beautiful Glassmorphic Theme, Native Animation) */
 .plyr-custom-wrapper .plyr__menu {
-  display: inline-flex !important;
-  align-items: center !important;
-  justify-content: center !important;
   position: relative !important;
+  display: flex !important;
+  align-items: center !important;
   flex-shrink: 0 !important;
 }
 
-.plyr-custom-wrapper .plyr__menu .plyr__control {
-  margin: 0 !important;
-}
-
-/* Settings popup menu: fully visible, glassmorphism theme, never cut off */
 .plyr-custom-wrapper .plyr__menu__container {
-  position: absolute !important;
-  bottom: calc(100% + 8px) !important;
-  right: 0 !important;
-  left: auto !important;
-  max-width: min(280px, calc(100vw - 24px)) !important;
-  max-height: 240px !important;
-  background: rgba(8, 12, 28, 0.96) !important;
+  background: rgba(10, 15, 34, 0.96) !important;
   backdrop-filter: blur(20px) !important;
   -webkit-backdrop-filter: blur(20px) !important;
   border: 1px solid rgba(255, 255, 255, 0.15) !important;
   border-radius: 12px !important;
   box-shadow: 0 12px 36px rgba(0, 0, 0, 0.9), 0 0 20px rgba(6, 182, 212, 0.15) !important;
-  color: #fff !important;
-  z-index: 50 !important;
-  overflow: visible !important;
+  color: #f1f5f9 !important;
+  bottom: 100% !important;
+  margin-bottom: 10px !important;
+  right: -4px !important;
+  z-index: 60 !important;
 }
 
 .plyr-custom-wrapper .plyr__menu__container [role=menu] {
@@ -673,64 +683,56 @@ input:focus-visible {
 
 .plyr-custom-wrapper .plyr__menu__container .plyr__control {
   color: #cbd5e1 !important;
-  font-size: 12px !important;
-  border-radius: 8px !important;
-  width: 100% !important;
-  height: auto !important;
-  min-width: 0 !important;
-  padding: 6px 10px !important;
+  font-size: 13px !important;
+  border-radius: 6px !important;
+  padding: 6px 12px !important;
+  transition: background 0.15s ease, color 0.15s ease !important;
 }
 
 .plyr-custom-wrapper .plyr__menu__container .plyr__control:hover,
 .plyr-custom-wrapper .plyr__menu__container .plyr__control:focus {
-  background: rgba(6, 182, 212, 0.2) !important;
+  background: rgba(6, 182, 212, 0.25) !important;
   color: #ffffff !important;
 }
 
 .plyr-custom-wrapper .plyr__menu__container .plyr__control--back {
-  font-size: 11px !important;
+  font-size: 12px !important;
   font-weight: 700 !important;
   color: #06b6d4 !important;
+  border-bottom: 1px solid rgba(255, 255, 255, 0.08) !important;
+  padding-bottom: 8px !important;
+  margin-bottom: 4px !important;
 }
 
-/* Compact & spacious layout for small devices / mobile */
+/* Responsive Adaptation for Mobile / Small Screens */
 @media (max-width: 640px) {
   .plyr-custom-wrapper .plyr__controls {
-    padding: 5px 8px !important;
+    padding: 8px 10px !important;
     gap: 3px !important;
   }
 
-  .plyr-custom-wrapper .plyr__control,
-  .plyr-custom-wrapper .plyr__menu {
-    padding: 3px !important;
-    width: 26px !important;
-    height: 26px !important;
-    min-width: 26px !important;
-    max-width: 26px !important;
-    flex-shrink: 0 !important;
-    display: inline-flex !important;
-    align-items: center !important;
-    justify-content: center !important;
+  .plyr-custom-wrapper .plyr__controls > .plyr__control,
+  .plyr-custom-wrapper .plyr__controls > .plyr__menu > .plyr__control {
+    padding: 6px 7px !important;
   }
 
-  .plyr-custom-wrapper .plyr__control svg {
-    width: 14px !important;
-    height: 14px !important;
+  .plyr-custom-wrapper .plyr__controls > .plyr__control svg,
+  .plyr-custom-wrapper .plyr__controls > .plyr__menu > .plyr__control svg {
+    width: 17px !important;
+    height: 17px !important;
   }
 
   .plyr-custom-wrapper .plyr__progress__container {
-    min-width: 50px !important;
-    flex: 1 1 auto !important;
-    margin: 0 3px !important;
+    min-width: 55px !important;
+    margin: 0 4px !important;
   }
 
   .plyr-custom-wrapper .plyr__time {
-    font-size: 10px !important;
+    font-size: 11px !important;
     padding: 0 2px !important;
-    line-height: 1 !important;
   }
 
-  /* On mobile screens, hide redundant volume slider & mute button so settings and all buttons fit completely */
+  /* On mobile screens, hide bulky volume slider and extra controls so layout stays spacious */
   .plyr-custom-wrapper .plyr__controls > [data-plyr='mute'],
   .plyr-custom-wrapper .plyr__volume,
   .plyr-custom-wrapper .plyr__controls > [data-plyr='restart'],
@@ -742,28 +744,19 @@ input:focus-visible {
 
 @media (max-width: 480px) {
   .plyr-custom-wrapper .plyr__controls {
-    padding: 4px 6px !important;
+    padding: 6px 8px !important;
     gap: 2px !important;
   }
 
-  .plyr-custom-wrapper .plyr__control,
-  .plyr-custom-wrapper .plyr__menu {
-    width: 24px !important;
-    height: 24px !important;
-    min-width: 24px !important;
-    max-width: 24px !important;
-    padding: 2px !important;
+  .plyr-custom-wrapper .plyr__controls > .plyr__control,
+  .plyr-custom-wrapper .plyr__controls > .plyr__menu > .plyr__control {
+    padding: 5px 6px !important;
   }
 
-  .plyr-custom-wrapper .plyr__control svg {
-    width: 13px !important;
-    height: 13px !important;
-  }
-
-  .plyr-custom-wrapper .plyr__progress__container {
-    min-width: 45px !important;
-    flex: 1 1 auto !important;
-    margin: 0 2px !important;
+  .plyr-custom-wrapper .plyr__controls > .plyr__control svg,
+  .plyr-custom-wrapper .plyr__controls > .plyr__menu > .plyr__control svg {
+    width: 16px !important;
+    height: 16px !important;
   }
 
   .plyr-custom-wrapper .plyr__time--duration {
