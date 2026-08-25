@@ -8,7 +8,7 @@ export default function Footer() {
 
   return (
     <footer
-      className="mt-16 pt-6 pb-24 sm:pb-28 lg:pb-8"
+      className="mt-4 sm:mt-6 pt-4 pb-20 sm:pb-24 lg:pb-6"
       style={{
         background: 'linear-gradient(to bottom, transparent, #080c1b)',
         borderTop: '1px solid rgba(255, 255, 255, 0.06)',

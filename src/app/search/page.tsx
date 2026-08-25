@@ -217,7 +217,7 @@ function SearchContent() {
       </div>
 
       {/* ── Content area ── */}
-      <div className="w-full px-4 sm:px-6 md:px-8 lg:px-10 xl:px-12 2xl:px-14 py-10 pb-16">
+      <div className="w-full px-4 sm:px-6 md:px-8 lg:px-10 xl:px-12 2xl:px-14 pt-6 sm:pt-8 pb-4 sm:pb-6">
 
         {/* Loading state */}
         {loading && (
@@ -239,7 +239,7 @@ function SearchContent() {
 
             {/* Pagination */}
             {totalPages > 1 && (
-              <div className="flex items-center justify-center gap-2 mt-12">
+              <div className="flex items-center justify-center gap-2 mt-8 sm:mt-10 mb-2">
                 <button
                   onClick={() => handlePageChange(page - 1)}
                   disabled={page === 1}

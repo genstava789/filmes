@@ -52,7 +52,7 @@ export default async function TVPage() {
       )}
 
       {/* Content sections */}
-      <div className="relative z-10 space-y-12 pb-16 pt-2 sm:pt-4">
+      <div className="relative z-10 space-y-10 pb-6 sm:pb-8 pt-2 sm:pt-4">
         {/* Browse TV Series by Genre Filter */}
         {genreList.length > 0 && (
           <section className="w-full px-4 sm:px-6 md:px-8 lg:px-10 xl:px-12 2xl:px-14">

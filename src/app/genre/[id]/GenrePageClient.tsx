@@ -97,7 +97,7 @@ export default function GenrePageClient({
   const currentSortLabel = SORT_OPTIONS.find((o) => o.value === sort)?.label || 'Sort';
 
   return (
-    <div className="min-h-screen pt-24 pb-16" style={{ background: '#050816' }}>
+    <div className="min-h-screen pt-20 sm:pt-24 pb-4 sm:pb-6" style={{ background: '#050816' }}>
       <div className="w-full px-4 sm:px-6 md:px-8 lg:px-10 xl:px-12 2xl:px-14">
         {/* Header with rock-solid responsive layout (Title on Left, Sort on Right on all screen sizes) */}
         <div className="mb-6 sm:mb-8">
@@ -215,7 +215,7 @@ export default function GenrePageClient({
 
         {/* Pagination */}
         {totalPages > 1 && !loading && (
-          <div className="flex items-center justify-center gap-2 mt-12">
+          <div className="flex items-center justify-center gap-2 mt-8 sm:mt-10 mb-2">
             <button
               onClick={() => handlePageChange(page - 1)}
               disabled={page === 1}

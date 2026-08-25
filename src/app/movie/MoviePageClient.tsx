@@ -112,11 +112,11 @@ export default function MoviePageClient({
   const currentSortLabel = SORT_OPTIONS.find((o) => o.value === sort)?.label || 'Sort';
 
   return (
-    <div className="min-h-screen pt-24 pb-16" style={{ background: '#050816' }}>
+    <div className="min-h-screen pt-20 sm:pt-24 pb-4 sm:pb-6" style={{ background: '#050816' }}>
       <div className="w-full px-4 sm:px-6 md:px-8 lg:px-10 xl:px-12 2xl:px-14">
         
         {/* ── Landing Page Style Hero Header (Centered) ── */}
-        <div className="relative text-center pt-2 pb-8 sm:pb-12 max-w-3xl mx-auto">
+        <div className="relative text-center pt-2 pb-6 sm:pb-8 max-w-3xl mx-auto">
           {/* Ambient Lighting Glow Accent */}
           <div
             className="absolute top-1/2 left-1/2 -translate-x-1/2 -translate-y-1/2 w-72 sm:w-[480px] h-32 sm:h-56 rounded-full pointer-events-none blur-3xl opacity-25"
@@ -150,67 +150,64 @@ export default function MoviePageClient({
           </p>
         </div>
 
-        {/* ── Genre Filter & Sort Row ── */}
-        <div className="mb-8 space-y-4">
-          <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4">
-            {/* Genre Pills */}
-            <div className="flex-1 min-w-0">
-              {allGenres.length > 0 && (
-                <GenreFilter
-                  genres={allGenres}
-                  activeGenreId={genreId}
-                  type="movie"
-                  allHref="/movie"
-                />
-              )}
-            </div>
+        {/* ── Browse by Genre Filter (Full Width) ── */}
+        {allGenres.length > 0 && (
+          <div className="mb-3">
+            <GenreFilter
+              genres={allGenres}
+              activeGenreId={genreId}
+              type="movie"
+              allHref="/movie"
+            />
+          </div>
+        )}
 
-            {/* Sort Dropdown */}
-            <div className="relative self-end sm:self-center flex-shrink-0 pt-1" ref={sortRef}>
-              <button
-                onClick={() => setSortOpen(!sortOpen)}
-                className="flex items-center gap-2 px-3.5 py-2 sm:px-4 sm:py-2.5 rounded-xl text-xs sm:text-sm font-semibold transition-all duration-200 hover:scale-105 active:scale-95"
+        {/* ── Sort Filter Bar (Right-aligned below Genre Filter) ── */}
+        <div className="flex justify-end items-center mb-6">
+          <div className="relative" ref={sortRef}>
+            <button
+              onClick={() => setSortOpen(!sortOpen)}
+              className="flex items-center gap-2 px-3.5 py-2 sm:px-4 sm:py-2 rounded-xl text-xs sm:text-sm font-semibold transition-all duration-200 hover:scale-105 active:scale-95"
+              style={{
+                background: 'rgba(255,255,255,0.06)',
+                border: '1px solid rgba(255,255,255,0.12)',
+                color: '#e2e8f0',
+                boxShadow: '0 4px 15px rgba(0,0,0,0.3)',
+              }}
+            >
+              <SlidersHorizontal size={14} className="text-cyan-400" />
+              <span className="whitespace-nowrap">{currentSortLabel}</span>
+              <ChevronRight
+                size={13}
+                className="transition-transform duration-200 text-slate-400"
+                style={{ transform: sortOpen ? 'rotate(90deg)' : 'rotate(0deg)' }}
+              />
+            </button>
+
+            {sortOpen && (
+              <div
+                className="absolute right-0 top-full mt-2 w-44 sm:w-48 rounded-xl overflow-hidden z-30"
                 style={{
-                  background: 'rgba(255,255,255,0.06)',
-                  border: '1px solid rgba(255,255,255,0.12)',
-                  color: '#e2e8f0',
-                  boxShadow: '0 4px 15px rgba(0,0,0,0.3)',
+                  background: '#0B1020',
+                  border: '1px solid rgba(6,182,212,0.3)',
+                  boxShadow: '0 20px 40px rgba(0,0,0,0.7)',
                 }}
               >
-                <SlidersHorizontal size={14} className="text-cyan-400" />
-                <span className="whitespace-nowrap">{currentSortLabel}</span>
-                <ChevronRight
-                  size={13}
-                  className="transition-transform duration-200 text-slate-400"
-                  style={{ transform: sortOpen ? 'rotate(90deg)' : 'rotate(0deg)' }}
-                />
-              </button>
-
-              {sortOpen && (
-                <div
-                  className="absolute right-0 top-full mt-2 w-44 sm:w-48 rounded-xl overflow-hidden z-30"
-                  style={{
-                    background: '#0B1020',
-                    border: '1px solid rgba(6,182,212,0.3)',
-                    boxShadow: '0 20px 40px rgba(0,0,0,0.7)',
-                  }}
-                >
-                  {SORT_OPTIONS.map((option) => (
-                    <button
-                      key={option.value}
-                      onClick={() => handleSortChange(option.value)}
-                      className="w-full px-4 py-2.5 sm:py-3 text-left text-xs sm:text-sm transition-colors duration-150 hover:bg-white/5"
-                      style={{
-                        color: sort === option.value ? '#06b6d4' : '#94a3b8',
-                        fontWeight: sort === option.value ? 600 : 400,
-                      }}
-                    >
-                      {option.label}
-                    </button>
-                  ))}
-                </div>
-              )}
-            </div>
+                {SORT_OPTIONS.map((option) => (
+                  <button
+                    key={option.value}
+                    onClick={() => handleSortChange(option.value)}
+                    className="w-full px-4 py-2.5 sm:py-3 text-left text-xs sm:text-sm transition-colors duration-150 hover:bg-white/5"
+                    style={{
+                      color: sort === option.value ? '#06b6d4' : '#94a3b8',
+                      fontWeight: sort === option.value ? 600 : 400,
+                    }}
+                  >
+                    {option.label}
+                  </button>
+                ))}
+              </div>
+            )}
           </div>
         </div>
 
@@ -228,7 +225,7 @@ export default function MoviePageClient({
             ))}
           </div>
         ) : (
-          <div className="flex flex-col items-center justify-center py-24 gap-4">
+          <div className="flex flex-col items-center justify-center py-20 gap-4">
             <div className="p-6 rounded-full" style={{ background: 'rgba(255,255,255,0.04)' }}>
               <Film size={48} style={{ color: '#475569' }} />
             </div>
@@ -238,7 +235,7 @@ export default function MoviePageClient({
 
         {/* ── Pagination ── */}
         {totalPages > 1 && !loading && (
-          <div className="flex items-center justify-center gap-2 mt-12">
+          <div className="flex items-center justify-center gap-2 mt-8 sm:mt-10 mb-2">
             <button
               onClick={() => handlePageChange(page - 1)}
               disabled={page === 1}
