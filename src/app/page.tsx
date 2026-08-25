@@ -61,7 +61,7 @@ export default async function HomePage() {
       <div className="relative z-10 space-y-12 pb-16 pt-2 sm:pt-4">
         {/* Genre Filter */}
         {genreList.length > 0 && (
-          <section className="px-4 sm:px-6 lg:px-8 max-w-7xl mx-auto">
+          <section className="w-full px-4 sm:px-6 md:px-8 lg:px-10 xl:px-12 2xl:px-14">
             <GenreFilter
               genres={genreList}
               title={siteConfig.homepageSections?.browseGenres || 'Browse by Genre'}

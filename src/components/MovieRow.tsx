@@ -44,20 +44,20 @@ export default function MovieRow({
   if (!items || items.length === 0) return null;
 
   return (
-    <section className="relative">
+    <section className="relative w-full">
       {/* Header with section-title style (vertical gradient accent on the left) */}
-      <div className={`flex items-center justify-between mb-4 ${noPadding ? 'px-0' : 'px-4 sm:px-6 lg:px-8 max-w-7xl mx-auto'}`}>
+      <div className={`flex items-center justify-between mb-4 ${noPadding ? 'px-0' : 'px-4 sm:px-6 md:px-8 lg:px-10 xl:px-12 2xl:px-14'}`}>
         <h2 className="section-title text-xl sm:text-2xl font-bold text-neo-text-primary">
           {title}
         </h2>
         {seeAllHref && (
           <Link
             href={seeAllHref}
-            className="text-xs sm:text-sm font-medium transition-colors duration-200 hover:text-neo-cyan flex items-center gap-1"
+            className="text-xs sm:text-sm font-medium transition-colors duration-200 hover:text-neo-cyan flex items-center gap-1 group/link"
             style={{ color: '#94a3b8' }}
           >
-            <span>See All</span>
-            <ChevronRight size={16} />
+            <span className="group-hover/link:text-cyan-400 transition-colors">See All</span>
+            <ChevronRight size={16} className="group-hover/link:translate-x-0.5 transition-transform" />
           </Link>
         )}
       </div>
@@ -68,16 +68,16 @@ export default function MovieRow({
         {canScrollLeft && (
           <button
             onClick={() => scroll('left')}
-            className="absolute left-0 top-1/2 -translate-y-1/2 z-10 p-2 rounded-full transition-all duration-200 opacity-0 group-hover:opacity-100 hover:scale-110"
+            className="absolute left-2 sm:left-4 md:left-6 top-1/2 -translate-y-1/2 z-20 w-10 h-10 rounded-xl flex items-center justify-center transition-all duration-200 opacity-0 group-hover:opacity-100 hover:scale-110 shadow-lg cursor-pointer"
             style={{
-              background: 'rgba(5,8,22,0.9)',
+              background: 'rgba(11, 16, 32, 0.9)',
+              backdropFilter: 'blur(12px)',
               border: '1px solid rgba(6,182,212,0.4)',
-              boxShadow: '0 0 15px rgba(6,182,212,0.2)',
-              marginLeft: '4px',
+              boxShadow: '0 0 20px rgba(6,182,212,0.25), 0 4px 15px rgba(0,0,0,0.6)',
             }}
             aria-label="Scroll left"
           >
-            <ChevronLeft size={20} className="text-neo-cyan" />
+            <ChevronLeft size={22} className="text-neo-cyan" />
           </button>
         )}
 
@@ -85,23 +85,23 @@ export default function MovieRow({
         {canScrollRight && (
           <button
             onClick={() => scroll('right')}
-            className="absolute right-0 top-1/2 -translate-y-1/2 z-10 p-2 rounded-full transition-all duration-200 opacity-0 group-hover:opacity-100 hover:scale-110"
+            className="absolute right-2 sm:right-4 md:right-6 top-1/2 -translate-y-1/2 z-20 w-10 h-10 rounded-xl flex items-center justify-center transition-all duration-200 opacity-0 group-hover:opacity-100 hover:scale-110 shadow-lg cursor-pointer"
             style={{
-              background: 'rgba(5,8,22,0.9)',
+              background: 'rgba(11, 16, 32, 0.9)',
+              backdropFilter: 'blur(12px)',
               border: '1px solid rgba(6,182,212,0.4)',
-              boxShadow: '0 0 15px rgba(6,182,212,0.2)',
-              marginRight: '4px',
+              boxShadow: '0 0 20px rgba(6,182,212,0.25), 0 4px 15px rgba(0,0,0,0.6)',
             }}
             aria-label="Scroll right"
           >
-            <ChevronRight size={20} className="text-neo-cyan" />
+            <ChevronRight size={22} className="text-neo-cyan" />
           </button>
         )}
 
         {/* Left fade */}
         {canScrollLeft && (
           <div
-            className="absolute left-0 top-0 bottom-0 w-16 z-[5] pointer-events-none"
+            className="absolute left-0 top-0 bottom-0 w-12 sm:w-16 md:w-20 z-[5] pointer-events-none"
             style={{
               background: 'linear-gradient(to right, #050816, transparent)',
             }}
@@ -111,7 +111,7 @@ export default function MovieRow({
         {/* Right fade */}
         {canScrollRight && (
           <div
-            className="absolute right-0 top-0 bottom-0 w-16 z-[5] pointer-events-none"
+            className="absolute right-0 top-0 bottom-0 w-12 sm:w-16 md:w-20 z-[5] pointer-events-none"
             style={{
               background: 'linear-gradient(to left, #050816, transparent)',
             }}
@@ -121,10 +121,10 @@ export default function MovieRow({
         <div
           ref={scrollRef}
           onScroll={handleScroll}
-          className={`flex gap-3 sm:gap-4 overflow-x-auto hide-scrollbar ${noPadding ? 'px-0' : 'px-4 sm:px-6 lg:px-8 max-w-7xl mx-auto'} pb-2`}
+          className={`flex gap-3 sm:gap-4 md:gap-5 overflow-x-auto hide-scrollbar ${noPadding ? 'px-0' : 'px-4 sm:px-6 md:px-8 lg:px-10 xl:px-12 2xl:px-14'} pb-3`}
         >
           {items.map((item) => (
-            <div key={item.id} className="flex-shrink-0 w-[155px] xs:w-[170px] sm:w-[185px] md:w-[200px] lg:w-[210px]">
+            <div key={item.id} className="flex-shrink-0 w-[150px] xs:w-[165px] sm:w-[180px] md:w-[195px] lg:w-[210px] xl:w-[220px]">
               <MovieCard item={item} type={type} />
             </div>
           ))}

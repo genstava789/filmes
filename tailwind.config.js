@@ -23,6 +23,9 @@ module.exports = {
           muted: '#475569',
         },
       },
+      screens: {
+        '3xl': '1920px',
+      },
       fontFamily: {
         sans: ['Plus Jakarta Sans', 'var(--font-jakarta)', 'sans-serif'],
       },

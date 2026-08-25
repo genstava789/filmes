@@ -10,7 +10,7 @@ export default function MarkdownRenderer({ contentHtml, title }: MarkdownRendere
   if (!contentHtml) return null;
 
   return (
-    <section className="mt-12 max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
+    <section className="w-full">
       <div
         className="rounded-2xl p-6 sm:p-8"
         style={{

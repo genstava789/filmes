@@ -187,7 +187,7 @@ export default async function MovieDetailPage({ params }: PageProps) {
       )}
 
       {/* Top Header Navigation Bar */}
-      <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 pt-4 sm:pt-6 pb-2">
+      <div className="w-full px-4 sm:px-6 md:px-8 lg:px-10 xl:px-12 2xl:px-14 pt-4 sm:pt-6 pb-2">
         <Link
           href="/"
           className="inline-flex items-center gap-2 px-3.5 py-1.5 rounded-xl text-xs sm:text-sm font-semibold transition-all duration-200 hover:scale-105"
@@ -204,7 +204,7 @@ export default async function MovieDetailPage({ params }: PageProps) {
       </div>
 
       {/* ── TOP SECTION: Clean Full-View Movie Details (No Poster, Direct Focus) ── */}
-      <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 pt-4">
+      <div className="w-full px-4 sm:px-6 md:px-8 lg:px-10 xl:px-12 2xl:px-14 pt-4">
         {/* Custom Edition Badge */}
         {movie.isCustomMarkdown && (
           <div
@@ -312,7 +312,7 @@ export default async function MovieDetailPage({ params }: PageProps) {
 
       {/* ── VIDEO PLAYER: Positioned Directly Below Director & Action Buttons ── */}
       {videoUrl && (
-        <div className="w-full max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 mt-10">
+        <div className="w-full px-4 sm:px-6 md:px-8 lg:px-10 xl:px-12 2xl:px-14 mt-10">
           <VideoPlayer
             videoUrl={videoUrl}
             title={movie.title}
@@ -322,7 +322,7 @@ export default async function MovieDetailPage({ params }: PageProps) {
       )}
 
       {/* ── STATS / VIEWS / POPULARITY: Positioned Below the Video Player ── */}
-      <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 mt-8">
+      <div className="w-full px-4 sm:px-6 md:px-8 lg:px-10 xl:px-12 2xl:px-14 mt-8">
         <div className="grid grid-cols-2 sm:grid-cols-4 gap-4">
           {[
             { label: 'Popularity (Views)', value: Math.round(movie.popularity || 100).toLocaleString() },
@@ -347,7 +347,7 @@ export default async function MovieDetailPage({ params }: PageProps) {
 
       {/* Custom Markdown Body Rendered Section */}
       {movie.customContentHtml && (
-        <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 mt-12">
+        <div className="w-full px-4 sm:px-6 md:px-8 lg:px-10 xl:px-12 2xl:px-14 mt-12">
           <MarkdownRenderer
             contentHtml={movie.customContentHtml}
             title={movie.title}
@@ -357,7 +357,7 @@ export default async function MovieDetailPage({ params }: PageProps) {
 
       {/* Cast Section */}
       {cast.length > 0 && (
-        <section className="mt-16 max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
+        <section className="mt-16 w-full px-4 sm:px-6 md:px-8 lg:px-10 xl:px-12 2xl:px-14">
           <h2 className="section-title text-xl sm:text-2xl font-bold text-neo-text-primary mb-4">
             Cast
           </h2>
@@ -371,12 +371,11 @@ export default async function MovieDetailPage({ params }: PageProps) {
 
       {/* Similar Movies Section */}
       {similarMovies.length > 0 && (
-        <section className="mt-16 max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
+        <section className="mt-16 w-full">
           <MovieRow
             title="Similar Movies"
             items={similarMovies}
             type="movie"
-            noPadding
           />
         </section>
       )}

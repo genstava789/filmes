@@ -144,7 +144,7 @@ export default function TVDetailClient({
     <div className="w-full">
       {/* Top Video Player Section (Rendered if active episode has video URL) */}
       {activeEpisode?.videoUrl && (
-        <div className="w-full max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 mt-10">
+        <div className="w-full px-4 sm:px-6 md:px-8 lg:px-10 xl:px-12 2xl:px-14 mt-10">
           <VideoPlayer
             key={activeEpisode.slug}
             videoUrl={activeEpisode.videoUrl}
@@ -168,7 +168,7 @@ export default function TVDetailClient({
 
       {/* Active Episode Markdown Content / Notes */}
       {activeEpisode?.contentHtml && (
-        <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 mt-6">
+        <div className="w-full px-4 sm:px-6 md:px-8 lg:px-10 xl:px-12 2xl:px-14 mt-6">
           <MarkdownRenderer
             contentHtml={activeEpisode.contentHtml}
             title={`${showTitle} - ${activeEpisode.episodeLabel}: ${activeEpisode.title}`}

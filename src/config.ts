@@ -95,6 +95,7 @@ export const siteConfig = {
   tvSections: {
     pageTitle: 'TV Shows',
     pageSubtitle: 'Discover the best series',
+    browseGenres: 'Browse Series by Genre',
     trending: 'Trending This Week',
     airingToday: 'Airing Today',
     popular: 'Popular TV Shows',

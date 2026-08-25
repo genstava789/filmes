@@ -14,7 +14,7 @@ export default function Footer() {
         borderTop: '1px solid rgba(255, 255, 255, 0.06)',
       }}
     >
-      <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 text-center">
+      <div className="w-full px-4 sm:px-6 md:px-8 lg:px-10 xl:px-12 2xl:px-14 text-center">
         <p className="text-neo-text-muted text-xs text-center">
           © {currentYear} <span className="font-semibold text-slate-300">{siteConfig.copyright || siteConfig.name}</span>. {siteConfig.footerText}
         </p>

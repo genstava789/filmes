@@ -128,7 +128,7 @@ export default function VideoPlayer({ videoUrl, poster }: VideoPlayerProps) {
   return (
     <div
       id="video-player-section"
-      className="w-full max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 transition-all duration-500 ease-in-out"
+      className="w-full transition-all duration-500 ease-in-out"
     >
       {/* Netflix Ambient Backlight Glow */}
       <div className="relative group">
@@ -154,7 +154,7 @@ export default function VideoPlayer({ videoUrl, poster }: VideoPlayerProps) {
             className="relative w-full overflow-hidden bg-black flex items-center justify-center plyr-custom-wrapper"
             style={{
               aspectRatio: '16/9',
-              maxHeight: '720px',
+              maxHeight: '800px',
             }}
           >
             {hasError ? (

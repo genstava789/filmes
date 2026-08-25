@@ -89,7 +89,7 @@ export default function EpisodeSelector({
   };
 
   return (
-    <section className="w-full max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 mt-8">
+    <section className="w-full px-4 sm:px-6 md:px-8 lg:px-10 xl:px-12 2xl:px-14 mt-8">
       <div
         className="rounded-2xl p-4 sm:p-6 border relative overflow-hidden transition-all duration-300"
         style={{

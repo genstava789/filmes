@@ -57,7 +57,7 @@ export default function Navbar({ genres = [] }: NavbarProps) {
           boxShadow: scrolled ? '0 4px 30px rgba(0,0,0,0.3)' : 'none',
         }}
       >
-        <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
+        <div className="w-full px-4 sm:px-6 md:px-8 lg:px-10 xl:px-12 2xl:px-14">
           <div className="flex items-center justify-between h-16">
             {/* Logo */}
             <Link href="/" className="flex items-center gap-2 flex-shrink-0">
@@ -219,7 +219,7 @@ export default function Navbar({ genres = [] }: NavbarProps) {
               borderTop: '1px solid rgba(255,255,255,0.06)',
             }}
           >
-            <div className="max-w-7xl mx-auto px-4 py-4 space-y-1">
+            <div className="w-full px-4 py-4 space-y-1">
               <Link
                 href="/"
                 className="flex items-center gap-2 px-4 py-3 rounded-xl text-sm font-medium transition-all duration-200"

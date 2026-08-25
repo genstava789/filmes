@@ -178,7 +178,7 @@ export default async function TVShowPage({ params }: PageProps) {
       )}
 
       {/* Top Header Navigation Bar */}
-      <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 pt-4 sm:pt-6 pb-2">
+      <div className="w-full px-4 sm:px-6 md:px-8 lg:px-10 xl:px-12 2xl:px-14 pt-4 sm:pt-6 pb-2">
         <Link
           href="/tv"
           className="inline-flex items-center gap-2 px-3.5 py-1.5 rounded-xl text-xs sm:text-sm font-semibold transition-all duration-200 hover:scale-105"
@@ -195,7 +195,7 @@ export default async function TVShowPage({ params }: PageProps) {
       </div>
 
       {/* ── TOP SECTION: Clean Full-View TV Show Details (No Poster, Direct Focus) ── */}
-      <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 pt-4">
+      <div className="w-full px-4 sm:px-6 md:px-8 lg:px-10 xl:px-12 2xl:px-14 pt-4">
         {/* Custom Static Badge */}
         {data.isCustomTV && (
           <div
@@ -323,7 +323,7 @@ export default async function TVShowPage({ params }: PageProps) {
       />
 
       {/* ── STATS / RETURNING SERIES / STATUS: Positioned Below the Video Player & Episode Selector ── */}
-      <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 mt-8">
+      <div className="w-full px-4 sm:px-6 md:px-8 lg:px-10 xl:px-12 2xl:px-14 mt-8">
         <div className="grid grid-cols-2 sm:grid-cols-4 gap-4">
           {[
             { label: 'Status', value: data.status || 'Returning Series' },
@@ -350,7 +350,7 @@ export default async function TVShowPage({ params }: PageProps) {
 
       {/* Show Overview Markdown Content */}
       {data.customContentHtml && (
-        <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 mt-12">
+        <div className="w-full px-4 sm:px-6 md:px-8 lg:px-10 xl:px-12 2xl:px-14 mt-12">
           <MarkdownRenderer
             contentHtml={data.customContentHtml}
             title={`${data.name} - Informasi & Sinopsis Serial`}
@@ -360,7 +360,7 @@ export default async function TVShowPage({ params }: PageProps) {
 
       {/* Cast Section */}
       {cast.length > 0 && (
-        <section className="mt-16 max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
+        <section className="mt-16 w-full px-4 sm:px-6 md:px-8 lg:px-10 xl:px-12 2xl:px-14">
           <h2 className="section-title text-xl sm:text-2xl font-bold text-neo-text-primary mb-4">Cast & Karakter</h2>
           <div className="flex gap-3 sm:gap-4 overflow-x-auto hide-scrollbar pb-2">
             {cast.map((member) => (
@@ -372,12 +372,11 @@ export default async function TVShowPage({ params }: PageProps) {
 
       {/* Similar TV Shows */}
       {similarShows.length > 0 && (
-        <section className="mt-16 max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
+        <section className="mt-16 w-full">
           <MovieRow
             title="Serial TV Serupa"
             items={similarShows}
             type="tv"
-            noPadding
           />
         </section>
       )}
