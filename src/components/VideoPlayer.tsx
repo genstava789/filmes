@@ -441,6 +441,32 @@ export default function VideoPlayer({
           [...found, ...prev].forEach((item) => map.set(item.id, item));
           return Array.from(map.values());
         });
+
+        // Auto-enable caption by default (Indonesian or first available)
+        setActiveSubtitleId((currentActive) => {
+          if (currentActive === 'off') {
+            const indoTrack = found.find(
+              (t) =>
+                t.language === 'ind' ||
+                t.language === 'id' ||
+                t.label.toLowerCase().includes('indo')
+            );
+            const chosen = indoTrack || found[0];
+            if (chosen) {
+              if (chosen.type === 'native' && typeof chosen.trackIndex === 'number' && videoElement.textTracks) {
+                try {
+                  videoElement.textTracks[chosen.trackIndex].mode = 'showing';
+                } catch (e) {}
+              } else if (chosen.type === 'hls' && typeof chosen.trackIndex === 'number' && hlsInstance) {
+                try {
+                  hlsInstance.subtitleTrack = chosen.trackIndex;
+                } catch (e) {}
+              }
+              return chosen.id;
+            }
+          }
+          return currentActive;
+        });
       }
     };
 
@@ -502,7 +528,7 @@ export default function VideoPlayer({
               return Array.from(map.values());
             });
 
-            // Auto-select Indonesian if available, or first track
+            // Auto-enable Indonesian subtitle by default if available, or first track
             const indoTrack = mkvDetected.find(
               (t) =>
                 t.language === 'ind' ||
