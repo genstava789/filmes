@@ -120,6 +120,16 @@ export interface TVShow {
   origin_country?: string[];
 }
 
+export interface TMDBSeason {
+  id: number;
+  name: string;
+  overview: string;
+  poster_path: string | null;
+  season_number: number;
+  episode_count: number;
+  air_date?: string;
+}
+
 export interface TVShowDetail extends TVShow {
   genres: Genre[];
   number_of_episodes: number;
@@ -129,6 +139,7 @@ export interface TVShowDetail extends TVShow {
   homepage?: string | null;
   runtime?: number;
   episode_run_time: number[];
+  seasons?: TMDBSeason[];
   videos: {
     results: Video[];
   };

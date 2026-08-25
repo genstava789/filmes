@@ -3,6 +3,7 @@
 import React, { useState } from 'react';
 import { Bookmark, Film } from 'lucide-react';
 import TrailerModal from '@/components/TrailerModal';
+import ShareButton from '@/components/ShareButton';
 
 interface MovieDetailClientProps {
   movieTitle: string;
@@ -49,8 +50,11 @@ export default function MovieDetailClient({
           }}
         >
           <Bookmark size={16} fill={bookmarked ? 'currentColor' : 'none'} />
-          <span>{bookmarked ? 'Saved in Watchlist' : 'Add to Watchlist'}</span>
+          <span>{bookmarked ? 'Saved' : 'Watchlist'}</span>
         </button>
+
+        {/* Share Button */}
+        <ShareButton title={movieTitle} />
       </div>
 
       {/* Trailer Modal */}

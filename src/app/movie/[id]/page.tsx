@@ -179,7 +179,7 @@ export default async function MovieDetailPage({ params }: PageProps) {
         </>
       )}
 
-      {/* ── 1. FULL-VIEW VIDEO PLAYER WITH STYLISH FLOATING TITLE (Fit all body) ── */}
+      {/* ── 1. FULL-VIEW VIDEO PLAYER (Fit all body) ── */}
       {videoUrl && (
         <div className="w-full bg-black mb-5">
           <VideoPlayer
@@ -190,8 +190,13 @@ export default async function MovieDetailPage({ params }: PageProps) {
         </div>
       )}
 
-      {/* ── 2. MOVIE METADATA & ACTIONS (Direct Focus) ── */}
-      <div className={`w-full px-4 sm:px-6 md:px-8 lg:px-10 xl:px-12 2xl:px-14 ${videoUrl ? 'pt-1' : 'pt-6'}`}>
+      {/* ── 2. MOVIE METADATA & ACTIONS ── */}
+      <div className={`w-full px-4 sm:px-6 md:px-8 lg:px-10 xl:px-12 2xl:px-14 ${videoUrl ? 'pt-2' : 'pt-6'}`}>
+        {/* Title above rating/HD badges */}
+        <h1 className="text-2xl sm:text-3xl lg:text-4xl font-black leading-tight mb-3 tracking-tight text-white">
+          {movie.title}
+        </h1>
+
         {/* Meta Badges Row */}
         <div className="flex flex-wrap items-center gap-3 mb-4">
           <RatingBadge rating={movie.vote_average} size="md" />
@@ -258,7 +263,7 @@ export default async function MovieDetailPage({ params }: PageProps) {
           </p>
         )}
 
-        {/* Action Buttons (Watch Trailer, Watchlist) */}
+        {/* Action Buttons (Watch Trailer, Watchlist, Share) */}
         <MovieDetailClient
           movieTitle={movie.title}
           trailerKey={trailerKey}
