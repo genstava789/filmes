@@ -45,8 +45,10 @@ interface DetectedSubtitle {
   id: string | number;
   label: string;
   language: string;
-  type: 'native' | 'hls' | 'external';
+  type: 'native' | 'hls' | 'external' | 'mkv';
   trackIndex?: number;
+  trackNumber?: number;
+  nativeTrack?: TextTrack;
 }
 
 function getYouTubeId(url: string): string | null {
@@ -75,6 +77,62 @@ function formatSeconds(sec: number): string {
     return `${hh}:${mm}:${ss}`;
   }
   return `${mm}:${ss}`;
+}
+
+function getLanguageLabel(code?: string, name?: string): string {
+  if (name && name.trim()) {
+    if (code) return `${name} (${code.toUpperCase()})`;
+    return name;
+  }
+  if (!code) return 'Subtitel';
+  const c = code.toLowerCase();
+  const map: Record<string, string> = {
+    ind: 'Indonesia',
+    id: 'Indonesia',
+    in: 'Indonesia',
+    eng: 'English',
+    en: 'English',
+    may: 'Melayu',
+    msa: 'Melayu',
+    ms: 'Melayu',
+    tha: 'Thai',
+    th: 'Thai',
+    vie: 'Vietnam',
+    vi: 'Vietnam',
+    chi: 'Mandarin (Tionghoa)',
+    zho: 'Mandarin (Tionghoa)',
+    zh: 'Mandarin (Tionghoa)',
+    jpn: 'Jepang',
+    ja: 'Jepang',
+    kor: 'Korea',
+    ko: 'Korea',
+    spa: 'Spanyol',
+    es: 'Spanyol',
+    ara: 'Arab',
+    ar: 'Arab',
+    fre: 'Prancis',
+    fra: 'Prancis',
+    fr: 'Prancis',
+    ger: 'Jerman',
+    deu: 'Jerman',
+    de: 'Jerman',
+    por: 'Portugis',
+    pt: 'Portugis',
+    rus: 'Rusia',
+    ru: 'Rusia',
+    ita: 'Italia',
+    it: 'Italia',
+  };
+  return map[c] || `Subtitel (${code.toUpperCase()})`;
+}
+
+function cleanSubtitleText(raw: string): string {
+  if (!raw) return '';
+  return raw
+    .replace(/\{[^}]+\}/g, '')
+    .replace(/\\N/g, '\n')
+    .replace(/\\n/g, '\n')
+    .trim();
 }
 
 export default function VideoPlayer({
@@ -107,6 +165,7 @@ export default function VideoPlayer({
   const videoElementRef = useRef<HTMLVideoElement | null>(null);
   const playerInstanceRef = useRef<any>(null);
   const hlsInstanceRef = useRef<any>(null);
+  const mkvTracksMapRef = useRef<Map<number, TextTrack>>(new Map());
   const lastSavedTimeRef = useRef<number>(0);
   const countdownTimerRef = useRef<NodeJS.Timeout | null>(null);
   const subtitleMenuRef = useRef<HTMLDivElement>(null);
@@ -165,16 +224,20 @@ export default function VideoPlayer({
     const videoEl = videoElementRef.current;
     const hls = hlsInstanceRef.current;
     const player = playerInstanceRef.current;
+    const mkvMap = mkvTracksMapRef.current;
 
     if (subId === 'off') {
+      // Disable all native & MKV text tracks
       if (videoEl && videoEl.textTracks) {
         for (let i = 0; i < videoEl.textTracks.length; i++) {
           videoEl.textTracks[i].mode = 'disabled';
         }
       }
+      // Disable HLS subtitle
       if (hls) {
         hls.subtitleTrack = -1;
       }
+      // Disable Plyr captions
       if (player && player.captions) {
         try {
           player.currentCaption = -1;
@@ -186,7 +249,29 @@ export default function VideoPlayer({
     const targetSub = detectedSubtitles.find((s) => s.id === subId);
     if (!targetSub) return;
 
+    if (targetSub.type === 'mkv' && typeof targetSub.trackNumber === 'number') {
+      // Disable all other tracks first
+      if (videoEl && videoEl.textTracks) {
+        for (let i = 0; i < videoEl.textTracks.length; i++) {
+          videoEl.textTracks[i].mode = 'disabled';
+        }
+      }
+      // Enable selected MKV track
+      const mkvTrack = mkvMap.get(targetSub.trackNumber);
+      if (mkvTrack) {
+        mkvTrack.mode = 'showing';
+      }
+      if (hls) hls.subtitleTrack = -1;
+      return;
+    }
+
     if (targetSub.type === 'hls' && hls && typeof targetSub.trackIndex === 'number') {
+      // Disable native tracks
+      if (videoEl && videoEl.textTracks) {
+        for (let i = 0; i < videoEl.textTracks.length; i++) {
+          videoEl.textTracks[i].mode = 'disabled';
+        }
+      }
       hls.subtitleTrack = targetSub.trackIndex;
     } else if (videoEl && videoEl.textTracks && typeof targetSub.trackIndex === 'number') {
       for (let i = 0; i < videoEl.textTracks.length; i++) {
@@ -210,6 +295,8 @@ export default function VideoPlayer({
     if (youtubeId || vimeoId) return;
 
     let isCancelled = false;
+    const abortController = new AbortController();
+
     setHasError(false);
     setReported(false);
     setIsPlaying(false);
@@ -219,6 +306,7 @@ export default function VideoPlayer({
     setResumeTime(null);
     setDetectedSubtitles([]);
     setActiveSubtitleId('off');
+    mkvTracksMapRef.current.clear();
 
     // Check saved playback progress
     if (storageKey) {
@@ -266,6 +354,8 @@ export default function VideoPlayer({
     });
 
     const isHls = videoUrl.includes('.m3u8');
+    const isMkv = videoUrl.toLowerCase().includes('.mkv') || videoUrl.includes('matroska');
+
     if (!isHls) {
       const source = document.createElement('source');
       source.src = videoUrl;
@@ -273,7 +363,7 @@ export default function VideoPlayer({
         source.type = 'video/mp4';
       } else if (videoUrl.includes('.webm')) {
         source.type = 'video/webm';
-      } else if (videoUrl.includes('.mkv')) {
+      } else if (isMkv) {
         source.type = 'video/x-matroska';
       }
       videoElement.appendChild(source);
@@ -299,7 +389,7 @@ export default function VideoPlayer({
     container.appendChild(videoElement);
     videoElementRef.current = videoElement;
 
-    // Scan and collect softcoded and external subtitle tracks
+    // Scan native HTML5 TextTracks & HLS subtitle tracks
     const scanSubtitleTracks = (hlsInstance?: any) => {
       if (isCancelled) return;
       const found: DetectedSubtitle[] = [];
@@ -311,7 +401,7 @@ export default function VideoPlayer({
           if (track.kind === 'subtitles' || track.kind === 'captions') {
             const label =
               track.label ||
-              (track.language ? `Subtitel (${track.language.toUpperCase()})` : `Track ${i + 1}`);
+              (track.language ? getLanguageLabel(track.language) : `Track ${i + 1}`);
             found.push({
               id: `native-${i}`,
               label,
@@ -330,7 +420,7 @@ export default function VideoPlayer({
       // 2. Check HLS subtitle tracks
       if (hlsInstance && hlsInstance.subtitleTracks && hlsInstance.subtitleTracks.length > 0) {
         hlsInstance.subtitleTracks.forEach((track: any, idx: number) => {
-          const label = track.name || (track.lang ? `HLS (${track.lang.toUpperCase()})` : `Sub ${idx + 1}`);
+          const label = track.name || (track.lang ? getLanguageLabel(track.lang) : `Sub ${idx + 1}`);
           found.push({
             id: `hls-${idx}`,
             label,
@@ -346,16 +436,11 @@ export default function VideoPlayer({
       }
 
       if (found.length > 0) {
-        setDetectedSubtitles(found);
-        if (found.length > 0 && activeSubtitleId === 'off') {
-          const defaultTrack = found[0];
-          setActiveSubtitleId(defaultTrack.id);
-          if (defaultTrack.type === 'native' && videoElement.textTracks && typeof defaultTrack.trackIndex === 'number') {
-            try {
-              videoElement.textTracks[defaultTrack.trackIndex].mode = 'showing';
-            } catch (e) {}
-          }
-        }
+        setDetectedSubtitles((prev) => {
+          const map = new Map();
+          [...found, ...prev].forEach((item) => map.set(item.id, item));
+          return Array.from(map.values());
+        });
       }
     };
 
@@ -368,6 +453,110 @@ export default function VideoPlayer({
         scanSubtitleTracks(hlsInstanceRef.current);
       });
     }
+
+    // ── MKV EMBEDDED SOFTCODED SUBTITLES STREAMING DEMUXER ──
+    const initMkvDemuxer = async () => {
+      if (!isMkv) return;
+      try {
+        const { SubtitleParser } = await import('matroska-subtitles');
+        if (isCancelled) return;
+
+        const parser = new SubtitleParser();
+
+        parser.once('tracks', (tracks: any[]) => {
+          if (isCancelled) return;
+          const mkvDetected: DetectedSubtitle[] = [];
+
+          tracks.forEach((t) => {
+            const trackNumber = t.number;
+            const langCode = t.language || 'und';
+            const langLabel = getLanguageLabel(langCode, t.name);
+
+            if (videoElementRef.current) {
+              try {
+                const textTrack = videoElementRef.current.addTextTrack(
+                  'subtitles',
+                  langLabel,
+                  langCode
+                );
+                textTrack.mode = 'hidden';
+                mkvTracksMapRef.current.set(trackNumber, textTrack);
+              } catch (e) {
+                console.error('Failed to addTextTrack for MKV subtitle:', e);
+              }
+            }
+
+            mkvDetected.push({
+              id: `mkv-${trackNumber}`,
+              label: langLabel,
+              language: langCode,
+              type: 'mkv',
+              trackNumber,
+            });
+          });
+
+          if (mkvDetected.length > 0) {
+            setDetectedSubtitles((prev) => {
+              const map = new Map();
+              [...prev, ...mkvDetected].forEach((item) => map.set(item.id, item));
+              return Array.from(map.values());
+            });
+
+            // Auto-select Indonesian if available, or first track
+            const indoTrack = mkvDetected.find(
+              (t) =>
+                t.language === 'ind' ||
+                t.language === 'id' ||
+                t.label.toLowerCase().includes('indo')
+            );
+            const chosen = indoTrack || mkvDetected[0];
+            if (chosen && chosen.trackNumber) {
+              setActiveSubtitleId(chosen.id);
+              const target = mkvTracksMapRef.current.get(chosen.trackNumber);
+              if (target) {
+                target.mode = 'showing';
+              }
+            }
+          }
+        });
+
+        parser.on('subtitle', (sub: any, trackNumber: number) => {
+          if (isCancelled) return;
+          const targetTrack = mkvTracksMapRef.current.get(trackNumber);
+          if (targetTrack && typeof sub.time === 'number') {
+            const startSec = sub.time / 1000;
+            const endSec = (sub.time + (sub.duration || 3000)) / 1000;
+            const cleanText = cleanSubtitleText(sub.text);
+            if (cleanText && endSec > startSec) {
+              try {
+                const cue = new VTTCue(startSec, endSec, cleanText);
+                targetTrack.addCue(cue);
+              } catch (e) {}
+            }
+          }
+        });
+
+        // Fetch streaming chunks from MKV file
+        const res = await fetch(videoUrl, {
+          signal: abortController.signal,
+        });
+
+        if (res.body) {
+          const reader = res.body.getReader();
+          while (!isCancelled) {
+            const { done, value } = await reader.read();
+            if (done) break;
+            if (value) {
+              parser.write(new Uint8Array(value.buffer, value.byteOffset, value.byteLength));
+            }
+          }
+        }
+      } catch (err: any) {
+        if (err.name !== 'AbortError') {
+          console.log('MKV subtitle stream complete or handled:', err?.message);
+        }
+      }
+    };
 
     const initModules = async () => {
       try {
@@ -498,6 +687,7 @@ export default function VideoPlayer({
 
         playerInstanceRef.current = player;
         scanSubtitleTracks(hlsInstanceRef.current);
+        initMkvDemuxer();
       } catch (err) {
         console.error('Error loading video player modules:', err);
       }
@@ -507,6 +697,7 @@ export default function VideoPlayer({
 
     return () => {
       isCancelled = true;
+      abortController.abort();
       if (countdownTimerRef.current) {
         clearInterval(countdownTimerRef.current);
         countdownTimerRef.current = null;
