@@ -1,22 +1,28 @@
 import React from 'react';
 import type { Metadata } from 'next';
-import { discoverMovies, getGenres, getGenreById } from '@/lib/tmdb';
+import { discoverMovies, searchMovies, getGenres, getGenreById } from '@/lib/tmdb';
 import MoviePageClient from './MoviePageClient';
 import siteConfig from '@/config';
 
 interface MoviePageProps {
-  searchParams: { page?: string; sort?: string; genre?: string };
+  searchParams: { page?: string; sort?: string; genre?: string; q?: string };
 }
 
 export async function generateMetadata({ searchParams }: MoviePageProps): Promise<Metadata> {
   const genreId = searchParams.genre ? Number(searchParams.genre) : undefined;
   const genre = genreId ? await getGenreById(genreId).catch(() => null) : null;
+  const query = searchParams.q?.trim();
+
+  let title = `Browse Movies - ${siteConfig.name}`;
+  if (query) {
+    title = `Search "${query}" - Movies - ${siteConfig.name}`;
+  } else if (genre) {
+    title = `${genre.name} Movies - ${siteConfig.name}`;
+  }
 
   return {
-    title: genre ? `${genre.name} Movies - ${siteConfig.name}` : `Explore Movies - ${siteConfig.name}`,
-    description: genre
-      ? `Browse ${genre.name} movies on ${siteConfig.name}. Stream online in HD quality.`
-      : `Explore thousands of movies on ${siteConfig.name}. Watch popular, top-rated, and trending movies in HD.`,
+    title,
+    description: `Discover and browse movies on ${siteConfig.name}. Search and filter by genre and popularity.`,
   };
 }
 
@@ -26,9 +32,10 @@ export default async function MoviePage({ searchParams }: MoviePageProps) {
   const page = Number(searchParams.page) || 1;
   const sort = searchParams.sort || 'popularity.desc';
   const genreId = searchParams.genre ? Number(searchParams.genre) : undefined;
+  const query = searchParams.q?.trim() || '';
 
   const [moviesData, genresData] = await Promise.allSettled([
-    discoverMovies(page, sort, genreId),
+    query ? searchMovies(query, page) : discoverMovies(page, sort, genreId),
     getGenres(),
   ]);
 
@@ -46,6 +53,7 @@ export default async function MoviePage({ searchParams }: MoviePageProps) {
       initialPage={page}
       initialSort={sort}
       initialGenreId={genreId}
+      initialQuery={query}
       allGenres={allGenres}
     />
   );

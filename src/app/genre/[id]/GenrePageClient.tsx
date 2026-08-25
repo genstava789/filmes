@@ -99,11 +99,11 @@ export default function GenrePageClient({
   return (
     <div className="min-h-screen pt-24 pb-16" style={{ background: '#050816' }}>
       <div className="w-full px-4 sm:px-6 md:px-8 lg:px-10 xl:px-12 2xl:px-14">
-        {/* Header with rock-solid responsive layout */}
+        {/* Header with rock-solid responsive layout (Title on Left, Sort on Right on all screen sizes) */}
         <div className="mb-6 sm:mb-8">
-          <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4">
-            <div>
-              <h1 className="text-2xl sm:text-3xl md:text-4xl font-black mb-1.5">
+          <div className="flex items-center justify-between gap-3">
+            <div className="flex-1 min-w-0">
+              <h1 className="text-xl sm:text-3xl md:text-4xl font-black truncate sm:whitespace-normal mb-1">
                 <span
                   style={{
                     background: isTV
@@ -123,21 +123,21 @@ export default function GenrePageClient({
               </p>
             </div>
 
-            {/* Sort dropdown */}
-            <div className="relative self-start sm:self-auto" ref={sortRef}>
+            {/* Sort dropdown - pinned to top right */}
+            <div className="relative flex-shrink-0" ref={sortRef}>
               <button
                 onClick={() => setSortOpen(!sortOpen)}
-                className="flex items-center gap-2 px-3.5 py-2 sm:px-4 sm:py-2.5 rounded-xl text-xs sm:text-sm font-medium transition-all duration-200"
+                className="flex items-center gap-1.5 sm:gap-2 px-3 py-2 sm:px-4 sm:py-2.5 rounded-xl text-xs sm:text-sm font-medium transition-all duration-200"
                 style={{
                   background: 'rgba(255,255,255,0.06)',
                   border: '1px solid rgba(255,255,255,0.1)',
                   color: '#94a3b8',
                 }}
               >
-                <SlidersHorizontal size={15} />
+                <SlidersHorizontal size={14} className="sm:w-[15px] sm:h-[15px]" />
                 <span className="whitespace-nowrap">{currentSortLabel}</span>
                 <ChevronRight
-                  size={14}
+                  size={13}
                   className="transition-transform duration-200"
                   style={{ transform: sortOpen ? 'rotate(90deg)' : 'rotate(0deg)' }}
                 />
@@ -145,7 +145,7 @@ export default function GenrePageClient({
 
               {sortOpen && (
                 <div
-                  className="absolute left-0 sm:left-auto sm:right-0 top-full mt-2 w-48 rounded-xl overflow-hidden z-30"
+                  className="absolute right-0 top-full mt-2 w-44 sm:w-48 rounded-xl overflow-hidden z-30"
                   style={{
                     background: '#0B1020',
                     border: isTV
@@ -158,7 +158,7 @@ export default function GenrePageClient({
                     <button
                       key={option.value}
                       onClick={() => handleSortChange(option.value)}
-                      className="w-full px-4 py-2.5 sm:py-3 text-left text-xs sm:text-sm transition-colors duration-150 hover:bg-white/5"
+                      className="w-full px-3.5 py-2.5 sm:px-4 sm:py-3 text-left text-xs sm:text-sm transition-colors duration-150 hover:bg-white/5"
                       style={{
                         color:
                           sort === option.value
