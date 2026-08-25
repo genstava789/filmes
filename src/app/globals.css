@@ -614,6 +614,9 @@ input:focus-visible {
   flex-wrap: nowrap !important;
   display: flex !important;
   align-items: center !important;
+  overflow: visible !important;
+  box-sizing: border-box !important;
+  width: 100% !important;
 }
 
 .plyr-custom-wrapper .plyr__progress__container {
@@ -633,19 +636,81 @@ input:focus-visible {
   font-variant-numeric: tabular-nums !important;
 }
 
+.plyr-custom-wrapper .plyr__menu {
+  display: inline-flex !important;
+  align-items: center !important;
+  justify-content: center !important;
+  position: relative !important;
+  flex-shrink: 0 !important;
+}
+
+.plyr-custom-wrapper .plyr__menu .plyr__control {
+  margin: 0 !important;
+}
+
+/* Settings popup menu: fully visible, glassmorphism theme, never cut off */
+.plyr-custom-wrapper .plyr__menu__container {
+  position: absolute !important;
+  bottom: calc(100% + 8px) !important;
+  right: 0 !important;
+  left: auto !important;
+  max-width: min(280px, calc(100vw - 24px)) !important;
+  max-height: 240px !important;
+  background: rgba(8, 12, 28, 0.96) !important;
+  backdrop-filter: blur(20px) !important;
+  -webkit-backdrop-filter: blur(20px) !important;
+  border: 1px solid rgba(255, 255, 255, 0.15) !important;
+  border-radius: 12px !important;
+  box-shadow: 0 12px 36px rgba(0, 0, 0, 0.9), 0 0 20px rgba(6, 182, 212, 0.15) !important;
+  color: #fff !important;
+  z-index: 50 !important;
+  overflow: visible !important;
+}
+
+.plyr-custom-wrapper .plyr__menu__container [role=menu] {
+  padding: 6px !important;
+}
+
+.plyr-custom-wrapper .plyr__menu__container .plyr__control {
+  color: #cbd5e1 !important;
+  font-size: 12px !important;
+  border-radius: 8px !important;
+  width: 100% !important;
+  height: auto !important;
+  min-width: 0 !important;
+  padding: 6px 10px !important;
+}
+
+.plyr-custom-wrapper .plyr__menu__container .plyr__control:hover,
+.plyr-custom-wrapper .plyr__menu__container .plyr__control:focus {
+  background: rgba(6, 182, 212, 0.2) !important;
+  color: #ffffff !important;
+}
+
+.plyr-custom-wrapper .plyr__menu__container .plyr__control--back {
+  font-size: 11px !important;
+  font-weight: 700 !important;
+  color: #06b6d4 !important;
+}
+
 /* Compact & spacious layout for small devices / mobile */
 @media (max-width: 640px) {
   .plyr-custom-wrapper .plyr__controls {
     padding: 5px 8px !important;
-    gap: 2px !important;
+    gap: 3px !important;
   }
 
-  .plyr-custom-wrapper .plyr__control {
-    padding: 4px !important;
+  .plyr-custom-wrapper .plyr__control,
+  .plyr-custom-wrapper .plyr__menu {
+    padding: 3px !important;
     width: 26px !important;
     height: 26px !important;
     min-width: 26px !important;
+    max-width: 26px !important;
     flex-shrink: 0 !important;
+    display: inline-flex !important;
+    align-items: center !important;
+    justify-content: center !important;
   }
 
   .plyr-custom-wrapper .plyr__control svg {
@@ -654,21 +719,23 @@ input:focus-visible {
   }
 
   .plyr-custom-wrapper .plyr__progress__container {
-    min-width: 65px !important;
+    min-width: 50px !important;
     flex: 1 1 auto !important;
     margin: 0 3px !important;
   }
 
   .plyr-custom-wrapper .plyr__time {
     font-size: 10px !important;
-    padding: 0 1px !important;
+    padding: 0 2px !important;
+    line-height: 1 !important;
   }
 
-  /* Keep rewind and fast-forward visible, hide only bulky non-essential controls */
+  /* On mobile screens, hide redundant volume slider & mute button so settings and all buttons fit completely */
+  .plyr-custom-wrapper .plyr__controls > [data-plyr='mute'],
+  .plyr-custom-wrapper .plyr__volume,
   .plyr-custom-wrapper .plyr__controls > [data-plyr='restart'],
   .plyr-custom-wrapper .plyr__controls > [data-plyr='pip'],
-  .plyr-custom-wrapper .plyr__controls > [data-plyr='airplay'],
-  .plyr-custom-wrapper .plyr__volume input[type='range'] {
+  .plyr-custom-wrapper .plyr__controls > [data-plyr='airplay'] {
     display: none !important;
   }
 }
@@ -676,14 +743,16 @@ input:focus-visible {
 @media (max-width: 480px) {
   .plyr-custom-wrapper .plyr__controls {
     padding: 4px 6px !important;
-    gap: 1px !important;
+    gap: 2px !important;
   }
 
-  .plyr-custom-wrapper .plyr__control {
-    padding: 3px !important;
+  .plyr-custom-wrapper .plyr__control,
+  .plyr-custom-wrapper .plyr__menu {
     width: 24px !important;
     height: 24px !important;
     min-width: 24px !important;
+    max-width: 24px !important;
+    padding: 2px !important;
   }
 
   .plyr-custom-wrapper .plyr__control svg {
@@ -692,7 +761,7 @@ input:focus-visible {
   }
 
   .plyr-custom-wrapper .plyr__progress__container {
-    min-width: 55px !important;
+    min-width: 45px !important;
     flex: 1 1 auto !important;
     margin: 0 2px !important;
   }
