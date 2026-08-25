@@ -3,7 +3,7 @@
 import React, { useState, useEffect, useRef, useCallback } from 'react';
 import Image from 'next/image';
 import Link from 'next/link';
-import { Play, Info, Star, Calendar, ChevronLeft, ChevronRight, Sparkles } from 'lucide-react';
+import { Play, Star, Calendar, ChevronLeft, ChevronRight, Sparkles } from 'lucide-react';
 import { Movie, Genre } from '@/types/tmdb';
 import { getImageUrl } from '@/lib/tmdb';
 import siteConfig, { FeaturedItem } from '@/config';
@@ -127,8 +127,8 @@ export default function Hero({ movie, movies = [], genres = [], customFeaturedIt
       onTouchMove={handleTouchMove}
       onTouchEnd={handleTouchEnd}
       style={{
-        /* Horizontal landscape scale on mobile (min 260px, aspect 16:9 feel), expansive wide banner on desktop */
-        height: 'clamp(260px, 48vw, 750px)',
+        /* Expansive and visible poster height across small and large screens */
+        height: 'clamp(380px, 58vh, 720px)',
       }}
     >
       {/* ── Background Slides with Ken-Burns & Crossfade ── */}
@@ -153,7 +153,7 @@ export default function Hero({ movie, movies = [], genres = [], customFeaturedIt
                   alt={item.title || 'Featured item'}
                   fill
                   priority={idx === 0}
-                  className="object-cover object-center"
+                  className="object-cover object-center sm:object-[center_25%]"
                   sizes="100vw"
                 />
               </div>
@@ -162,36 +162,36 @@ export default function Hero({ movie, movies = [], genres = [], customFeaturedIt
         );
       })}
 
-      {/* ── Gradient Overlays (Cinematic Vignette) ── */}
+      {/* ── Gradient Overlays (Cinematic Bottom Fade) ── */}
       <div
         className="absolute inset-0 z-10 pointer-events-none"
         style={{
           background:
-            'linear-gradient(to right, rgba(5,8,22,0.95) 0%, rgba(5,8,22,0.75) 35%, rgba(5,8,22,0.3) 65%, rgba(5,8,22,0.15) 100%)',
+            'linear-gradient(to top, rgba(5,8,22,0.96) 0%, rgba(5,8,22,0.65) 30%, rgba(5,8,22,0.12) 60%, transparent 100%)',
+        }}
+      />
+      <div
+        className="absolute inset-0 z-10 pointer-events-none hidden sm:block"
+        style={{
+          background:
+            'linear-gradient(to right, rgba(5,8,22,0.92) 0%, rgba(5,8,22,0.6) 35%, rgba(5,8,22,0.15) 70%, transparent 100%)',
         }}
       />
       <div
         className="absolute inset-0 z-10 pointer-events-none"
         style={{
           background:
-            'linear-gradient(to top, rgba(5,8,22,1) 0%, rgba(5,8,22,0.7) 25%, transparent 65%)',
-        }}
-      />
-      <div
-        className="absolute inset-0 z-10 pointer-events-none"
-        style={{
-          background:
-            'linear-gradient(to bottom, rgba(5,8,22,0.5) 0%, transparent 25%)',
+            'linear-gradient(to bottom, rgba(5,8,22,0.4) 0%, transparent 20%)',
         }}
       />
 
-      {/* ── Hero Content (Responsive Horizontal Fit on Mobile, Expansive on Desktop) ── */}
-      <div className="relative z-20 h-full flex items-end sm:items-center pb-5 sm:pb-0">
+      {/* ── Hero Content (Clean & Focused on Small Screen, Expansive on Desktop) ── */}
+      <div className="relative z-20 h-full flex items-end pb-7 sm:pb-12 md:pb-16">
         <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 w-full">
           <div className="max-w-xl lg:max-w-2xl">
 
             {/* Badge - Always "Featured" */}
-            <div className="flex items-center gap-2 mb-1.5 sm:mb-3">
+            <div className="flex items-center gap-2 mb-2 sm:mb-3">
               <span
                 className="inline-flex items-center gap-1 px-2.5 py-0.5 sm:px-3 sm:py-1 rounded-full text-[10px] sm:text-xs font-extrabold uppercase tracking-wider"
                 style={{
@@ -208,9 +208,9 @@ export default function Hero({ movie, movies = [], genres = [], customFeaturedIt
 
             {/* Title */}
             <h1
-              className="text-xl sm:text-3xl md:text-5xl lg:text-6xl font-black leading-tight sm:leading-tight mb-1.5 sm:mb-3 text-white tracking-tight"
+              className="text-2xl sm:text-4xl md:text-5xl lg:text-6xl font-black leading-tight mb-2 sm:mb-3 text-white tracking-tight line-clamp-2"
               style={{
-                textShadow: '0 2px 20px rgba(0,0,0,0.7)',
+                textShadow: '0 2px 20px rgba(0,0,0,0.8)',
               }}
             >
               {currentItem.title}
@@ -218,13 +218,13 @@ export default function Hero({ movie, movies = [], genres = [], customFeaturedIt
 
             {/* Tagline (Desktop) */}
             {currentItem.tagline && (
-              <p className="hidden sm:block text-sm sm:text-base italic text-purple-300 mb-2 font-medium">
+              <p className="hidden sm:block text-xs sm:text-sm md:text-base italic text-purple-300 mb-2 font-medium">
                 &ldquo;{currentItem.tagline}&rdquo;
               </p>
             )}
 
-            {/* Meta row */}
-            <div className="flex flex-wrap items-center gap-2 sm:gap-3 mb-2.5 sm:mb-4 text-xs sm:text-sm">
+            {/* Meta row with Designed Badges */}
+            <div className="flex flex-wrap items-center gap-2 sm:gap-3 mb-3 sm:mb-4 text-xs sm:text-sm">
               {/* Rating */}
               <div
                 className="flex items-center gap-1 px-2 py-0.5 sm:px-2.5 sm:py-1 rounded-md text-[11px] sm:text-xs font-bold"
@@ -250,11 +250,19 @@ export default function Hero({ movie, movies = [], genres = [], customFeaturedIt
                 HD
               </span>
 
-              {/* Year */}
+              {/* Styled Year Label Badge */}
               {currentItem.year && (
-                <div className="flex items-center gap-1 text-slate-300 text-xs sm:text-sm font-medium">
-                  <Calendar size={12} />
-                  {currentItem.year}
+                <div
+                  className="flex items-center gap-1 px-2 py-0.5 sm:px-2.5 sm:py-1 rounded-md text-[11px] sm:text-xs font-semibold"
+                  style={{
+                    background: 'rgba(255, 255, 255, 0.08)',
+                    border: '1px solid rgba(255, 255, 255, 0.18)',
+                    color: '#e2e8f0',
+                    backdropFilter: 'blur(6px)',
+                  }}
+                >
+                  <Calendar size={11} className="text-cyan-400" />
+                  <span>{currentItem.year}</span>
                 </div>
               )}
 
@@ -285,18 +293,18 @@ export default function Hero({ movie, movies = [], genres = [], customFeaturedIt
               )}
             </div>
 
-            {/* Overview / Deskripsi (Compact on mobile, full on desktop) */}
+            {/* Overview / Deskripsi (Hidden on small mobile to give full prominence to the poster) */}
             {currentItem.overview && (
               <p className="hidden sm:block text-xs sm:text-sm md:text-base leading-relaxed text-slate-300 mb-4 sm:mb-6 line-clamp-2 md:line-clamp-3 max-w-xl">
                 {currentItem.overview}
               </p>
             )}
 
-            {/* Action Buttons */}
+            {/* Action Buttons: Clean & Direct "Tonton" button */}
             <div className="flex items-center gap-2.5 sm:gap-3">
               <Link
                 href={currentItem.link || '/'}
-                className="flex items-center gap-1.5 sm:gap-2 px-4 py-2 sm:px-6 sm:py-3 rounded-xl font-bold text-xs sm:text-sm transition-all duration-300 hover:scale-105 active:scale-95"
+                className="inline-flex items-center gap-2 px-5 py-2.5 sm:px-7 sm:py-3 rounded-xl font-bold text-xs sm:text-sm transition-all duration-300 hover:scale-105 active:scale-95"
                 style={{
                   background: 'linear-gradient(135deg, #06b6d4, #7c3aed)',
                   color: 'white',
@@ -304,21 +312,7 @@ export default function Hero({ movie, movies = [], genres = [], customFeaturedIt
                 }}
               >
                 <Play size={15} fill="white" className="sm:w-[18px] sm:h-[18px]" />
-                <span>Watch Now</span>
-              </Link>
-
-              <Link
-                href={currentItem.link || '/'}
-                className="flex items-center gap-1.5 sm:gap-2 px-3 py-2 sm:px-5 sm:py-3 rounded-xl font-semibold text-xs sm:text-sm transition-all duration-300 hover:scale-105 active:scale-95"
-                style={{
-                  background: 'rgba(255,255,255,0.08)',
-                  backdropFilter: 'blur(8px)',
-                  border: '1px solid rgba(255,255,255,0.15)',
-                  color: '#f1f5f9',
-                }}
-              >
-                <Info size={15} className="sm:w-[18px] sm:h-[18px]" />
-                <span className="hidden xs:inline">Details</span>
+                <span>Tonton</span>
               </Link>
             </div>
 
@@ -326,14 +320,14 @@ export default function Hero({ movie, movies = [], genres = [], customFeaturedIt
         </div>
       </div>
 
-      {/* ── Slide Arrows & Full Circle Indicator Dots ── */}
+      {/* ── Slide Navigation: Arrows & Minimalist Dots ── */}
       {total > 1 && (
         <>
           {/* Left Arrow */}
           <button
             onClick={prevSlide}
             title="Previous Slide"
-            className="hidden sm:flex absolute left-4 top-1/2 -translate-y-1/2 z-30 w-10 h-10 rounded-xl items-center justify-center transition-all duration-200 opacity-60 hover:opacity-100 hover:scale-110 active:scale-95 cursor-pointer"
+            className="hidden sm:flex absolute left-4 top-1/2 -translate-y-1/2 z-30 w-9 h-9 rounded-xl items-center justify-center transition-all duration-200 opacity-60 hover:opacity-100 hover:scale-110 active:scale-95 cursor-pointer"
             style={{
               background: 'rgba(11, 16, 32, 0.75)',
               backdropFilter: 'blur(10px)',
@@ -341,14 +335,14 @@ export default function Hero({ movie, movies = [], genres = [], customFeaturedIt
               color: '#f1f5f9',
             }}
           >
-            <ChevronLeft size={20} />
+            <ChevronLeft size={18} />
           </button>
 
           {/* Right Arrow */}
           <button
             onClick={nextSlide}
             title="Next Slide"
-            className="hidden sm:flex absolute right-4 top-1/2 -translate-y-1/2 z-30 w-10 h-10 rounded-xl items-center justify-center transition-all duration-200 opacity-60 hover:opacity-100 hover:scale-110 active:scale-95 cursor-pointer"
+            className="hidden sm:flex absolute right-4 top-1/2 -translate-y-1/2 z-30 w-9 h-9 rounded-xl items-center justify-center transition-all duration-200 opacity-60 hover:opacity-100 hover:scale-110 active:scale-95 cursor-pointer"
             style={{
               background: 'rgba(11, 16, 32, 0.75)',
               backdropFilter: 'blur(10px)',
@@ -356,22 +350,22 @@ export default function Hero({ movie, movies = [], genres = [], customFeaturedIt
               color: '#f1f5f9',
             }}
           >
-            <ChevronRight size={20} />
+            <ChevronRight size={18} />
           </button>
 
-          {/* Full Circle Indicator Dots (Circle instead of width) */}
-          <div className="absolute right-4 sm:right-8 bottom-3 sm:bottom-6 z-30 flex items-center gap-2">
+          {/* Minimalist & Sleek Indicator Dots */}
+          <div className="absolute right-4 sm:right-8 bottom-4 sm:bottom-6 z-30 flex items-center gap-1.5">
             {items.map((_, idx) => {
               const isCurrent = idx === currentIndex;
               return (
                 <button
                   key={idx}
                   onClick={() => setCurrentIndex(idx)}
-                  title={`Go to slide ${idx + 1}`}
-                  className={`rounded-full transition-all duration-300 cursor-pointer focus:outline-none ${
+                  title={`Slide ${idx + 1}`}
+                  className={`transition-all duration-300 cursor-pointer focus:outline-none rounded-full ${
                     isCurrent
-                      ? 'w-3 h-3 sm:w-3.5 sm:h-3.5 scale-110 ring-2 ring-cyan-400/50 shadow-[0_0_10px_#06b6d4]'
-                      : 'w-2 h-2 sm:w-2.5 sm:h-2.5 bg-white/35 hover:bg-white/70 hover:scale-125'
+                      ? 'w-4 sm:w-5 h-1.5 sm:h-1.5 opacity-100 shadow-[0_0_8px_rgba(6,182,212,0.6)]'
+                      : 'w-1.5 sm:w-1.5 h-1.5 sm:h-1.5 bg-white/30 hover:bg-white/60'
                   }`}
                   style={{
                     background: isCurrent
