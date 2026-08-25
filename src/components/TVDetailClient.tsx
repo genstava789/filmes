@@ -11,6 +11,7 @@ import {
   Clock,
   Sparkles,
   Check,
+  Folder,
 } from 'lucide-react';
 import TrailerModal from '@/components/TrailerModal';
 import VideoPlayer from '@/components/VideoPlayer';
@@ -251,7 +252,7 @@ export default function TVDetailClient({
             {/* Header: Title & Season Dropdown */}
             <div className="flex items-center justify-between gap-3 mb-3">
               <div className="flex items-center gap-2">
-                <Tv size={16} className="text-cyan-400" />
+                <Folder size={16} className="text-cyan-400" />
                 <h3 className="text-sm font-bold text-white tracking-wide">
                   Pilih Episode ({hasSeasons ? currentSeason.seasonName : 'Season 1'})
                 </h3>
@@ -269,7 +270,7 @@ export default function TVDetailClient({
                       border: '1px solid rgba(6, 182, 212, 0.45)',
                     }}
                   >
-                    <Sparkles size={12} className="text-cyan-400" />
+                    <Folder size={12} className="text-cyan-400" />
                     <span>{currentSeason.seasonName}</span>
                     <ChevronDown
                       size={13}

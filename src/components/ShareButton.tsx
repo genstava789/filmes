@@ -1,16 +1,7 @@
 'use client';
 
 import React, { useState, useRef, useEffect } from 'react';
-import {
-  Share2,
-  Copy,
-  Check,
-  X,
-  MessageCircle,
-  Send,
-  Twitter,
-  Facebook,
-} from 'lucide-react';
+import { Share2, Copy, Check, X } from 'lucide-react';
 
 interface ShareButtonProps {
   title: string;
@@ -29,21 +20,8 @@ export default function ShareButton({ title, url }: ShareButtonProps) {
   };
 
   const shareUrl = getShareUrl();
-  const shareText = `Nonton ${title} full streaming HD di LeviStream:`;
 
-  const handleNativeShare = async () => {
-    if (typeof navigator !== 'undefined' && navigator.share) {
-      try {
-        await navigator.share({
-          title,
-          text: shareText,
-          url: shareUrl,
-        });
-        return;
-      } catch (err) {
-        // Fallback to modal if user cancelled or not allowed
-      }
-    }
+  const handleOpenModal = () => {
     setModalOpen(true);
   };
 
@@ -74,110 +52,72 @@ export default function ShareButton({ title, url }: ShareButtonProps) {
     };
   }, [modalOpen]);
 
-  const socialLinks = [
-    {
-      name: 'WhatsApp',
-      icon: MessageCircle,
-      color: '#25D366',
-      bg: 'rgba(37, 211, 102, 0.15)',
-      href: `https://api.whatsapp.com/send?text=${encodeURIComponent(`${shareText} ${shareUrl}`)}`,
-    },
-    {
-      name: 'Telegram',
-      icon: Send,
-      color: '#229ED9',
-      bg: 'rgba(34, 158, 217, 0.15)',
-      href: `https://t.me/share/url?url=${encodeURIComponent(shareUrl)}&text=${encodeURIComponent(shareText)}`,
-    },
-    {
-      name: 'X (Twitter)',
-      icon: Twitter,
-      color: '#1DA1F2',
-      bg: 'rgba(29, 161, 242, 0.15)',
-      href: `https://twitter.com/intent/tweet?text=${encodeURIComponent(shareText)}&url=${encodeURIComponent(shareUrl)}`,
-    },
-    {
-      name: 'Facebook',
-      icon: Facebook,
-      color: '#1877F2',
-      bg: 'rgba(24, 119, 242, 0.15)',
-      href: `https://www.facebook.com/sharer/sharer.php?u=${encodeURIComponent(shareUrl)}`,
-    },
-  ];
-
   return (
-    <div className="relative">
+    <>
       {/* Share Button Trigger */}
       <button
         type="button"
-        onClick={handleNativeShare}
+        onClick={handleOpenModal}
         className="flex items-center gap-2 px-4 py-2.5 rounded-xl font-bold text-xs sm:text-sm text-slate-200 hover:text-cyan-300 transition-all duration-200 hover:scale-105 active:scale-95"
         style={{
           background: 'rgba(255, 255, 255, 0.06)',
           border: '1px solid rgba(255, 255, 255, 0.12)',
         }}
-        title="Bagikan ke Sosial Media"
+        title="Bagikan Tontonan"
       >
         <Share2 size={16} className="text-cyan-400" />
         <span>Share</span>
       </button>
 
-      {/* Share Modal Dialog */}
+      {/* Centered Modal with Full-Screen Blurred Backdrop */}
       {modalOpen && (
-        <div
-          ref={modalRef}
-          className="absolute left-0 sm:right-0 sm:left-auto top-full mt-2 w-72 sm:w-80 p-4 rounded-3xl z-50 border transition-all duration-200 shadow-2xl animate-in fade-in slide-in-from-top-2"
-          style={{
-            background: 'rgba(8, 12, 28, 0.96)',
-            backdropFilter: 'blur(30px)',
-            borderColor: 'rgba(6, 182, 212, 0.35)',
-            boxShadow: '0 25px 60px rgba(0, 0, 0, 0.8), 0 0 30px rgba(6, 182, 212, 0.15)',
-          }}
-        >
-          {/* Header */}
-          <div className="flex items-center justify-between pb-3 border-b border-white/[0.08] mb-3">
-            <div className="flex items-center gap-2">
-              <Share2 size={16} className="text-cyan-400" />
-              <span className="text-xs font-bold text-white">Bagikan Link</span>
-            </div>
-            <button
-              onClick={() => setModalOpen(false)}
-              className="p-1 rounded-lg hover:bg-white/10 text-slate-400 hover:text-white transition-colors"
-            >
-              <X size={14} />
-            </button>
-          </div>
+        <div className="fixed inset-0 z-50 flex items-center justify-center p-4">
+          {/* Backdrop Blur */}
+          <div
+            onClick={() => setModalOpen(false)}
+            className="fixed inset-0 bg-black/70 backdrop-blur-md transition-opacity animate-in fade-in duration-200"
+          />
 
-          {/* Social Links Grid */}
-          <div className="grid grid-cols-2 gap-2 mb-3">
-            {socialLinks.map((social) => {
-              const Icon = social.icon;
-              return (
-                <a
-                  key={social.name}
-                  href={social.href}
-                  target="_blank"
-                  rel="noopener noreferrer"
-                  onClick={() => setModalOpen(false)}
-                  className="flex items-center gap-2.5 p-2.5 rounded-xl transition-all duration-200 hover:scale-105 active:scale-95 group"
+          {/* Centered Dialog */}
+          <div
+            ref={modalRef}
+            className="relative w-full max-w-md p-5 rounded-3xl border shadow-2xl z-10 animate-in zoom-in-95 duration-200"
+            style={{
+              background: 'rgba(9, 13, 30, 0.96)',
+              backdropFilter: 'blur(30px)',
+              borderColor: 'rgba(6, 182, 212, 0.35)',
+              boxShadow: '0 25px 60px rgba(0, 0, 0, 0.9), 0 0 35px rgba(6, 182, 212, 0.15)',
+            }}
+          >
+            {/* Header */}
+            <div className="flex items-center justify-between pb-3.5 mb-4 border-b border-white/[0.08]">
+              <div className="flex items-center gap-2.5">
+                <div
+                  className="w-8 h-8 rounded-xl flex items-center justify-center"
                   style={{
-                    background: social.bg,
-                    border: `1px solid ${social.color}40`,
+                    background: 'linear-gradient(135deg, rgba(6, 182, 212, 0.2), rgba(124, 58, 237, 0.2))',
+                    border: '1px solid rgba(6, 182, 212, 0.35)',
                   }}
                 >
-                  <Icon size={16} style={{ color: social.color }} />
-                  <span className="text-xs font-bold text-white group-hover:text-cyan-300">
-                    {social.name}
-                  </span>
-                </a>
-              );
-            })}
-          </div>
+                  <Share2 size={16} className="text-cyan-400" />
+                </div>
+                <div>
+                  <h3 className="text-sm font-bold text-white">Bagikan Link</h3>
+                  <p className="text-[11px] text-slate-400">Salin tautan untuk membagikan tontonan ini</p>
+                </div>
+              </div>
+              <button
+                type="button"
+                onClick={() => setModalOpen(false)}
+                className="p-1.5 rounded-xl hover:bg-white/10 text-slate-400 hover:text-white transition-colors"
+              >
+                <X size={16} />
+              </button>
+            </div>
 
-          {/* Copy Link Input Bar */}
-          <div className="pt-2 border-t border-white/[0.08]">
+            {/* Clean Copy Link Input Bar */}
             <div
-              className="flex items-center justify-between p-1.5 pl-3 rounded-xl"
+              className="flex items-center justify-between p-2 pl-3.5 rounded-2xl"
               style={{
                 background: 'rgba(255, 255, 255, 0.05)',
                 border: '1px solid rgba(255, 255, 255, 0.1)',
@@ -187,28 +127,30 @@ export default function ShareButton({ title, url }: ShareButtonProps) {
                 type="text"
                 readOnly
                 value={shareUrl}
-                className="bg-transparent text-[11px] text-slate-300 focus:outline-none flex-1 truncate pr-2"
+                className="bg-transparent text-xs text-slate-200 focus:outline-none flex-1 truncate pr-3 select-all"
               />
               <button
                 type="button"
                 onClick={handleCopyLink}
-                className="flex items-center gap-1 px-3 py-1.5 rounded-lg text-xs font-bold text-white transition-all duration-200 hover:scale-105 active:scale-95 flex-shrink-0"
+                className="flex items-center gap-1.5 px-4 py-2 rounded-xl text-xs font-bold text-white transition-all duration-200 hover:scale-105 active:scale-95 flex-shrink-0"
                 style={{
                   background: copied
                     ? '#22c55e'
                     : 'linear-gradient(135deg, #06b6d4, #7c3aed)',
-                  boxShadow: copied ? '0 0 10px rgba(34, 197, 94, 0.5)' : 'none',
+                  boxShadow: copied
+                    ? '0 0 15px rgba(34, 197, 94, 0.6)'
+                    : '0 0 12px rgba(6, 182, 212, 0.3)',
                 }}
               >
                 {copied ? (
                   <>
-                    <Check size={13} />
-                    <span>Copied!</span>
+                    <Check size={14} />
+                    <span>Tersalin!</span>
                   </>
                 ) : (
                   <>
-                    <Copy size={13} />
-                    <span>Copy</span>
+                    <Copy size={14} />
+                    <span>Salin Link</span>
                   </>
                 )}
               </button>
@@ -216,6 +158,6 @@ export default function ShareButton({ title, url }: ShareButtonProps) {
           </div>
         </div>
       )}
-    </div>
+    </>
   );
 }

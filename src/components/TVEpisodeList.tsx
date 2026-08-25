@@ -9,7 +9,7 @@ import {
   Clock,
   Tv,
   Check,
-  Sparkles,
+  Folder,
   Film,
 } from 'lucide-react';
 import { CustomSeason, CustomEpisode } from '@/lib/markdownTV';
@@ -190,7 +190,7 @@ export default function TVEpisodeList({
               boxShadow: '0 0 15px rgba(6, 182, 212, 0.2)',
             }}
           >
-            <Tv size={16} className="text-cyan-400" />
+            <Folder size={16} className="text-cyan-400" />
           </div>
           <div>
             <h2 className="text-sm sm:text-base font-bold text-white tracking-tight flex items-center gap-2">
@@ -216,7 +216,7 @@ export default function TVEpisodeList({
                   boxShadow: '0 0 15px rgba(6, 182, 212, 0.15)',
                 }}
               >
-                <Sparkles size={12} className="text-cyan-400" />
+                <Folder size={12} className="text-cyan-400" />
                 <span>{currentSeason.seasonName}</span>
                 <ChevronDown
                   size={13}

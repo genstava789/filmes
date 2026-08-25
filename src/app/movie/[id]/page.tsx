@@ -1,7 +1,7 @@
 import React from 'react';
 import Link from 'next/link';
 import { Metadata } from 'next';
-import { Calendar, Clock, Globe, Sparkles, Users } from 'lucide-react';
+import { Calendar, Clock, Globe, Clapperboard, Users } from 'lucide-react';
 import { getImageUrl } from '@/lib/tmdb';
 import {
   getMovieDetailsWithCustomOverride,
@@ -311,7 +311,7 @@ export default async function MovieDetailPage({ params }: PageProps) {
                 boxShadow: '0 0 15px rgba(6, 182, 212, 0.2)',
               }}
             >
-              <Sparkles size={16} className="text-cyan-400" />
+              <Clapperboard size={16} className="text-cyan-400" />
             </div>
             <div>
               <h2 className="text-base sm:text-lg font-black text-white tracking-tight">

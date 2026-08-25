@@ -1,7 +1,7 @@
 import React from 'react';
 import Link from 'next/link';
 import { Metadata } from 'next';
-import { Calendar, Clock, Sparkles, Users } from 'lucide-react';
+import { Calendar, Clock, Sparkles, Users, Folder } from 'lucide-react';
 import { getImageUrl } from '@/lib/tmdb';
 import {
   getTVShowDetailsWithCustomOverride,
@@ -266,14 +266,15 @@ export default async function TVShowPage({ params }: PageProps) {
               )}
               {data.hasSeasons && data.number_of_seasons ? (
                 <div
-                  className="px-3 py-1 rounded-lg text-xs font-bold uppercase tracking-wider"
+                  className="flex items-center gap-1.5 px-3 py-1 rounded-lg text-xs font-bold uppercase tracking-wider"
                   style={{
                     background: 'rgba(6,182,212,0.12)',
                     border: '1px solid rgba(6,182,212,0.35)',
                     color: '#06b6d4',
                   }}
                 >
-                  {data.number_of_seasons} Season{data.number_of_seasons > 1 ? 's' : ''}
+                  <Folder size={13} />
+                  <span>{data.number_of_seasons} Season{data.number_of_seasons > 1 ? 's' : ''}</span>
                 </div>
               ) : null}
               {data.number_of_episodes ? (
