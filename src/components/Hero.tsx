@@ -29,11 +29,24 @@ export default function Hero({ movie, movies = [], genres = [], customFeaturedIt
     const sourceMovies = movies.length > 0 ? movies.slice(0, 3) : movie ? [movie] : [];
     return sourceMovies.map((m) => {
       const itemGenres = genres.filter((g) => m.genre_ids?.includes(g.id)).map((g) => g.name);
+      const backdrop = m.backdrop_path
+        ? getImageUrl(m.backdrop_path, 'w1280')
+        : m.poster_path
+        ? getImageUrl(m.poster_path, 'w780')
+        : '/placeholder-poster.svg';
+      const poster = m.poster_path
+        ? getImageUrl(m.poster_path, 'w500')
+        : m.backdrop_path
+        ? getImageUrl(m.backdrop_path, 'w780')
+        : '/placeholder-poster.svg';
+
       return {
         id: m.id,
+        tmdbId: m.id,
         title: m.title,
         overview: m.overview,
-        backdropUrl: m.backdrop_path ? getImageUrl(m.backdrop_path, 'w1280') : '/placeholder-poster.jpg',
+        backdropUrl: backdrop,
+        posterUrl: poster,
         rating: Math.round(m.vote_average * 10) / 10,
         year: m.release_date ? new Date(m.release_date).getFullYear() : '2025',
         type: 'movie' as const,
@@ -121,6 +134,7 @@ export default function Hero({ movie, movies = [], genres = [], customFeaturedIt
       {/* ── Background Slides with Ken-Burns & Crossfade ── */}
       {items.map((item, idx) => {
         const isCurrent = idx === currentIndex;
+        const bgImage = item.backdropUrl || item.posterUrl || '/placeholder-poster.svg';
         return (
           <div
             key={item.id || idx}
@@ -128,15 +142,15 @@ export default function Hero({ movie, movies = [], genres = [], customFeaturedIt
               isCurrent ? 'opacity-100 z-0' : 'opacity-0 pointer-events-none -z-10'
             }`}
           >
-            {item.backdropUrl && (
+            {bgImage && (
               <div
                 className={`relative w-full h-full transform transition-transform duration-7000 ease-out ${
                   isCurrent ? 'scale-105' : 'scale-100'
                 }`}
               >
                 <Image
-                  src={item.backdropUrl}
-                  alt={item.title}
+                  src={bgImage}
+                  alt={item.title || 'Featured item'}
                   fill
                   priority={idx === 0}
                   className="object-cover object-center"
@@ -221,7 +235,7 @@ export default function Hero({ movie, movies = [], genres = [], customFeaturedIt
                 }}
               >
                 <Star size={12} fill="currentColor" />
-                {currentItem.rating.toFixed(1)}
+                {(currentItem.rating ?? 8.5).toFixed(1)}
               </div>
 
               {/* HD Badge */}
@@ -272,14 +286,16 @@ export default function Hero({ movie, movies = [], genres = [], customFeaturedIt
             </div>
 
             {/* Overview / Deskripsi (Compact on mobile, full on desktop) */}
-            <p className="hidden sm:block text-xs sm:text-sm md:text-base leading-relaxed text-slate-300 mb-4 sm:mb-6 line-clamp-2 md:line-clamp-3 max-w-xl">
-              {currentItem.overview}
-            </p>
+            {currentItem.overview && (
+              <p className="hidden sm:block text-xs sm:text-sm md:text-base leading-relaxed text-slate-300 mb-4 sm:mb-6 line-clamp-2 md:line-clamp-3 max-w-xl">
+                {currentItem.overview}
+              </p>
+            )}
 
             {/* Action Buttons */}
             <div className="flex items-center gap-2.5 sm:gap-3">
               <Link
-                href={currentItem.link}
+                href={currentItem.link || '/'}
                 className="flex items-center gap-1.5 sm:gap-2 px-4 py-2 sm:px-6 sm:py-3 rounded-xl font-bold text-xs sm:text-sm transition-all duration-300 hover:scale-105 active:scale-95"
                 style={{
                   background: 'linear-gradient(135deg, #06b6d4, #7c3aed)',
@@ -292,7 +308,7 @@ export default function Hero({ movie, movies = [], genres = [], customFeaturedIt
               </Link>
 
               <Link
-                href={currentItem.link}
+                href={currentItem.link || '/'}
                 className="flex items-center gap-1.5 sm:gap-2 px-3 py-2 sm:px-5 sm:py-3 rounded-xl font-semibold text-xs sm:text-sm transition-all duration-300 hover:scale-105 active:scale-95"
                 style={{
                   background: 'rgba(255,255,255,0.08)',

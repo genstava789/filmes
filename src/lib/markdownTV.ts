@@ -3,7 +3,8 @@ import path from 'path';
 import matter from 'gray-matter';
 import { marked } from 'marked';
 import { TVShowDetail } from '@/types/tmdb';
-import { getTVShowDetails } from '@/lib/tmdb';
+import { getTVShowDetails, getImageUrl } from '@/lib/tmdb';
+import { FeaturedItem } from '@/config';
 
 export interface CustomTVFrontmatter {
   title?: string;
@@ -510,11 +511,42 @@ export async function getTVShowDetailsWithCustomOverride(
 }
 
 /**
+ * Returns a mapping of tmdb_id -> custom TV show slug (e.g. { 95350: 'lanterns' }).
+ */
+export function getCustomTVTmdbMapping(): Record<string, string> {
+  const dirs = getAllCustomTVShowDirs();
+  const mapping: Record<string, string> = {};
+
+  dirs.forEach((dir) => {
+    try {
+      const fullPath = path.join(TV_CONTENT_DIR, dir);
+      const indexPath = fs.existsSync(path.join(fullPath, '_index.md'))
+        ? path.join(fullPath, '_index.md')
+        : fs.existsSync(path.join(fullPath, 'index.md'))
+        ? path.join(fullPath, 'index.md')
+        : null;
+
+      if (indexPath) {
+        const content = fs.readFileSync(indexPath, 'utf8');
+        const { data } = matter(content);
+        if (data && data.tmdb_id) {
+          mapping[String(data.tmdb_id)] = dir;
+        }
+      }
+    } catch (e) {
+      console.error(`Error parsing TV mapping for ${dir}:`, e);
+    }
+  });
+
+  return mapping;
+}
+
+/**
  * Returns all custom markdown TV shows that have `featured: true` in their _index.md.
  */
-export async function getAllFeaturedCustomTV(): Promise<any[]> {
+export async function getAllFeaturedCustomTV(): Promise<FeaturedItem[]> {
   const showSlugs = getAllCustomTVShowDirs();
-  const featuredShows: any[] = [];
+  const featuredShows: FeaturedItem[] = [];
 
   for (const slug of showSlugs) {
     try {
@@ -524,19 +556,26 @@ export async function getAllFeaturedCustomTV(): Promise<any[]> {
         if (detail) {
           const firstEp = detail.allEpisodes?.[0];
           const link = firstEp?.urlPath || `/tv/${detail.customSlug || detail.id}`;
+          const backdrop = detail.customImageUrl || (detail.backdrop_path ? getImageUrl(detail.backdrop_path, 'w1280') : (detail.poster_path ? getImageUrl(detail.poster_path, 'w780') : '/placeholder-poster.svg'));
+          const poster = detail.customImageUrl || (detail.poster_path ? getImageUrl(detail.poster_path, 'w500') : (detail.backdrop_path ? getImageUrl(detail.backdrop_path, 'w780') : '/placeholder-poster.svg'));
+
           featuredShows.push({
             id: `tv-${detail.customSlug || detail.id}`,
+            tmdbId: detail.id,
             title: detail.name,
             tagline: detail.tagline || undefined,
             overview: detail.overview,
-            backdropUrl: detail.customImageUrl || (detail.backdrop_path ? `https://image.tmdb.org/t/p/w1280${detail.backdrop_path}` : '/placeholder-poster.jpg'),
+            backdropUrl: backdrop,
+            posterUrl: poster,
             rating: Math.round(detail.vote_average * 10) / 10,
             year: detail.first_air_date ? new Date(detail.first_air_date).getFullYear() : '2025',
-            duration: detail.number_of_episodes ? `${detail.number_of_episodes} Episodes` : undefined,
+            duration: detail.number_of_episodes ? `${detail.number_of_episodes} Episodes` : (detail.episode_run_time?.[0] ? `${detail.episode_run_time[0]}m` : undefined),
             type: 'tv' as const,
             genres: detail.genres?.map((g) => g.name) || [],
             link,
             badge: 'Featured',
+            featured: true,
+            isCustom: true,
           });
         }
       }

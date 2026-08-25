@@ -20,13 +20,14 @@ export const revalidate = 3600;
 function TVHero({ show }: { show: TVShow }) {
   const year = show.first_air_date ? new Date(show.first_air_date).getFullYear() : '';
   const rating = Math.round(show.vote_average * 10) / 10;
+  const imagePath = show.backdrop_path || show.poster_path;
 
   return (
     <div className="relative w-full overflow-hidden" style={{ height: 'clamp(400px, 70vh, 700px)' }}>
-      {show.backdrop_path && (
+      {imagePath && (
         <div className="absolute inset-0">
           <Image
-            src={getImageUrl(show.backdrop_path, 'w1280')}
+            src={getImageUrl(imagePath, 'w1280')}
             alt={show.name}
             fill
             priority

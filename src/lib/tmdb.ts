@@ -32,9 +32,37 @@ async function fetchTMDB<T>(endpoint: string, params: Record<string, string> = {
   return response.json() as Promise<T>;
 }
 
-export function getImageUrl(path: string | null, size: ImageSize = 'w500'): string {
-  if (!path) return '/placeholder-poster.jpg';
-  return `${IMAGE_BASE_URL}/${size}${path}`;
+export function getImageUrl(path: string | null | undefined, size: ImageSize = 'w500'): string {
+  if (!path || typeof path !== 'string' || path.trim() === '') {
+    return '/placeholder-poster.svg';
+  }
+
+  const trimmed = path.trim();
+
+  // If already a full URL (http or https), return as is
+  if (trimmed.startsWith('http://') || trimmed.startsWith('https://')) {
+    return trimmed;
+  }
+
+  // If it's explicitly a local placeholder or static asset
+  if (
+    trimmed === '/placeholder-poster.svg' ||
+    trimmed === '/placeholder-poster.jpg' ||
+    trimmed === '/logo.png' ||
+    trimmed.startsWith('/static/') ||
+    trimmed.startsWith('/assets/') ||
+    trimmed.startsWith('/images/')
+  ) {
+    return trimmed;
+  }
+
+  // If path already starts with /t/p/ (TMDB partial path)
+  if (trimmed.startsWith('/t/p/')) {
+    return `https://image.tmdb.org${trimmed}`;
+  }
+
+  const cleanPath = trimmed.startsWith('/') ? trimmed : `/${trimmed}`;
+  return `${IMAGE_BASE_URL}/${size}${cleanPath}`;
 }
 
 export async function getTrending(

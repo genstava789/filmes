@@ -3,7 +3,8 @@ import path from 'path';
 import matter from 'gray-matter';
 import { marked } from 'marked';
 import { MovieDetail } from '@/types/tmdb';
-import { getMovieDetails } from '@/lib/tmdb';
+import { getMovieDetails, getImageUrl } from '@/lib/tmdb';
+import { FeaturedItem } from '@/config';
 
 export interface CustomMovieFrontmatter {
   title?: string;
@@ -238,9 +239,9 @@ export async function getMovieDetailsWithCustomOverride(
 /**
  * Returns all custom markdown movies that have `featured: true` in their frontmatter.
  */
-export async function getAllFeaturedCustomMovies(): Promise<any[]> {
+export async function getAllFeaturedCustomMovies(): Promise<FeaturedItem[]> {
   const files = getAllCustomMovieFiles();
-  const featuredMovies: any[] = [];
+  const featuredMovies: FeaturedItem[] = [];
 
   for (const file of files) {
     try {
@@ -250,12 +251,17 @@ export async function getAllFeaturedCustomMovies(): Promise<any[]> {
 
       if (customData && (customData.frontmatter.featured === true || customData.frontmatter.featured === 'true')) {
         if (detail) {
+          const backdrop = detail.customImageUrl || (detail.backdrop_path ? getImageUrl(detail.backdrop_path, 'w1280') : (detail.poster_path ? getImageUrl(detail.poster_path, 'w780') : '/placeholder-poster.svg'));
+          const poster = detail.customImageUrl || (detail.poster_path ? getImageUrl(detail.poster_path, 'w500') : (detail.backdrop_path ? getImageUrl(detail.backdrop_path, 'w780') : '/placeholder-poster.svg'));
+
           featuredMovies.push({
             id: `movie-${detail.customSlug || detail.id}`,
+            tmdbId: detail.id,
             title: detail.title,
             tagline: detail.tagline || undefined,
             overview: detail.overview,
-            backdropUrl: detail.customImageUrl || (detail.backdrop_path ? `https://image.tmdb.org/t/p/w1280${detail.backdrop_path}` : '/placeholder-poster.jpg'),
+            backdropUrl: backdrop,
+            posterUrl: poster,
             rating: Math.round(detail.vote_average * 10) / 10,
             year: detail.release_date ? new Date(detail.release_date).getFullYear() : '2025',
             duration: detail.runtime ? `${Math.floor(detail.runtime / 60)}h ${detail.runtime % 60}m` : undefined,
@@ -263,6 +269,8 @@ export async function getAllFeaturedCustomMovies(): Promise<any[]> {
             genres: detail.genres?.map((g) => g.name) || [],
             link: `/movie/${detail.customSlug || detail.id}`,
             badge: 'Featured',
+            featured: true,
+            isCustom: true,
           });
         }
       }

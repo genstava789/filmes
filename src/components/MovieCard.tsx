@@ -32,6 +32,8 @@ export default function MovieCard({ item, type = 'movie' }: MovieCardProps) {
     return '#f87171';
   };
 
+  const imagePath = item.poster_path || item.backdrop_path;
+
   return (
     <Link href={href} className="block">
       <div
@@ -57,9 +59,9 @@ export default function MovieCard({ item, type = 'movie' }: MovieCardProps) {
         <div style={{ position: 'relative', aspectRatio: '2/3', width: '100%', overflow: 'hidden' }}>
 
           {/* Image */}
-          {item.poster_path && !imgError ? (
+          {imagePath && !imgError ? (
             <Image
-              src={getImageUrl(item.poster_path, 'w500')}
+              src={getImageUrl(imagePath, 'w500')}
               alt={title}
               fill
               className="object-cover"
