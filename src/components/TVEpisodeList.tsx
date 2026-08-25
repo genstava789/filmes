@@ -10,6 +10,7 @@ import {
   Tv,
   Check,
   Sparkles,
+  Film,
 } from 'lucide-react';
 import { CustomSeason, CustomEpisode } from '@/lib/markdownTV';
 
@@ -19,6 +20,132 @@ interface TVEpisodeListProps {
   showTitle: string;
   showSlug: string;
   defaultBackdrop?: string;
+}
+
+function EpisodeRowItem({
+  ep,
+  showTitle,
+  defaultBackdrop,
+}: {
+  ep: CustomEpisode;
+  showTitle: string;
+  defaultBackdrop?: string;
+}) {
+  const [imgSrc, setImgSrc] = useState<string>(
+    ep.imageUrl || defaultBackdrop || '/placeholder-poster.jpg'
+  );
+  const [imgError, setImgError] = useState(false);
+
+  return (
+    <Link
+      href={ep.urlPath}
+      className="group relative rounded-2xl p-2.5 sm:p-3.5 border transition-all duration-200 hover:scale-[1.01] hover:border-cyan-500/40 flex items-center gap-2.5 sm:gap-4 w-full"
+      style={{
+        background: 'rgba(255, 255, 255, 0.03)',
+        borderColor: 'rgba(255, 255, 255, 0.07)',
+        boxShadow: '0 4px 20px rgba(0, 0, 0, 0.25)',
+      }}
+    >
+      {/* 1. Episode Index Number */}
+      <span className="text-xs sm:text-sm font-black min-w-[18px] sm:min-w-[24px] text-center text-slate-500 group-hover:text-cyan-400 transition-colors flex-shrink-0">
+        {String(ep.episodeNumber).padStart(2, '0')}
+      </span>
+
+      {/* 2. 16:9 Thumbnail with Play Overlay & Duration */}
+      <div
+        className="relative rounded-xl overflow-hidden flex-shrink-0 w-24 sm:w-32 md:w-36 h-14 sm:h-18 md:h-20 bg-slate-900 flex items-center justify-center"
+        style={{
+          border: '1px solid rgba(255, 255, 255, 0.1)',
+        }}
+      >
+        {!imgError ? (
+          <Image
+            src={imgSrc}
+            alt={ep.title}
+            fill
+            className="object-cover group-hover:scale-105 transition-transform duration-300"
+            sizes="(max-width: 640px) 96px, (max-width: 1024px) 128px, 144px"
+            onError={() => {
+              setImgError(true);
+              setImgSrc('/placeholder-poster.jpg');
+            }}
+          />
+        ) : (
+          <div className="w-full h-full flex flex-col items-center justify-center bg-slate-800/80 text-slate-500">
+            <Film size={20} className="mb-0.5 text-slate-400" />
+            <span className="text-[9px] font-bold uppercase tracking-wider text-slate-400">Preview</span>
+          </div>
+        )}
+
+        {/* Play Icon Hover Overlay */}
+        <div className="absolute inset-0 bg-black/30 group-hover:bg-black/10 transition-colors flex items-center justify-center">
+          <div
+            className="w-6 h-6 sm:w-7 sm:h-7 rounded-full flex items-center justify-center transition-transform group-hover:scale-110 shadow-lg"
+            style={{
+              background: 'linear-gradient(135deg, #06b6d4, #7c3aed)',
+              color: 'white',
+            }}
+          >
+            <Play size={11} fill="white" className="ml-0.5" />
+          </div>
+        </div>
+
+        {/* Duration Badge */}
+        {ep.duration && (
+          <span className="absolute bottom-1 right-1 px-1.5 py-0.5 rounded bg-black/80 backdrop-blur-sm text-[9px] sm:text-[10px] font-bold text-slate-200">
+            {ep.duration}
+          </span>
+        )}
+      </div>
+
+      {/* 3. Title & Information (Flex-1, auto-wraps neatly without cutoffs) */}
+      <div className="flex-1 min-w-0 flex flex-col justify-center">
+        <div className="flex items-center gap-1.5 mb-1 flex-wrap">
+          <span
+            className="text-[10px] font-extrabold uppercase px-1.5 py-0.5 rounded-md flex-shrink-0"
+            style={{
+              background: 'rgba(6, 182, 212, 0.15)',
+              border: '1px solid rgba(6, 182, 212, 0.35)',
+              color: '#06b6d4',
+            }}
+          >
+            {ep.episodeLabel}
+          </span>
+          {ep.rating && (
+            <span className="text-[10px] font-bold text-amber-400 flex items-center gap-0.5">
+              ★ {ep.rating}
+            </span>
+          )}
+        </div>
+
+        {/* Episode Title */}
+        <h3 className="text-xs sm:text-sm font-bold text-white group-hover:text-cyan-300 transition-colors line-clamp-1 sm:line-clamp-2 leading-snug">
+          {ep.title}
+        </h3>
+
+        {/* Overview Snippet (Desktop/Tablet) */}
+        {ep.overview && (
+          <p className="hidden md:block text-[11px] text-slate-400 mt-1 line-clamp-1 leading-relaxed">
+            {ep.overview}
+          </p>
+        )}
+      </div>
+
+      {/* 4. Watch / Nonton Button (Flex-shrink-0, perfectly centered) */}
+      <div className="flex items-center justify-end flex-shrink-0 pl-1">
+        <span
+          className="inline-flex items-center gap-1 sm:gap-1.5 px-2.5 sm:px-3.5 py-1.5 sm:py-2 rounded-xl text-xs font-bold text-white transition-all duration-200 group-hover:scale-105 shadow-md"
+          style={{
+            background: 'linear-gradient(135deg, #06b6d4, #7c3aed)',
+            boxShadow: '0 0 12px rgba(6, 182, 212, 0.25)',
+          }}
+        >
+          <Play size={11} fill="white" className="flex-shrink-0" />
+          <span className="hidden xs:inline">Nonton</span>
+        </span>
+      </div>
+    </Link>
+  );
 }
 
 export default function TVEpisodeList({
@@ -51,30 +178,27 @@ export default function TVEpisodeList({
   const currentSeason = seasons[selectedSeasonIndex] || seasons[0];
 
   return (
-    <section className="mt-12 w-full px-4 sm:px-6 md:px-8 lg:px-10 xl:px-12 2xl:px-14">
+    <section className="mt-10 w-full px-4 sm:px-6 md:px-8 lg:px-10 xl:px-12 2xl:px-14">
       {/* ── Header: Title & Season Dropdown ── */}
-      <div className="flex items-center justify-between gap-4 mb-6 pb-4 border-b border-white/[0.08]">
-        <div className="flex items-center gap-2.5 sm:gap-3">
+      <div className="flex items-center justify-between gap-3 mb-4 pb-3 border-b border-white/[0.08]">
+        <div className="flex items-center gap-2.5">
           <div
-            className="w-9 h-9 rounded-2xl flex items-center justify-center flex-shrink-0"
+            className="w-8 h-8 rounded-xl flex items-center justify-center flex-shrink-0"
             style={{
               background: 'linear-gradient(135deg, rgba(6, 182, 212, 0.2), rgba(124, 58, 237, 0.2))',
               border: '1px solid rgba(6, 182, 212, 0.35)',
               boxShadow: '0 0 15px rgba(6, 182, 212, 0.2)',
             }}
           >
-            <Tv size={18} className="text-cyan-400" />
+            <Tv size={16} className="text-cyan-400" />
           </div>
           <div>
-            <h2 className="text-base sm:text-lg font-black text-white tracking-tight flex items-center gap-2">
+            <h2 className="text-sm sm:text-base font-bold text-white tracking-tight flex items-center gap-2">
               <span>Episodes List</span>
-              <span className="text-xs font-semibold px-2 py-0.5 rounded-md bg-white/[0.06] text-slate-400">
-                {currentSeason.episodes.length} episodes
+              <span className="text-[10px] font-semibold px-2 py-0.5 rounded-md bg-white/[0.06] text-slate-400">
+                {currentSeason.episodes.length} eps
               </span>
             </h2>
-            <p className="text-[11px] text-slate-400">
-              {hasSeasons ? currentSeason.seasonName : 'Season 1'} • Pilih episode untuk menonton
-            </p>
           </div>
         </div>
 
@@ -85,17 +209,17 @@ export default function TVEpisodeList({
               <button
                 type="button"
                 onClick={() => setDropdownOpen(!dropdownOpen)}
-                className="flex items-center gap-2 px-3.5 py-2 rounded-2xl text-xs sm:text-sm font-bold text-white transition-all duration-200 hover:scale-105 active:scale-95 shadow-md"
+                className="flex items-center gap-1.5 px-3 py-1.5 rounded-xl text-xs font-bold text-white transition-all duration-200 hover:scale-105 active:scale-95 shadow-md"
                 style={{
                   background: 'linear-gradient(135deg, rgba(6, 182, 212, 0.18), rgba(124, 58, 237, 0.22))',
                   border: '1px solid rgba(6, 182, 212, 0.45)',
                   boxShadow: '0 0 15px rgba(6, 182, 212, 0.15)',
                 }}
               >
-                <Sparkles size={13} className="text-cyan-400" />
+                <Sparkles size={12} className="text-cyan-400" />
                 <span>{currentSeason.seasonName}</span>
                 <ChevronDown
-                  size={14}
+                  size={13}
                   className={`text-slate-400 transition-transform duration-200 ${
                     dropdownOpen ? 'rotate-180 text-cyan-400' : ''
                   }`}
@@ -104,7 +228,7 @@ export default function TVEpisodeList({
 
               {dropdownOpen && (
                 <div
-                  className="absolute right-0 top-full mt-2 w-48 sm:w-56 p-1.5 rounded-2xl border z-30 shadow-2xl animate-in fade-in slide-in-from-top-2"
+                  className="absolute right-0 top-full mt-2 w-48 p-1.5 rounded-2xl border z-30 shadow-2xl animate-in fade-in slide-in-from-top-2"
                   style={{
                     background: 'rgba(9, 13, 30, 0.95)',
                     backdropFilter: 'blur(24px)',
@@ -112,7 +236,7 @@ export default function TVEpisodeList({
                     boxShadow: '0 20px 40px rgba(0, 0, 0, 0.8), 0 0 25px rgba(6, 182, 212, 0.15)',
                   }}
                 >
-                  <div className="px-2.5 py-1.5 text-[10px] font-extrabold uppercase tracking-wider text-slate-400 border-b border-white/[0.08] mb-1">
+                  <div className="px-2.5 py-1 text-[10px] font-extrabold uppercase tracking-wider text-slate-400 border-b border-white/[0.08] mb-1">
                     Select Season
                   </div>
                   {seasons.map((season, idx) => {
@@ -163,114 +287,16 @@ export default function TVEpisodeList({
         </div>
       </div>
 
-      {/* ── Episodes List (Clean list item with thumbnail, title, overview, & Play button) ── */}
-      <div className="space-y-3">
-        {currentSeason.episodes.map((ep) => {
-          const epImage = ep.imageUrl || defaultBackdrop || '/placeholder-poster.jpg';
-
-          return (
-            <Link
-              key={ep.slug}
-              href={ep.urlPath}
-              className="group relative rounded-2xl p-3 sm:p-4 border transition-all duration-200 hover:scale-[1.01] flex flex-col md:flex-row items-start md:items-center justify-between gap-4 block"
-              style={{
-                background: 'rgba(255, 255, 255, 0.03)',
-                borderColor: 'rgba(255, 255, 255, 0.07)',
-                boxShadow: '0 4px 20px rgba(0, 0, 0, 0.25)',
-              }}
-            >
-              {/* Left: Thumbnail & Episode Index */}
-              <div className="flex items-center gap-3 sm:gap-4 w-full md:w-auto">
-                <span className="text-base sm:text-lg font-black min-w-[28px] text-center text-slate-500 group-hover:text-cyan-400 transition-colors">
-                  {String(ep.episodeNumber).padStart(2, '0')}
-                </span>
-
-                {/* 16:9 Thumbnail */}
-                <div
-                  className="relative rounded-xl overflow-hidden flex-shrink-0 w-28 sm:w-36 h-16 sm:h-20 bg-slate-900"
-                  style={{ border: '1px solid rgba(255, 255, 255, 0.1)' }}
-                >
-                  <Image
-                    src={epImage}
-                    alt={ep.title}
-                    fill
-                    className="object-cover group-hover:scale-105 transition-transform duration-300"
-                    sizes="(max-width: 640px) 112px, 144px"
-                  />
-                  <div className="absolute inset-0 bg-black/30 group-hover:bg-black/10 transition-colors flex items-center justify-center">
-                    <div
-                      className="w-7 h-7 rounded-full flex items-center justify-center transition-transform group-hover:scale-110"
-                      style={{
-                        background: 'linear-gradient(135deg, #06b6d4, #7c3aed)',
-                        color: 'white',
-                      }}
-                    >
-                      <Play size={12} fill="white" className="ml-0.5" />
-                    </div>
-                  </div>
-
-                  {ep.duration && (
-                    <span className="absolute bottom-1 right-1 px-1.5 py-0.5 rounded bg-black/80 text-[10px] font-bold text-white">
-                      {ep.duration}
-                    </span>
-                  )}
-                </div>
-
-                {/* Mobile Details */}
-                <div className="min-w-0 flex-1 md:hidden">
-                  <span
-                    className="text-[10px] font-black uppercase px-1.5 py-0.5 rounded"
-                    style={{
-                      background: 'rgba(6, 182, 212, 0.15)',
-                      color: '#06b6d4',
-                    }}
-                  >
-                    {ep.episodeLabel}
-                  </span>
-                  <h3 className="text-xs sm:text-sm font-bold text-white group-hover:text-cyan-300 transition-colors truncate mt-1">
-                    {ep.title}
-                  </h3>
-                </div>
-              </div>
-
-              {/* Middle: Title & Overview (Desktop) */}
-              <div className="hidden md:block flex-1 min-w-0 px-3">
-                <div className="flex items-center gap-2">
-                  <span
-                    className="text-xs font-black uppercase px-2 py-0.5 rounded"
-                    style={{
-                      background: 'rgba(6, 182, 212, 0.15)',
-                      color: '#06b6d4',
-                      border: '1px solid rgba(6, 182, 212, 0.3)',
-                    }}
-                  >
-                    {ep.episodeLabel}
-                  </span>
-                  <h3 className="text-sm font-bold text-white group-hover:text-cyan-300 transition-colors truncate">
-                    {ep.title}
-                  </h3>
-                </div>
-                <p className="text-xs text-slate-400 mt-1 line-clamp-2 leading-relaxed">
-                  {ep.overview || `${showTitle} ${ep.episodeLabel} full streaming episode.`}
-                </p>
-              </div>
-
-              {/* Right: Watch Episode Button */}
-              <div className="flex items-center justify-end w-full md:w-auto">
-                <span
-                  className="inline-flex items-center gap-1.5 px-4 py-2 rounded-xl text-xs font-bold text-white transition-all duration-200 group-hover:scale-105 shadow-md"
-                  style={{
-                    background: 'linear-gradient(135deg, #06b6d4, #7c3aed)',
-                    boxShadow: '0 0 15px rgba(6, 182, 212, 0.3)',
-                  }}
-                >
-                  <Play size={12} fill="white" />
-                  <span>Nonton</span>
-                </span>
-              </div>
-            </Link>
-          );
-        })}
+      {/* ── Compact & Perfectly Aligned Episodes List ── */}
+      <div className="space-y-2.5">
+        {currentSeason.episodes.map((ep) => (
+          <EpisodeRowItem
+            key={ep.slug}
+            ep={ep}
+            showTitle={showTitle}
+            defaultBackdrop={defaultBackdrop}
+          />
+        ))}
       </div>
     </section>
   );
