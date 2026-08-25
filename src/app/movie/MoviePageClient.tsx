@@ -1,23 +1,21 @@
 'use client';
 
 import React, { useState, useEffect, useRef } from 'react';
-import { useRouter } from 'next/navigation';
-import { ChevronLeft, ChevronRight, SlidersHorizontal } from 'lucide-react';
-import { Movie, TVShow, Genre } from '@/types/tmdb';
-import { getMoviesByGenre, getTVShowsByGenre } from '@/lib/tmdb';
+import { useRouter, useSearchParams } from 'next/navigation';
+import { ChevronLeft, ChevronRight, SlidersHorizontal, Film, Sparkles } from 'lucide-react';
+import { Movie, Genre } from '@/types/tmdb';
+import { discoverMovies } from '@/lib/tmdb';
 import MovieCard, { MovieCardSkeleton } from '@/components/MovieCard';
 import GenreFilter from '@/components/GenreFilter';
 
-interface GenrePageClientProps {
-  genre: Genre;
-  initialItems: (Movie | TVShow)[];
+interface MoviePageClientProps {
+  initialMovies: Movie[];
   totalPages: number;
   totalResults: number;
   initialPage: number;
   initialSort: string;
-  genreId: number;
+  initialGenreId?: number;
   allGenres: Genre[];
-  type?: 'movie' | 'tv';
 }
 
 const SORT_OPTIONS = [
@@ -28,62 +26,30 @@ const SORT_OPTIONS = [
   { value: 'revenue.desc', label: 'Highest Revenue' },
 ];
 
-export default function GenrePageClient({
-  genre,
-  initialItems,
+export default function MoviePageClient({
+  initialMovies,
   totalPages: initialTotalPages,
   totalResults: initialTotalResults,
   initialPage,
   initialSort,
-  genreId,
+  initialGenreId,
   allGenres,
-  type = 'movie',
-}: GenrePageClientProps) {
+}: MoviePageClientProps) {
   const router = useRouter();
-  const isTV = type === 'tv';
-  const [items, setItems] = useState<(Movie | TVShow)[]>(initialItems);
+  const searchParams = useSearchParams();
+
+  const [movies, setMovies] = useState<Movie[]>(initialMovies);
   const [page, setPage] = useState(initialPage);
   const [sort, setSort] = useState(initialSort);
+  const [genreId, setGenreId] = useState<number | undefined>(initialGenreId);
   const [totalPages, setTotalPages] = useState(initialTotalPages);
   const [totalResults, setTotalResults] = useState(initialTotalResults);
   const [loading, setLoading] = useState(false);
   const [sortOpen, setSortOpen] = useState(false);
 
-  useEffect(() => {
-    if (page === initialPage && sort === initialSort) return;
-    setLoading(true);
-    const fetcher = isTV
-      ? getTVShowsByGenre(genreId, page, sort)
-      : getMoviesByGenre(genreId, page, sort);
-
-    fetcher
-      .then((data) => {
-        setItems(data.results);
-        setTotalPages(Math.min(data.total_pages, 20));
-        setTotalResults(data.total_results);
-        window.scrollTo({ top: 0, behavior: 'smooth' });
-      })
-      .catch(() => setItems([]))
-      .finally(() => setLoading(false));
-  }, [page, sort, genreId, initialPage, initialSort, isTV]);
-
-  const handleSortChange = (newSort: string) => {
-    setSort(newSort);
-    setPage(1);
-    setSortOpen(false);
-    const query = isTV ? `type=tv&sort=${newSort}&page=1` : `sort=${newSort}&page=1`;
-    router.push(`/genre/${genreId}?${query}`, { scroll: false });
-  };
-
-  const handlePageChange = (newPage: number) => {
-    setPage(newPage);
-    const query = isTV ? `type=tv&sort=${sort}&page=${newPage}` : `sort=${sort}&page=${newPage}`;
-    router.push(`/genre/${genreId}?${query}`, { scroll: false });
-  };
-
   const sortRef = useRef<HTMLDivElement>(null);
 
-  // Close sort dropdown on click outside
+  // Close sort dropdown when clicking outside
   useEffect(() => {
     const handleClickOutside = (event: MouseEvent) => {
       if (sortRef.current && !sortRef.current.contains(event.target as Node)) {
@@ -94,32 +60,98 @@ export default function GenrePageClient({
     return () => document.removeEventListener('mousedown', handleClickOutside);
   }, []);
 
+  // Update when searchParams change externally
+  useEffect(() => {
+    const p = Number(searchParams.get('page')) || 1;
+    const s = searchParams.get('sort') || 'popularity.desc';
+    const g = searchParams.get('genre') ? Number(searchParams.get('genre')) : undefined;
+
+    setPage(p);
+    setSort(s);
+    setGenreId(g);
+  }, [searchParams]);
+
+  // Fetch movies when filter/sort/page change
+  useEffect(() => {
+    if (page === initialPage && sort === initialSort && genreId === initialGenreId) return;
+
+    setLoading(true);
+    discoverMovies(page, sort, genreId)
+      .then((data) => {
+        setMovies(data.results);
+        setTotalPages(Math.min(data.total_pages, 20));
+        setTotalResults(data.total_results);
+        window.scrollTo({ top: 0, behavior: 'smooth' });
+      })
+      .catch(() => setMovies([]))
+      .finally(() => setLoading(false));
+  }, [page, sort, genreId, initialPage, initialSort, initialGenreId]);
+
+  const updateUrl = (newPage: number, newSort: string, newGenreId?: number) => {
+    const params = new URLSearchParams();
+    if (newSort && newSort !== 'popularity.desc') params.set('sort', newSort);
+    if (newPage > 1) params.set('page', String(newPage));
+    if (newGenreId) params.set('genre', String(newGenreId));
+
+    const qs = params.toString();
+    router.push(qs ? `/movie?${qs}` : '/movie', { scroll: false });
+  };
+
+  const handleSortChange = (newSort: string) => {
+    setSort(newSort);
+    setPage(1);
+    setSortOpen(false);
+    updateUrl(1, newSort, genreId);
+  };
+
+  const handleGenreChange = (newGenreId?: number) => {
+    setGenreId(newGenreId);
+    setPage(1);
+    updateUrl(1, sort, newGenreId);
+  };
+
+  const handlePageChange = (newPage: number) => {
+    setPage(newPage);
+    updateUrl(newPage, sort, genreId);
+  };
+
   const currentSortLabel = SORT_OPTIONS.find((o) => o.value === sort)?.label || 'Sort';
+  const activeGenreName = allGenres.find((g) => g.id === genreId)?.name;
 
   return (
     <div className="min-h-screen pt-24 pb-16" style={{ background: '#050816' }}>
       <div className="w-full px-4 sm:px-6 md:px-8 lg:px-10 xl:px-12 2xl:px-14">
-        {/* Header with rock-solid responsive layout */}
+        {/* Header */}
         <div className="mb-6 sm:mb-8">
           <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4">
             <div>
-              <h1 className="text-2xl sm:text-3xl md:text-4xl font-black mb-1.5">
+              <div className="flex items-center gap-2 mb-1.5">
+                <span
+                  className="inline-flex items-center gap-1 px-2.5 py-0.5 rounded-full text-[10px] font-extrabold uppercase tracking-wider"
+                  style={{
+                    background: 'linear-gradient(135deg, rgba(6,182,212,0.2), rgba(124,58,237,0.2))',
+                    border: '1px solid rgba(6,182,212,0.4)',
+                    color: '#06b6d4',
+                  }}
+                >
+                  <Sparkles size={11} />
+                  Movie Catalog
+                </span>
+              </div>
+              <h1 className="text-2xl sm:text-3xl md:text-4xl font-black mb-1">
                 <span
                   style={{
-                    background: isTV
-                      ? 'linear-gradient(135deg, #ec4899, #7c3aed)'
-                      : 'linear-gradient(135deg, #06b6d4, #7c3aed)',
+                    background: 'linear-gradient(135deg, #06b6d4, #7c3aed)',
                     WebkitBackgroundClip: 'text',
                     WebkitTextFillColor: 'transparent',
                     backgroundClip: 'text',
                   }}
                 >
-                  {genre.name}
-                </span>{' '}
-                <span style={{ color: '#f1f5f9' }}>{isTV ? 'TV Series' : 'Movies'}</span>
+                  {activeGenreName ? `${activeGenreName} Movies` : 'Explore Movies'}
+                </span>
               </h1>
               <p className="text-xs sm:text-sm font-medium" style={{ color: '#94a3b8' }}>
-                {totalResults.toLocaleString()} {isTV ? 'series' : 'movies'} found
+                {totalResults.toLocaleString()} movies available to stream
               </p>
             </div>
 
@@ -148,9 +180,7 @@ export default function GenrePageClient({
                   className="absolute left-0 sm:left-auto sm:right-0 top-full mt-2 w-48 rounded-xl overflow-hidden z-30"
                   style={{
                     background: '#0B1020',
-                    border: isTV
-                      ? '1px solid rgba(236,72,153,0.3)'
-                      : '1px solid rgba(6,182,212,0.3)',
+                    border: '1px solid rgba(6,182,212,0.3)',
                     boxShadow: '0 20px 40px rgba(0,0,0,0.6)',
                   }}
                 >
@@ -160,12 +190,7 @@ export default function GenrePageClient({
                       onClick={() => handleSortChange(option.value)}
                       className="w-full px-4 py-2.5 sm:py-3 text-left text-xs sm:text-sm transition-colors duration-150 hover:bg-white/5"
                       style={{
-                        color:
-                          sort === option.value
-                            ? isTV
-                              ? '#ec4899'
-                              : '#06b6d4'
-                            : '#94a3b8',
+                        color: sort === option.value ? '#06b6d4' : '#94a3b8',
                         fontWeight: sort === option.value ? 600 : 400,
                       }}
                     >
@@ -184,32 +209,31 @@ export default function GenrePageClient({
             <GenreFilter
               genres={allGenres}
               activeGenreId={genreId}
-              type={isTV ? 'tv' : 'movie'}
-              allHref={isTV ? '/tv' : '/'}
+              type="movie"
+              allHref="/movie"
             />
           </div>
         )}
 
-        {/* Items grid */}
+        {/* Movies grid */}
         {loading ? (
           <div className="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-4 lg:grid-cols-5 xl:grid-cols-6 2xl:grid-cols-7 3xl:grid-cols-8 gap-4">
             {Array.from({ length: 20 }).map((_, i) => (
               <MovieCardSkeleton key={i} />
             ))}
           </div>
-        ) : items.length > 0 ? (
+        ) : movies.length > 0 ? (
           <div className="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-4 lg:grid-cols-5 xl:grid-cols-6 2xl:grid-cols-7 3xl:grid-cols-8 gap-4">
-            {items.map((item) => (
-              <MovieCard key={item.id} item={item} type={isTV ? 'tv' : 'movie'} />
+            {movies.map((movie) => (
+              <MovieCard key={movie.id} item={movie} type="movie" />
             ))}
           </div>
         ) : (
           <div className="flex flex-col items-center justify-center py-24 gap-4">
-            <p className="text-neo-text-secondary text-lg">
-              {isTV
-                ? 'No TV shows found for this genre.'
-                : 'No movies found for this genre.'}
-            </p>
+            <div className="p-6 rounded-full" style={{ background: 'rgba(255,255,255,0.04)' }}>
+              <Film size={48} style={{ color: '#475569' }} />
+            </div>
+            <p className="text-neo-text-secondary text-lg">No movies found matching the criteria.</p>
           </div>
         )}
 
@@ -248,13 +272,9 @@ export default function GenrePageClient({
                   style={
                     page === pageNum
                       ? {
-                          background: isTV
-                            ? 'linear-gradient(135deg, #ec4899, #7c3aed)'
-                            : 'linear-gradient(135deg, #06b6d4, #7c3aed)',
+                          background: 'linear-gradient(135deg, #06b6d4, #7c3aed)',
                           color: 'white',
-                          boxShadow: isTV
-                            ? '0 0 15px rgba(236,72,153,0.4)'
-                            : '0 0 15px rgba(6,182,212,0.3)',
+                          boxShadow: '0 0 15px rgba(6,182,212,0.3)',
                         }
                       : {
                           background: 'rgba(255,255,255,0.06)',

@@ -21,7 +21,7 @@ export default function BottomNav({ genres = [] }: BottomNavProps) {
 
   const navItems = [
     { href: '/', icon: Home, label: 'Home' },
-    { href: '/genre/28', icon: Film, label: 'Movies' },
+    { href: '/movie', icon: Film, label: 'Movies' },
     { href: '/tv', icon: Tv, label: 'TV Shows' },
     { href: '/search', icon: Search, label: 'Search' },
     { icon: Grid3X3, label: 'Genres', action: () => setGenreSheetOpen(true) },

@@ -74,7 +74,7 @@ export default async function HomePage() {
           <MovieRow
             title={siteConfig.homepageSections?.trending || 'Trending This Week'}
             items={trending}
-            seeAllHref="/genre/28"
+            seeAllHref="/movie"
             type="movie"
           />
         )}
@@ -84,7 +84,7 @@ export default async function HomePage() {
           <MovieRow
             title={siteConfig.homepageSections?.nowPlaying || 'Now Playing'}
             items={nowPlaying}
-            seeAllHref="/genre/28"
+            seeAllHref="/movie"
             type="movie"
           />
         )}
@@ -94,7 +94,7 @@ export default async function HomePage() {
           <MovieRow
             title={siteConfig.homepageSections?.popularMovies || 'Popular Movies'}
             items={popular}
-            seeAllHref="/genre/28"
+            seeAllHref="/movie"
             type="movie"
           />
         )}
@@ -104,7 +104,7 @@ export default async function HomePage() {
           <MovieRow
             title={siteConfig.homepageSections?.topRated || 'Top Rated'}
             items={topRated}
-            seeAllHref="/genre/18"
+            seeAllHref="/movie?sort=vote_average.desc"
             type="movie"
           />
         )}

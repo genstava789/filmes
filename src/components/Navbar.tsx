@@ -93,11 +93,11 @@ export default function Navbar({ genres = [] }: NavbarProps) {
                 Home
               </Link>
               <Link
-                href="/genre/28"
+                href="/movie"
                 className="px-3 py-2 rounded-lg text-sm font-medium transition-all duration-200"
                 style={{
-                  color: pathname.startsWith('/genre') ? '#06b6d4' : '#94a3b8',
-                  background: pathname.startsWith('/genre') ? 'rgba(6,182,212,0.1)' : 'transparent',
+                  color: isActive('/movie') ? '#06b6d4' : '#94a3b8',
+                  background: isActive('/movie') ? 'rgba(6,182,212,0.1)' : 'transparent',
                 }}
               >
                 Movies
@@ -231,10 +231,14 @@ export default function Navbar({ genres = [] }: NavbarProps) {
                 Home
               </Link>
               <Link
-                href="/genre/28"
+                href="/movie"
                 className="flex items-center gap-2 px-4 py-3 rounded-xl text-sm font-medium transition-all duration-200"
-                style={{ color: '#94a3b8' }}
+                style={{
+                  color: isActive('/movie') ? '#06b6d4' : '#94a3b8',
+                  background: isActive('/movie') ? 'rgba(6,182,212,0.1)' : 'transparent',
+                }}
               >
+                <Film size={16} />
                 Movies
               </Link>
               <Link

@@ -98,12 +98,27 @@ export async function searchMovies(query: string, page: number = 1): Promise<TMD
   });
 }
 
-export async function getMoviesByGenre(genreId: number, page: number = 1, sortBy: string = 'popularity.desc'): Promise<TMDBResponse<Movie>> {
-  return fetchTMDB<TMDBResponse<Movie>>('/discover/movie', {
-    with_genres: String(genreId),
+export async function discoverMovies(
+  page: number = 1,
+  sortBy: string = 'popularity.desc',
+  genreId?: number
+): Promise<TMDBResponse<Movie>> {
+  const params: Record<string, string> = {
     page: String(page),
     sort_by: sortBy,
-  });
+  };
+  if (genreId) {
+    params.with_genres = String(genreId);
+  }
+  return fetchTMDB<TMDBResponse<Movie>>('/discover/movie', params);
+}
+
+export async function getMoviesByGenre(
+  genreId: number,
+  page: number = 1,
+  sortBy: string = 'popularity.desc'
+): Promise<TMDBResponse<Movie>> {
+  return discoverMovies(page, sortBy, genreId);
 }
 
 export async function getGenres(): Promise<Genre[]> {

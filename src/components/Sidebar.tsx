@@ -27,8 +27,9 @@ export default function Sidebar({ genres = [], isOpen, onToggle }: SidebarProps)
 
   const mainNav = [
     { href: '/', icon: Home, label: 'Home' },
-    { href: '/search', icon: Search, label: 'Search' },
+    { href: '/movie', icon: Film, label: 'Movies' },
     { href: '/tv', icon: Tv, label: 'TV Shows' },
+    { href: '/search', icon: Search, label: 'Search' },
   ];
 
   const movieNav = [
