@@ -3,6 +3,7 @@
 import React, { useState } from 'react';
 import Sidebar from './Sidebar';
 import BottomNav from './BottomNav';
+import MobileHeader from './MobileHeader';
 import Footer from './Footer';
 import { Genre } from '@/types/tmdb';
 
@@ -26,13 +27,16 @@ export default function AppLayout({ children, genres }: AppLayoutProps) {
       {/* Mobile Bottom Nav */}
       <BottomNav genres={genres} />
 
-      {/* Main content */}
-      <main className="app-main min-h-screen pb-20 lg:pb-0">
-        {children}
-      </main>
+      {/* Main Content & Mobile Header */}
+      <div className="app-main flex flex-col min-h-screen">
+        {/* Mobile Header (Non-fixed, glassmorphism) */}
+        <MobileHeader genres={genres} />
 
-      {/* Footer */}
-      <div className="app-main">
+        <main className="flex-1 pb-20 lg:pb-0">
+          {children}
+        </main>
+
+        {/* Footer */}
         <Footer />
       </div>
     </div>
