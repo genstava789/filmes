@@ -607,10 +607,10 @@ input:focus-visible {
   transform: translate(-50%, -50%) scale(0.95) !important;
 }
 
-/* Responsive Plyr controls fix for small screens / mobile runtime bar */
+/* Responsive Plyr controls fix with shift (skip time) buttons for desktop and mobile */
 .plyr-custom-wrapper .plyr__controls {
   padding: 8px 14px !important;
-  gap: 6px !important;
+  gap: 5px !important;
   flex-wrap: nowrap !important;
   display: flex !important;
   align-items: center !important;
@@ -628,48 +628,78 @@ input:focus-visible {
 
 .plyr-custom-wrapper .plyr__time {
   font-size: 11px !important;
-  padding: 0 4px !important;
+  padding: 0 3px !important;
   flex-shrink: 0 !important;
   font-variant-numeric: tabular-nums !important;
 }
 
+/* Compact & spacious layout for small devices / mobile */
 @media (max-width: 640px) {
   .plyr-custom-wrapper .plyr__controls {
-    padding: 6px 10px !important;
-    gap: 3px !important;
+    padding: 5px 8px !important;
+    gap: 2px !important;
+  }
+
+  .plyr-custom-wrapper .plyr__control {
+    padding: 4px !important;
+    width: 26px !important;
+    height: 26px !important;
+    min-width: 26px !important;
+    flex-shrink: 0 !important;
+  }
+
+  .plyr-custom-wrapper .plyr__control svg {
+    width: 14px !important;
+    height: 14px !important;
   }
 
   .plyr-custom-wrapper .plyr__progress__container {
-    min-width: 60px !important;
+    min-width: 65px !important;
     flex: 1 1 auto !important;
+    margin: 0 3px !important;
   }
 
   .plyr-custom-wrapper .plyr__time {
     font-size: 10px !important;
-    padding: 0 2px !important;
+    padding: 0 1px !important;
   }
 
-  /* Hide extra non-essential buttons on very narrow screens so progress bar has plenty of room */
+  /* Keep rewind and fast-forward visible, hide only bulky non-essential controls */
   .plyr-custom-wrapper .plyr__controls > [data-plyr='restart'],
-  .plyr-custom-wrapper .plyr__controls > [data-plyr='rewind'],
-  .plyr-custom-wrapper .plyr__controls > [data-plyr='fast-forward'],
   .plyr-custom-wrapper .plyr__controls > [data-plyr='pip'],
-  .plyr-custom-wrapper .plyr__controls > [data-plyr='airplay'] {
+  .plyr-custom-wrapper .plyr__controls > [data-plyr='airplay'],
+  .plyr-custom-wrapper .plyr__volume input[type='range'] {
     display: none !important;
   }
 }
 
-/* ===== PLYR SUBTITLES & CAPTIONS STYLING ===== */
-.plyr-custom-wrapper .plyr__control[data-plyr='captions'] {
-  position: relative;
-  transition: all 0.2s ease;
-}
+@media (max-width: 480px) {
+  .plyr-custom-wrapper .plyr__controls {
+    padding: 4px 6px !important;
+    gap: 1px !important;
+  }
 
-.plyr-custom-wrapper .plyr__control[data-plyr='captions'][aria-pressed='true'],
-.plyr-custom-wrapper .plyr__control--pressed[data-plyr='captions'] {
-  background: rgba(6, 182, 212, 0.25) !important;
-  color: #06b6d4 !important;
-  box-shadow: 0 0 12px rgba(6, 182, 212, 0.5) !important;
+  .plyr-custom-wrapper .plyr__control {
+    padding: 3px !important;
+    width: 24px !important;
+    height: 24px !important;
+    min-width: 24px !important;
+  }
+
+  .plyr-custom-wrapper .plyr__control svg {
+    width: 13px !important;
+    height: 13px !important;
+  }
+
+  .plyr-custom-wrapper .plyr__progress__container {
+    min-width: 55px !important;
+    flex: 1 1 auto !important;
+    margin: 0 2px !important;
+  }
+
+  .plyr-custom-wrapper .plyr__time--duration {
+    display: none !important;
+  }
 }
 
 /* Clean & Simple Subtitle Cue Rendering (Transparent Background, High Readability Outline) */

@@ -8,10 +8,7 @@ import {
   RotateCcw,
   Play,
   X,
-  Subtitles,
-  Check,
   ChevronRight,
-  Sparkles,
   Loader2,
 } from 'lucide-react';
 import 'plyr/dist/plyr.css';
@@ -48,7 +45,6 @@ interface DetectedSubtitle {
   type: 'native' | 'hls' | 'external' | 'mkv';
   trackIndex?: number;
   trackNumber?: number;
-  nativeTrack?: TextTrack;
 }
 
 function getYouTubeId(url: string): string | null {
@@ -152,11 +148,6 @@ export default function VideoPlayer({
   const [resumeTime, setResumeTime] = useState<number | null>(null);
   const [showResumePrompt, setShowResumePrompt] = useState(false);
 
-  // Subtitle management state
-  const [detectedSubtitles, setDetectedSubtitles] = useState<DetectedSubtitle[]>([]);
-  const [activeSubtitleId, setActiveSubtitleId] = useState<string | number>('off');
-  const [showSubtitleMenu, setShowSubtitleMenu] = useState(false);
-
   // Next episode prompt state
   const [showNextPrompt, setShowNextPrompt] = useState(false);
   const [nextCountdown, setNextCountdown] = useState(8);
@@ -168,7 +159,6 @@ export default function VideoPlayer({
   const mkvTracksMapRef = useRef<Map<number, TextTrack>>(new Map());
   const lastSavedTimeRef = useRef<number>(0);
   const countdownTimerRef = useRef<NodeJS.Timeout | null>(null);
-  const subtitleMenuRef = useRef<HTMLDivElement>(null);
 
   const youtubeId = getYouTubeId(videoUrl);
   const vimeoId = getVimeoId(videoUrl);
@@ -201,94 +191,6 @@ export default function VideoPlayer({
     return [];
   }, [subtitles]);
 
-  // Click outside to close subtitle menu
-  useEffect(() => {
-    const handleClickOutside = (e: MouseEvent) => {
-      if (subtitleMenuRef.current && !subtitleMenuRef.current.contains(e.target as Node)) {
-        setShowSubtitleMenu(false);
-      }
-    };
-    if (showSubtitleMenu) {
-      document.addEventListener('mousedown', handleClickOutside);
-    }
-    return () => {
-      document.removeEventListener('mousedown', handleClickOutside);
-    };
-  }, [showSubtitleMenu]);
-
-  // Subtitle track selection handler
-  const handleSelectSubtitle = (subId: string | number) => {
-    setActiveSubtitleId(subId);
-    setShowSubtitleMenu(false);
-
-    const videoEl = videoElementRef.current;
-    const hls = hlsInstanceRef.current;
-    const player = playerInstanceRef.current;
-    const mkvMap = mkvTracksMapRef.current;
-
-    if (subId === 'off') {
-      // Disable all native & MKV text tracks
-      if (videoEl && videoEl.textTracks) {
-        for (let i = 0; i < videoEl.textTracks.length; i++) {
-          videoEl.textTracks[i].mode = 'disabled';
-        }
-      }
-      // Disable HLS subtitle
-      if (hls) {
-        hls.subtitleTrack = -1;
-      }
-      // Disable Plyr captions
-      if (player && player.captions) {
-        try {
-          player.currentCaption = -1;
-        } catch (e) {}
-      }
-      return;
-    }
-
-    const targetSub = detectedSubtitles.find((s) => s.id === subId);
-    if (!targetSub) return;
-
-    if (targetSub.type === 'mkv' && typeof targetSub.trackNumber === 'number') {
-      // Disable all other tracks first
-      if (videoEl && videoEl.textTracks) {
-        for (let i = 0; i < videoEl.textTracks.length; i++) {
-          videoEl.textTracks[i].mode = 'disabled';
-        }
-      }
-      // Enable selected MKV track
-      const mkvTrack = mkvMap.get(targetSub.trackNumber);
-      if (mkvTrack) {
-        mkvTrack.mode = 'showing';
-      }
-      if (hls) hls.subtitleTrack = -1;
-      return;
-    }
-
-    if (targetSub.type === 'hls' && hls && typeof targetSub.trackIndex === 'number') {
-      // Disable native tracks
-      if (videoEl && videoEl.textTracks) {
-        for (let i = 0; i < videoEl.textTracks.length; i++) {
-          videoEl.textTracks[i].mode = 'disabled';
-        }
-      }
-      hls.subtitleTrack = targetSub.trackIndex;
-    } else if (videoEl && videoEl.textTracks && typeof targetSub.trackIndex === 'number') {
-      for (let i = 0; i < videoEl.textTracks.length; i++) {
-        if (i === targetSub.trackIndex) {
-          videoEl.textTracks[i].mode = 'showing';
-        } else {
-          videoEl.textTracks[i].mode = 'disabled';
-        }
-      }
-      if (player && player.captions) {
-        try {
-          player.currentCaption = targetSub.trackIndex;
-        } catch (e) {}
-      }
-    }
-  };
-
   // Main video player initialization effect
   useEffect(() => {
     if (typeof window === 'undefined') return;
@@ -304,8 +206,6 @@ export default function VideoPlayer({
     setShowResumePrompt(false);
     setShowNextPrompt(false);
     setResumeTime(null);
-    setDetectedSubtitles([]);
-    setActiveSubtitleId('off');
     mkvTracksMapRef.current.clear();
 
     // Check saved playback progress
@@ -409,10 +309,6 @@ export default function VideoPlayer({
               type: 'native',
               trackIndex: i,
             });
-
-            if (track.mode === 'showing') {
-              setActiveSubtitleId(`native-${i}`);
-            }
           }
         }
       }
@@ -428,45 +324,29 @@ export default function VideoPlayer({
             type: 'hls',
             trackIndex: idx,
           });
-
-          if (hlsInstance.subtitleTrack === idx) {
-            setActiveSubtitleId(`hls-${idx}`);
-          }
         });
       }
 
+      // Auto-enable Indonesian or first available caption by default
       if (found.length > 0) {
-        setDetectedSubtitles((prev) => {
-          const map = new Map();
-          [...found, ...prev].forEach((item) => map.set(item.id, item));
-          return Array.from(map.values());
-        });
-
-        // Auto-enable caption by default (Indonesian or first available)
-        setActiveSubtitleId((currentActive) => {
-          if (currentActive === 'off') {
-            const indoTrack = found.find(
-              (t) =>
-                t.language === 'ind' ||
-                t.language === 'id' ||
-                t.label.toLowerCase().includes('indo')
-            );
-            const chosen = indoTrack || found[0];
-            if (chosen) {
-              if (chosen.type === 'native' && typeof chosen.trackIndex === 'number' && videoElement.textTracks) {
-                try {
-                  videoElement.textTracks[chosen.trackIndex].mode = 'showing';
-                } catch (e) {}
-              } else if (chosen.type === 'hls' && typeof chosen.trackIndex === 'number' && hlsInstance) {
-                try {
-                  hlsInstance.subtitleTrack = chosen.trackIndex;
-                } catch (e) {}
-              }
-              return chosen.id;
-            }
+        const indoTrack = found.find(
+          (t) =>
+            t.language === 'ind' ||
+            t.language === 'id' ||
+            t.label.toLowerCase().includes('indo')
+        );
+        const chosen = indoTrack || found[0];
+        if (chosen) {
+          if (chosen.type === 'native' && typeof chosen.trackIndex === 'number' && videoElement.textTracks) {
+            try {
+              videoElement.textTracks[chosen.trackIndex].mode = 'showing';
+            } catch (e) {}
+          } else if (chosen.type === 'hls' && typeof chosen.trackIndex === 'number' && hlsInstance) {
+            try {
+              hlsInstance.subtitleTrack = chosen.trackIndex;
+            } catch (e) {}
           }
-          return currentActive;
-        });
+        }
       }
     };
 
@@ -521,14 +401,8 @@ export default function VideoPlayer({
             });
           });
 
+          // Auto-enable Indonesian subtitle by default if available, or first track
           if (mkvDetected.length > 0) {
-            setDetectedSubtitles((prev) => {
-              const map = new Map();
-              [...prev, ...mkvDetected].forEach((item) => map.set(item.id, item));
-              return Array.from(map.values());
-            });
-
-            // Auto-enable Indonesian subtitle by default if available, or first track
             const indoTrack = mkvDetected.find(
               (t) =>
                 t.language === 'ind' ||
@@ -537,7 +411,6 @@ export default function VideoPlayer({
             );
             const chosen = indoTrack || mkvDetected[0];
             if (chosen && chosen.trackNumber) {
-              setActiveSubtitleId(chosen.id);
               const target = mkvTracksMapRef.current.get(chosen.trackNumber);
               if (target) {
                 target.mode = 'showing';
@@ -633,6 +506,8 @@ export default function VideoPlayer({
           controls: [
             'play-large',
             'play',
+            'rewind',
+            'fast-forward',
             'progress',
             'current-time',
             'duration',
@@ -649,14 +524,14 @@ export default function VideoPlayer({
             language: 'auto',
             update: true,
           },
-          speed: { selected: 1, options: [0.5, 0.75, 1, 1.25, 1.5, 2] },
           seekTime: 10,
+          speed: { selected: 1, options: [0.5, 0.75, 1, 1.25, 1.5, 2] },
           keyboard: { focused: true, global: true },
           tooltips: { controls: true, seek: true },
           fullscreen: { enabled: true, fallback: true, iosNative: true },
         });
 
-        // ── USER REQUIREMENT: Direct Play in Player Dismisses Continue Watching Prompt ──
+        // Direct Play in Player Dismisses Continue Watching Prompt
         player.on('play', () => {
           setIsPlaying(true);
           setShowResumePrompt(false);
@@ -800,9 +675,6 @@ export default function VideoPlayer({
     }
   };
 
-  const hasSoftSubtitles = detectedSubtitles.length > 0;
-  const isSubtitleActive = activeSubtitleId !== 'off';
-
   return (
     <div
       id="video-player-section"
@@ -855,96 +727,7 @@ export default function VideoPlayer({
             </div>
           )}
 
-          {/* ── 2. Top-Right Quick Controls Overlay: Subtitle (CC) Switcher ── */}
-          {!hasError && hasSoftSubtitles && (
-            <div
-              className={`absolute top-2.5 sm:top-4 right-2.5 sm:right-4 z-30 transition-opacity duration-300 ${
-                isPlaying ? 'opacity-0 hover:opacity-100 focus-within:opacity-100' : 'opacity-100'
-              }`}
-              ref={subtitleMenuRef}
-            >
-              <div className="relative">
-                <button
-                  type="button"
-                  onClick={() => setShowSubtitleMenu(!showSubtitleMenu)}
-                  className={`flex items-center gap-1.5 px-2.5 sm:px-3 py-1.5 rounded-xl text-xs font-bold transition-all duration-200 shadow-lg ${
-                    isSubtitleActive
-                      ? 'text-cyan-300 border-cyan-400/60 bg-cyan-950/80 shadow-cyan-500/20'
-                      : 'text-slate-300 border-white/10 bg-black/70 hover:text-white hover:bg-black/90'
-                  }`}
-                  style={{
-                    backdropFilter: 'blur(16px)',
-                    border: '1px solid',
-                    boxShadow: isSubtitleActive
-                      ? '0 0 15px rgba(6, 182, 212, 0.35), 0 4px 20px rgba(0, 0, 0, 0.6)'
-                      : '0 4px 15px rgba(0, 0, 0, 0.5)',
-                  }}
-                  title="Pilih Subtitel / CC"
-                >
-                  <Subtitles size={14} className={isSubtitleActive ? 'text-cyan-400' : 'text-slate-400'} />
-                  <span className="text-[11px] sm:text-xs">
-                    {isSubtitleActive
-                      ? detectedSubtitles.find((s) => s.id === activeSubtitleId)?.label || 'CC ON'
-                      : 'CC'}
-                  </span>
-                </button>
-
-                {/* Subtitle Selection Dropdown Menu */}
-                {showSubtitleMenu && (
-                  <div
-                    className="absolute right-0 top-full mt-2 w-48 sm:w-56 p-2 rounded-2xl border z-40 shadow-2xl animate-in fade-in slide-in-from-top-2"
-                    style={{
-                      background: 'rgba(9, 13, 30, 0.96)',
-                      backdropFilter: 'blur(24px)',
-                      borderColor: 'rgba(6, 182, 212, 0.4)',
-                      boxShadow: '0 20px 40px rgba(0, 0, 0, 0.85), 0 0 25px rgba(6, 182, 212, 0.2)',
-                    }}
-                  >
-                    <div className="px-2.5 py-1 text-[10px] font-extrabold uppercase tracking-wider text-slate-400 border-b border-white/[0.08] mb-1.5 flex items-center justify-between">
-                      <span>Pilihan Subtitel (CC)</span>
-                      <Sparkles size={11} className="text-cyan-400" />
-                    </div>
-
-                    {/* Off Option */}
-                    <button
-                      type="button"
-                      onClick={() => handleSelectSubtitle('off')}
-                      className={`w-full flex items-center justify-between px-3 py-1.5 rounded-xl text-xs font-semibold transition-all mb-1 ${
-                        activeSubtitleId === 'off'
-                          ? 'text-cyan-300 bg-cyan-950/60 border border-cyan-500/30'
-                          : 'text-slate-300 hover:text-white hover:bg-white/[0.06]'
-                      }`}
-                    >
-                      <span>Mati (Off)</span>
-                      {activeSubtitleId === 'off' && <Check size={13} className="text-cyan-400" />}
-                    </button>
-
-                    {/* Detected Softcoded & External Subtitles */}
-                    {detectedSubtitles.map((sub) => {
-                      const isSelected = activeSubtitleId === sub.id;
-                      return (
-                        <button
-                          key={sub.id}
-                          type="button"
-                          onClick={() => handleSelectSubtitle(sub.id)}
-                          className={`w-full flex items-center justify-between px-3 py-1.5 rounded-xl text-xs font-semibold transition-all mb-0.5 ${
-                            isSelected
-                              ? 'text-cyan-300 bg-gradient-to-r from-cyan-950/70 to-purple-950/70 border border-cyan-500/40'
-                              : 'text-slate-300 hover:text-white hover:bg-white/[0.06]'
-                          }`}
-                        >
-                          <span className="truncate max-w-[140px]">{sub.label}</span>
-                          {isSelected && <Check size={13} className="text-cyan-400 flex-shrink-0" />}
-                        </button>
-                      );
-                    })}
-                  </div>
-                )}
-              </div>
-            </div>
-          )}
-
-          {/* ── 3. Continue Watching Notification Banner in Player ── */}
+          {/* ── 2. Continue Watching Notification Banner in Player ── */}
           {showResumePrompt && resumeTime && !hasError && !isPlaying && (
             <div className="absolute bottom-16 sm:bottom-20 left-3 sm:left-6 z-30 animate-in fade-in slide-in-from-bottom-3 duration-300 max-w-[90%] sm:max-w-md">
               <div
@@ -1001,7 +784,7 @@ export default function VideoPlayer({
             </div>
           )}
 
-          {/* ── 4. Next Episode Auto-Prompt Banner when Video Ends ── */}
+          {/* ── 3. Next Episode Auto-Prompt Banner when Video Ends ── */}
           {showNextPrompt && onNextEpisode && (
             <div className="absolute inset-0 z-30 flex items-center justify-center bg-black/80 backdrop-blur-md animate-in fade-in duration-300 p-4">
               <div
@@ -1057,7 +840,7 @@ export default function VideoPlayer({
             </div>
           )}
 
-          {/* ── 5. Buffering Spinner ── */}
+          {/* ── 4. Buffering Spinner ── */}
           {isBuffering && isPlaying && !hasError && (
             <div className="absolute inset-0 z-20 pointer-events-none flex items-center justify-center bg-black/20 backdrop-blur-[2px]">
               <div className="flex flex-col items-center gap-2 p-3 rounded-2xl bg-black/60 border border-white/10 backdrop-blur-md">
@@ -1069,7 +852,7 @@ export default function VideoPlayer({
             </div>
           )}
 
-          {/* ── 6. Video Canvas Container (Unmanaged DOM Container) ── */}
+          {/* ── 5. Video Canvas Container (Unmanaged DOM Container) ── */}
           <div
             className="relative w-full overflow-hidden bg-black flex items-center justify-center plyr-custom-wrapper"
             style={{
