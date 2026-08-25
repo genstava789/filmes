@@ -29,6 +29,7 @@ function getVimeoId(url: string): string | null {
 export default function VideoPlayer({ videoUrl, title, poster }: VideoPlayerProps) {
   const [hasError, setHasError] = useState(false);
   const [reported, setReported] = useState(false);
+  const [isPlaying, setIsPlaying] = useState(false);
 
   const videoRef = useRef<HTMLVideoElement>(null);
   const playerInstanceRef = useRef<any>(null);
@@ -44,6 +45,7 @@ export default function VideoPlayer({ videoUrl, title, poster }: VideoPlayerProp
     let isCancelled = false;
     setHasError(false);
     setReported(false);
+    setIsPlaying(false);
 
     const videoElement = videoRef.current;
     if (!videoElement) return;
@@ -88,6 +90,10 @@ export default function VideoPlayer({ videoUrl, title, poster }: VideoPlayerProp
           tooltips: { controls: true, seek: true },
           fullscreen: { enabled: true, fallback: true, iosNative: true },
         });
+
+        player.on('play', () => setIsPlaying(true));
+        player.on('pause', () => setIsPlaying(false));
+        player.on('ended', () => setIsPlaying(false));
 
         playerInstanceRef.current = player;
       } catch (err) {
@@ -139,9 +145,9 @@ export default function VideoPlayer({ videoUrl, title, poster }: VideoPlayerProp
             boxShadow: '0 25px 60px -15px rgba(0, 0, 0, 0.9), 0 0 35px rgba(6, 182, 212, 0.18)',
           }}
         >
-          {/* Floating Stylish Title Badge on Preview Player */}
-          {title && (
-            <div className="absolute top-3 sm:top-5 left-3 sm:left-6 z-20 pointer-events-none max-w-[85%] sm:max-w-xl transition-all duration-300">
+          {/* Floating Stylish Title Badge on Preview (Hidden when playing or when error occurs) */}
+          {title && !hasError && !isPlaying && (
+            <div className="absolute top-3 sm:top-5 left-3 sm:left-6 z-20 pointer-events-none max-w-[85%] sm:max-w-xl transition-opacity duration-300 animate-in fade-in">
               <div
                 className="inline-flex items-center gap-2 px-3 sm:px-4 py-1.5 sm:py-2 rounded-2xl backdrop-blur-md"
                 style={{
@@ -186,6 +192,11 @@ export default function VideoPlayer({ videoUrl, title, poster }: VideoPlayerProp
                 >
                   <AlertCircle size={20} className="text-red-400" />
                 </div>
+                {title && (
+                  <p className="text-xs font-bold text-cyan-400 mb-1 line-clamp-1 max-w-xs">
+                    {title}
+                  </p>
+                )}
                 <h3 className="text-sm sm:text-base font-bold text-white mb-1">
                   Gagal Memuat Video
                 </h3>
@@ -245,6 +256,9 @@ export default function VideoPlayer({ videoUrl, title, poster }: VideoPlayerProp
                   crossOrigin="anonymous"
                   preload="metadata"
                   controls
+                  onPlay={() => setIsPlaying(true)}
+                  onPause={() => setIsPlaying(false)}
+                  onEnded={() => setIsPlaying(false)}
                   onError={() => setHasError(true)}
                   className="w-full h-full object-contain"
                 >
