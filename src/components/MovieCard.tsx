@@ -107,53 +107,59 @@ export default function MovieCard({ item, type = 'movie' }: MovieCardProps) {
           <div
             style={{
               position: 'absolute',
-              top: '8px',
-              right: '8px',
+              top: '6px',
+              right: '6px',
               zIndex: 3,
               display: 'flex',
               alignItems: 'center',
-              gap: '3.5px',
-              padding: '3px 7.5px',
-              borderRadius: '7px',
-              background: 'rgba(8,12,28,0.8)',
+              gap: '3px',
+              padding: '2px 6px',
+              borderRadius: '6px',
+              background: 'rgba(8,12,28,0.85)',
               backdropFilter: 'blur(8px)',
               WebkitBackdropFilter: 'blur(8px)',
               border: `1px solid ${getRatingColor(rating)}40`,
               color: getRatingColor(rating),
-              fontSize: '11px',
+              fontSize: '10.5px',
               fontWeight: 700,
               letterSpacing: '0.01em',
             }}
           >
-            <Star size={11} fill="currentColor" />
+            <Star size={10} fill="currentColor" />
             {rating.toFixed(1)}
           </div>
 
-          {/* ── Type badge — top left ── */}
+          {/* ── Type / HD badge — top left ── */}
           <div
             style={{
               position: 'absolute',
-              top: '8px',
-              left: '8px',
+              top: '6px',
+              left: '6px',
               zIndex: 3,
               display: 'flex',
               alignItems: 'center',
-              gap: '3.5px',
-              padding: '3px 7.5px',
-              borderRadius: '7px',
-              background: 'rgba(8,12,28,0.8)',
+              gap: '3px',
+              padding: '2px 6px',
+              borderRadius: '6px',
+              background: type === 'tv' ? 'rgba(8,12,28,0.85)' : 'rgba(6,182,212,0.18)',
               backdropFilter: 'blur(8px)',
               WebkitBackdropFilter: 'blur(8px)',
-              border: '1px solid rgba(255,255,255,0.12)',
-              color: '#94a3b8',
+              border: type === 'tv' ? '1px solid rgba(255,255,255,0.14)' : '1px solid rgba(6,182,212,0.45)',
+              color: type === 'tv' ? '#94a3b8' : '#06b6d4',
               fontSize: '10px',
-              fontWeight: 700,
-              letterSpacing: '0.06em',
+              fontWeight: 800,
+              letterSpacing: '0.04em',
               textTransform: 'uppercase' as const,
             }}
           >
-            {type === 'tv' ? <Tv size={11} /> : <Film size={11} />}
-            {type === 'tv' ? 'Series' : 'Film'}
+            {type === 'tv' ? (
+              <>
+                <Tv size={10} />
+                <span>Series</span>
+              </>
+            ) : (
+              <span>HD</span>
+            )}
           </div>
 
           {/* ── Title + year — bottom overlay ── */}
@@ -163,9 +169,9 @@ export default function MovieCard({ item, type = 'movie' }: MovieCardProps) {
               bottom: 0,
               left: 0,
               right: 0,
-              padding: '0 10px 10px',
+              padding: '0 8px 8px',
               zIndex: 2,
-              transform: isHovered ? 'translateY(-4px)' : 'translateY(0)',
+              transform: isHovered ? 'translateY(-3px)' : 'translateY(0)',
               transition: 'transform 0.28s cubic-bezier(0.4,0,0.2,1)',
             }}
           >
@@ -173,14 +179,14 @@ export default function MovieCard({ item, type = 'movie' }: MovieCardProps) {
               title={title}
               style={{
                 color: '#f1f5f9',
-                fontSize: '13px',
-                fontWeight: 700,
-                lineHeight: 1.35,
+                fontSize: '12px',
+                fontWeight: 600,
+                lineHeight: 1.3,
                 display: '-webkit-box',
                 WebkitLineClamp: 2,
                 WebkitBoxOrient: 'vertical' as const,
                 overflow: 'hidden',
-                marginBottom: year ? '3px' : 0,
+                marginBottom: year ? '2px' : 0,
               }}
             >
               {title}
@@ -189,7 +195,7 @@ export default function MovieCard({ item, type = 'movie' }: MovieCardProps) {
               <span
                 style={{
                   color: '#94a3b8',
-                  fontSize: '11px',
+                  fontSize: '10.5px',
                   fontWeight: 500,
                   letterSpacing: '0.02em',
                 }}
@@ -204,7 +210,7 @@ export default function MovieCard({ item, type = 'movie' }: MovieCardProps) {
             style={{
               position: 'absolute',
               inset: 0,
-              background: 'rgba(4,8,20,0.55)',
+              background: 'rgba(4,8,20,0.5)',
               display: 'flex',
               alignItems: 'center',
               justifyContent: 'center',
@@ -215,11 +221,11 @@ export default function MovieCard({ item, type = 'movie' }: MovieCardProps) {
           >
             <div
               style={{
-                width: '50px',
-                height: '50px',
+                width: '42px',
+                height: '42px',
                 borderRadius: '50%',
                 background: 'linear-gradient(135deg, #06b6d4, #7c3aed)',
-                boxShadow: '0 0 28px rgba(6,182,212,0.55), 0 0 60px rgba(124,58,237,0.25)',
+                boxShadow: '0 0 20px rgba(6,182,212,0.55), 0 0 40px rgba(124,58,237,0.25)',
                 display: 'flex',
                 alignItems: 'center',
                 justifyContent: 'center',
@@ -227,7 +233,7 @@ export default function MovieCard({ item, type = 'movie' }: MovieCardProps) {
                 transition: 'transform 0.28s cubic-bezier(0.4,0,0.2,1)',
               }}
             >
-              <Play size={20} fill="white" color="white" style={{ marginLeft: '2px' }} />
+              <Play size={17} fill="white" color="white" style={{ marginLeft: '2px' }} />
             </div>
           </div>
         </div>

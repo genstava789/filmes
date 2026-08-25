@@ -45,19 +45,18 @@ export default function MovieRow({
 
   return (
     <section className="relative">
-      {/* Header */}
-      <div className={`flex items-center justify-between mb-4 ${noPadding ? 'px-0' : 'px-4 sm:px-6'}`}>
-        <h2 className="section-title text-xl sm:text-2xl font-bold text-neo-text-primary">
+      {/* Header with proportionate typography */}
+      <div className={`flex items-center justify-between mb-3 sm:mb-4 ${noPadding ? 'px-0' : 'px-4 sm:px-6 lg:px-8 max-w-7xl mx-auto'}`}>
+        <h2 className="text-base sm:text-lg md:text-xl font-bold text-white tracking-tight flex items-center gap-2">
           {title}
         </h2>
         {seeAllHref && (
           <Link
             href={seeAllHref}
-            className="text-sm font-medium transition-colors duration-200 hover:text-neo-cyan flex items-center gap-1"
-            style={{ color: '#94a3b8' }}
+            className="text-xs sm:text-sm font-semibold transition-colors duration-200 hover:text-cyan-400 flex items-center gap-0.5 text-slate-400"
           >
-            See All
-            <ChevronRight size={16} />
+            <span>See All</span>
+            <ChevronRight size={15} />
           </Link>
         )}
       </div>
@@ -77,7 +76,7 @@ export default function MovieRow({
             }}
             aria-label="Scroll left"
           >
-            <ChevronLeft size={20} className="text-neo-cyan" />
+            <ChevronLeft size={18} className="text-neo-cyan" />
           </button>
         )}
 
@@ -94,14 +93,14 @@ export default function MovieRow({
             }}
             aria-label="Scroll right"
           >
-            <ChevronRight size={20} className="text-neo-cyan" />
+            <ChevronRight size={18} className="text-neo-cyan" />
           </button>
         )}
 
         {/* Left fade */}
         {canScrollLeft && (
           <div
-            className="absolute left-0 top-0 bottom-0 w-16 z-[5] pointer-events-none"
+            className="absolute left-0 top-0 bottom-0 w-12 z-[5] pointer-events-none"
             style={{
               background: 'linear-gradient(to right, #050816, transparent)',
             }}
@@ -111,7 +110,7 @@ export default function MovieRow({
         {/* Right fade */}
         {canScrollRight && (
           <div
-            className="absolute right-0 top-0 bottom-0 w-16 z-[5] pointer-events-none"
+            className="absolute right-0 top-0 bottom-0 w-12 z-[5] pointer-events-none"
             style={{
               background: 'linear-gradient(to left, #050816, transparent)',
             }}
@@ -121,10 +120,10 @@ export default function MovieRow({
         <div
           ref={scrollRef}
           onScroll={handleScroll}
-          className={`flex gap-3 sm:gap-4 overflow-x-auto hide-scrollbar ${noPadding ? 'px-0' : 'px-4 sm:px-6 lg:px-8'} pb-2`}
+          className={`flex gap-2.5 xs:gap-3 sm:gap-4 overflow-x-auto hide-scrollbar ${noPadding ? 'px-0' : 'px-4 sm:px-6 lg:px-8 max-w-7xl mx-auto'} pb-2`}
         >
           {items.map((item) => (
-            <div key={item.id} className="flex-shrink-0 w-40 sm:w-44 md:w-48">
+            <div key={item.id} className="flex-shrink-0 w-[130px] xs:w-[145px] sm:w-[165px] md:w-[180px] lg:w-[190px]">
               <MovieCard item={item} type={type} />
             </div>
           ))}
