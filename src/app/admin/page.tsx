@@ -56,6 +56,7 @@ interface MovieItem {
   year?: number | null;
   rating?: number | null;
   updatedAt?: number;
+  isOptimistic?: boolean;
 }
 
 interface TVEpisodeItem {
@@ -79,6 +80,7 @@ interface TVEpisodeItem {
   displayTitle?: string;
   posterUrl?: string | null;
   updatedAt?: number;
+  isOptimistic?: boolean;
 }
 
 interface TVShowItem {
@@ -99,6 +101,7 @@ interface TVShowItem {
   year?: number | null;
   rating?: number | null;
   updatedAt?: number;
+  isOptimistic?: boolean;
   episodes: TVEpisodeItem[];
 }
 
@@ -131,10 +134,11 @@ export default function AdminPage() {
 
   // Pagination State
   const [currentPage, setCurrentPage] = useState(1);
-  const [itemsPerPage, setItemsPerPage] = useState(9);
+  const itemsPerPage = 9;
 
-  // GitHub Token & Settings
+  // GitHub Token & Hydration Safety (Fixes Flicker)
   const [githubToken, setGithubToken] = useState<string>('');
+  const [tokenChecked, setTokenChecked] = useState(false);
   const [isSettingsOpen, setIsSettingsOpen] = useState(false);
   const [tempToken, setTempToken] = useState('');
 
@@ -167,17 +171,28 @@ export default function AdminPage() {
   // Form Validation Touched & Errors
   const [formErrors, setFormErrors] = useState<Record<string, string>>({});
   const [editErrors, setEditErrors] = useState<Record<string, string>>({});
-  const [formSubmitted, setFormSubmitted] = useState(false);
 
   // Live TMDB Preview State
   const [tmdbPreview, setTmdbPreview] = useState<TMDBPreviewData | null>(null);
   const [fetchingTmdb, setFetchingTmdb] = useState(false);
 
-  // Load saved token from localStorage on mount
+  // Load saved token & optimistic cache from localStorage on mount (eliminates flicker)
   useEffect(() => {
-    const saved = localStorage.getItem('levistream_github_token') || '';
-    setGithubToken(saved);
-    setTempToken(saved);
+    try {
+      const saved = localStorage.getItem('levistream_github_token') || '';
+      setGithubToken(saved);
+      setTempToken(saved);
+
+      // Load cached optimistic preview items
+      const cachedMovies = localStorage.getItem('cms_cached_movies');
+      const cachedTV = localStorage.getItem('cms_cached_tv');
+      if (cachedMovies) setMovies(JSON.parse(cachedMovies));
+      if (cachedTV) setTvShows(JSON.parse(cachedTV));
+    } catch {
+      // ignore
+    } finally {
+      setTokenChecked(true);
+    }
   }, []);
 
   const saveToken = () => {
@@ -224,6 +239,10 @@ export default function AdminPage() {
       if (res.ok) {
         setMovies(data.movies || []);
         setTvShows(data.tvShows || []);
+        try {
+          localStorage.setItem('cms_cached_movies', JSON.stringify(data.movies || []));
+          localStorage.setItem('cms_cached_tv', JSON.stringify(data.tvShows || []));
+        } catch {}
       } else {
         showToast(data.error || 'Gagal memuat konten', 'error');
       }
@@ -291,7 +310,6 @@ export default function AdminPage() {
     setFormSeason('s1');
     setFormEpisode('e1');
     setFormErrors({});
-    setFormSubmitted(false);
     setTmdbPreview(null);
   };
 
@@ -326,10 +344,9 @@ export default function AdminPage() {
     return Object.keys(errors).length === 0;
   };
 
-  // Submit Create
+  // Submit Create with Instant Optimistic Preview
   const handleCreateSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
-    setFormSubmitted(true);
 
     if (!validateCreateForm()) {
       showToast('Mohon lengkapi semua field yang wajib diisi (bergaris merah)', 'error');
@@ -338,24 +355,53 @@ export default function AdminPage() {
 
     if (!requireToken('membuat konten')) return;
 
-    try {
-      const payload: any = {
-        contentType,
-        tmdb_id: formTmdbId ? Number(formTmdbId) : undefined,
-        videourl: formVideoUrl.trim(),
-        title: formTitle.trim() || undefined,
-        desc: formDesc.trim() || undefined,
-        poster: formPoster.trim() || undefined,
-        rating: formRating ? Number(formRating) : undefined,
-        featured: formFeatured,
-        subtitles: formSubtitles.trim() || undefined,
-        slug: formSlug.trim() || undefined,
-        duration: formDuration.trim() || undefined,
-        showSlug: formShowSlug.trim() || undefined,
-        season: formSeason.trim() || undefined,
-        episode: formEpisode.trim() || undefined,
-      };
+    const payload: any = {
+      contentType,
+      tmdb_id: formTmdbId ? Number(formTmdbId) : undefined,
+      videourl: formVideoUrl.trim(),
+      title: formTitle.trim() || undefined,
+      desc: formDesc.trim() || undefined,
+      poster: formPoster.trim() || undefined,
+      rating: formRating ? Number(formRating) : undefined,
+      featured: formFeatured,
+      subtitles: formSubtitles.trim() || undefined,
+      slug: formSlug.trim() || undefined,
+      duration: formDuration.trim() || undefined,
+      showSlug: formShowSlug.trim() || undefined,
+      season: formSeason.trim() || undefined,
+      episode: formEpisode.trim() || undefined,
+    };
 
+    // 1. Instant Optimistic UI Preview update
+    if (contentType === 'movie') {
+      const optimisticMovie: MovieItem = {
+        filename: `${payload.slug || formTitle.toLowerCase().replace(/\s+/g, '-') || `movie-${payload.tmdb_id}`}.md`,
+        slug: payload.slug || formTitle.toLowerCase().replace(/\s+/g, '-') || `movie-${payload.tmdb_id}`,
+        relativePath: `video/${payload.slug || formTitle.toLowerCase().replace(/\s+/g, '-') || `movie-${payload.tmdb_id}`}.md`,
+        frontmatter: {
+          tmdb_id: payload.tmdb_id,
+          title: payload.title || tmdbPreview?.title,
+          videourl: payload.videourl,
+          image_url: payload.poster || tmdbPreview?.posterUrl || undefined,
+          rating: payload.rating || tmdbPreview?.rating || undefined,
+          featured: payload.featured,
+        },
+        content: '',
+        posterUrl: payload.poster || tmdbPreview?.posterUrl || null,
+        displayTitle: payload.title || tmdbPreview?.title || `Movie ${payload.tmdb_id}`,
+        year: tmdbPreview?.year || new Date().getFullYear(),
+        rating: payload.rating || tmdbPreview?.rating || null,
+        updatedAt: Date.now(),
+        isOptimistic: true,
+      };
+      setMovies((prev) => [optimisticMovie, ...prev.filter((m) => m.relativePath !== optimisticMovie.relativePath)]);
+    }
+
+    setIsCreateModalOpen(false);
+    resetCreateForm();
+    showToast('Menyimpan ke GitHub & menyiapkan live preview...', 'success');
+
+    try {
       const res = await fetch('/api/admin/content', {
         method: 'POST',
         headers: getHeaders(),
@@ -364,15 +410,14 @@ export default function AdminPage() {
 
       const result = await res.json();
       if (res.ok) {
-        showToast(`Berhasil dibuat & live: ${result.relativePath}`);
-        setIsCreateModalOpen(false);
-        resetCreateForm();
+        showToast(`Berhasil disimpan live: ${result.relativePath}`);
         fetchContent();
       } else {
         if (result.requiresToken) {
           setIsSettingsOpen(true);
         }
         showToast(result.error || 'Gagal membuat konten', 'error');
+        fetchContent();
       }
     } catch (e: any) {
       showToast('Terjadi kesalahan jaringan', 'error');
@@ -404,7 +449,7 @@ export default function AdminPage() {
     return Object.keys(errors).length === 0;
   };
 
-  // Submit Edit
+  // Submit Edit with Optimistic UI
   const handleEditSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
     if (!editingItem) return;
@@ -415,6 +460,27 @@ export default function AdminPage() {
     }
 
     if (!requireToken('mengedit konten')) return;
+
+    // Optimistic UI update in local state
+    if (editingItem.type === 'movie') {
+      setMovies((prev) =>
+        prev.map((m) =>
+          m.relativePath === editingItem.relativePath
+            ? {
+                ...m,
+                frontmatter: { ...editingItem.frontmatter },
+                displayTitle: editingItem.frontmatter.title || m.displayTitle,
+                posterUrl: editingItem.frontmatter.image_url || m.posterUrl,
+                updatedAt: Date.now(),
+                isOptimistic: true,
+              }
+            : m
+        )
+      );
+    }
+
+    setIsEditModalOpen(false);
+    showToast('Menyimpan perubahan ke GitHub...', 'success');
 
     try {
       const res = await fetch('/api/admin/content', {
@@ -430,7 +496,6 @@ export default function AdminPage() {
       const result = await res.json();
       if (res.ok) {
         showToast(`Perubahan berhasil disimpan & live!`);
-        setIsEditModalOpen(false);
         setEditingItem(null);
         setEditErrors({});
         fetchContent();
@@ -439,6 +504,7 @@ export default function AdminPage() {
           setIsSettingsOpen(true);
         }
         showToast(result.error || 'Gagal menyimpan perubahan', 'error');
+        fetchContent();
       }
     } catch (e) {
       showToast('Gagal menyimpan perubahan', 'error');
@@ -450,6 +516,10 @@ export default function AdminPage() {
     if (!requireToken('menghapus konten')) return;
 
     if (!confirm(`Apakah Anda yakin ingin menghapus "${label}" (${relativePath})? Tindakan ini permanen.`)) return;
+
+    // Optimistic delete
+    setMovies((prev) => prev.filter((m) => m.relativePath !== relativePath));
+    setTvShows((prev) => prev.filter((s) => s.relativePath !== relativePath && !relativePath.startsWith(`tv/${s.showSlug}`)));
 
     try {
       const res = await fetch(`/api/admin/content?path=${encodeURIComponent(relativePath)}`, {
@@ -465,6 +535,7 @@ export default function AdminPage() {
           setIsSettingsOpen(true);
         }
         showToast(data.error || 'Gagal menghapus', 'error');
+        fetchContent();
       }
     } catch (e) {
       showToast('Error saat menghapus konten', 'error');
@@ -552,17 +623,17 @@ export default function AdminPage() {
   const paginatedMovies = useMemo(() => {
     const start = (currentPage - 1) * itemsPerPage;
     return processedMovies.slice(start, start + itemsPerPage);
-  }, [processedMovies, currentPage, itemsPerPage]);
+  }, [processedMovies, currentPage]);
 
   const paginatedTvShows = useMemo(() => {
     const start = (currentPage - 1) * itemsPerPage;
     return processedTvShows.slice(start, start + itemsPerPage);
-  }, [processedTvShows, currentPage, itemsPerPage]);
+  }, [processedTvShows, currentPage]);
 
   const totalEpisodes = tvShows.reduce((acc, s) => acc + (s.episodes?.length || 0), 0);
 
   return (
-    <div className="min-h-screen bg-[#050816] text-white pt-20 pb-16 px-4 sm:px-6 md:px-8 lg:px-12">
+    <div className="min-h-screen bg-[#050816] text-white pt-20 pb-16 px-4 sm:px-6 md:px-8 lg:px-12 w-full">
       {/* Toast Notification */}
       {toastMessage && (
         <div
@@ -595,8 +666,8 @@ export default function AdminPage() {
       )}
 
       {/* Header Bar */}
-      <div className="max-w-7xl mx-auto mb-8">
-        <div className="flex flex-col md:flex-row md:items-center justify-between gap-4 pb-6 border-b border-white/10">
+      <div className="w-full max-w-7xl mx-auto mb-8">
+        <div className="flex flex-col md:flex-row md:items-center justify-between gap-4 pb-6 border-b border-white/10 w-full">
           <div>
             <div className="flex items-center gap-2.5 mb-1">
               <div className="p-2 rounded-xl bg-cyan-500/10 border border-cyan-500/30 text-cyan-400">
@@ -608,24 +679,28 @@ export default function AdminPage() {
             </div>
             <p className="text-sm text-slate-400">
               Kelola konten custom movie (<code className="text-cyan-400">video/</code>) dan TV series (
-              <code className="text-pink-400">tv/</code>) dengan live commit ke GitHub & auto TMDB sync.
+              <code className="text-pink-400">tv/</code>) dengan instant live preview & auto TMDB sync.
             </p>
           </div>
 
           <div className="flex items-center gap-2.5 flex-wrap">
-            {/* GitHub Sync Indicator / Settings button */}
-            <button
-              onClick={() => setIsSettingsOpen(true)}
-              className={`inline-flex items-center gap-2 px-3.5 py-2.5 rounded-xl text-xs sm:text-sm font-bold border transition-all ${
-                githubToken
-                  ? 'bg-emerald-500/10 border-emerald-500/40 text-emerald-400 hover:bg-emerald-500/20 shadow-sm shadow-emerald-500/10'
-                  : 'bg-red-500/10 border-red-500/40 text-red-400 hover:bg-red-500/20 shadow-sm shadow-red-500/10 animate-pulse'
-              }`}
-              title="Pengaturan GitHub Token untuk Live Sync di Vercel"
-            >
-              {githubToken ? <ShieldCheck size={16} /> : <ShieldAlert size={16} />}
-              <span>{githubToken ? 'GitHub Token Terhubung' : 'Token Wajib Diisi! (Klik Di Sini)'}</span>
-            </button>
+            {/* GitHub Sync Indicator - Flicker-Free with tokenChecked */}
+            {tokenChecked ? (
+              <button
+                onClick={() => setIsSettingsOpen(true)}
+                className={`inline-flex items-center gap-2 px-3.5 py-2.5 rounded-xl text-xs sm:text-sm font-bold border transition-all ${
+                  githubToken
+                    ? 'bg-emerald-500/10 border-emerald-500/40 text-emerald-400 hover:bg-emerald-500/20 shadow-sm shadow-emerald-500/10'
+                    : 'bg-red-500/10 border-red-500/40 text-red-400 hover:bg-red-500/20 shadow-sm shadow-red-500/10 animate-pulse'
+                }`}
+                title="Pengaturan GitHub Token untuk Live Sync di Vercel"
+              >
+                {githubToken ? <ShieldCheck size={16} /> : <ShieldAlert size={16} />}
+                <span>{githubToken ? 'GitHub Token Terhubung' : 'Token Wajib Diisi! (Klik Di Sini)'}</span>
+              </button>
+            ) : (
+              <div className="h-10 w-44 rounded-xl bg-white/5 border border-white/10 animate-pulse" />
+            )}
 
             <button
               onClick={() => fetchContent()}
@@ -649,9 +724,9 @@ export default function AdminPage() {
           </div>
         </div>
 
-        {/* Stats Row */}
-        <div className="grid grid-cols-1 sm:grid-cols-3 gap-4 my-6">
-          <div className="p-5 rounded-2xl bg-[#0c1224] border border-white/10 flex items-center gap-4">
+        {/* Stats Row - 100% Full Width */}
+        <div className="grid grid-cols-1 sm:grid-cols-3 gap-4 my-6 w-full">
+          <div className="p-5 rounded-2xl bg-[#0c1224] border border-white/10 flex items-center gap-4 w-full">
             <div className="p-3.5 rounded-xl bg-cyan-500/10 border border-cyan-500/20 text-cyan-400">
               <Film size={24} />
             </div>
@@ -661,7 +736,7 @@ export default function AdminPage() {
             </div>
           </div>
 
-          <div className="p-5 rounded-2xl bg-[#0c1224] border border-white/10 flex items-center gap-4">
+          <div className="p-5 rounded-2xl bg-[#0c1224] border border-white/10 flex items-center gap-4 w-full">
             <div className="p-3.5 rounded-xl bg-pink-500/10 border border-pink-500/20 text-pink-400">
               <Tv size={24} />
             </div>
@@ -671,7 +746,7 @@ export default function AdminPage() {
             </div>
           </div>
 
-          <div className="p-5 rounded-2xl bg-[#0c1224] border border-white/10 flex items-center gap-4">
+          <div className="p-5 rounded-2xl bg-[#0c1224] border border-white/10 flex items-center gap-4 w-full">
             <div className="p-3.5 rounded-xl bg-purple-500/10 border border-purple-500/20 text-purple-400">
               <Layers size={24} />
             </div>
@@ -682,8 +757,8 @@ export default function AdminPage() {
           </div>
         </div>
 
-        {/* Controls Bar: Tabs, Search, Sort, Filter */}
-        <div className="flex flex-col lg:flex-row items-stretch lg:items-center justify-between gap-4 mt-6 p-4 rounded-2xl bg-[#0c1224]/80 border border-white/10 backdrop-blur-md">
+        {/* Controls Bar - 100% Full Width */}
+        <div className="flex flex-col lg:flex-row items-stretch lg:items-center justify-between gap-4 mt-6 p-4 rounded-2xl bg-[#0c1224]/80 border border-white/10 backdrop-blur-md w-full">
           {/* Tabs */}
           <div className="flex items-center gap-2 p-1 rounded-xl bg-white/5 border border-white/10">
             <button
@@ -712,9 +787,9 @@ export default function AdminPage() {
           </div>
 
           {/* Search, Sort, Filter */}
-          <div className="flex items-center gap-2.5 flex-wrap sm:flex-nowrap">
+          <div className="flex items-center gap-2.5 flex-wrap sm:flex-nowrap flex-1 justify-end">
             {/* Search */}
-            <div className="relative flex-1 sm:w-64">
+            <div className="relative w-full sm:w-64">
               <Search size={16} className="absolute left-3.5 top-1/2 -translate-y-1/2 text-slate-400" />
               <input
                 type="text"
@@ -758,17 +833,17 @@ export default function AdminPage() {
         </div>
       </div>
 
-      {/* Main Content Area */}
-      <div className="max-w-7xl mx-auto">
-        {loading ? (
+      {/* Main Content Area - 100% Full Width Container */}
+      <div className="w-full max-w-7xl mx-auto">
+        {loading && movies.length === 0 ? (
           <div className="py-24 text-center">
             <RefreshCw size={36} className="animate-spin mx-auto text-cyan-400 mb-3" />
             <p className="text-slate-400 text-sm">Memuat konten markdown & poster TMDB...</p>
           </div>
         ) : activeTab === 'movies' ? (
-          /* Movies List */
+          /* Movies List - Responsive 3 Columns */
           paginatedMovies.length === 0 ? (
-            <div className="p-12 text-center rounded-2xl bg-[#0c1224] border border-white/10">
+            <div className="p-12 text-center rounded-2xl bg-[#0c1224] border border-white/10 w-full">
               <Film size={48} className="mx-auto text-slate-600 mb-3" />
               <h3 className="text-lg font-bold text-white mb-1">
                 {searchQuery || filterBy !== 'all' ? 'Tidak ada movie yang cocok dengan filter' : 'Belum ada custom movie'}
@@ -791,7 +866,7 @@ export default function AdminPage() {
               </button>
             </div>
           ) : (
-            <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
+            <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-5 w-full">
               {paginatedMovies.map((movie) => {
                 const title = movie.displayTitle || movie.frontmatter.title || movie.slug;
                 const tmdbId = movie.frontmatter.tmdb_id;
@@ -804,7 +879,7 @@ export default function AdminPage() {
                 return (
                   <div
                     key={movie.relativePath}
-                    className="p-5 rounded-2xl bg-[#0c1224] border border-white/10 hover:border-cyan-500/40 transition-all flex flex-col justify-between group shadow-lg shadow-black/30"
+                    className="p-5 rounded-2xl bg-[#0c1224] border border-white/10 hover:border-cyan-500/40 transition-all flex flex-col justify-between group shadow-lg shadow-black/30 w-full"
                   >
                     <div>
                       <div className="flex items-start gap-3.5 mb-3">
@@ -842,6 +917,11 @@ export default function AdminPage() {
                                 {rating}
                               </span>
                             ) : null}
+                            {movie.isOptimistic && (
+                              <span className="px-1.5 py-0.5 rounded text-[9px] font-extrabold bg-blue-500/20 text-blue-300 border border-blue-500/40">
+                                ✨ Live Preview
+                              </span>
+                            )}
                           </div>
 
                           <h3 className="font-bold text-white text-base truncate leading-snug" title={title}>
@@ -905,9 +985,9 @@ export default function AdminPage() {
             </div>
           )
         ) : (
-          /* TV Series & Episodes List */
+          /* TV Series & Episodes List - Full Width Responsive Layout */
           paginatedTvShows.length === 0 ? (
-            <div className="p-12 text-center rounded-2xl bg-[#0c1224] border border-white/10">
+            <div className="p-12 text-center rounded-2xl bg-[#0c1224] border border-white/10 w-full">
               <Tv size={48} className="mx-auto text-slate-600 mb-3" />
               <h3 className="text-lg font-bold text-white mb-1">
                 {searchQuery || filterBy !== 'all' ? 'Tidak ada TV series yang cocok dengan filter' : 'Belum ada custom TV Series'}
@@ -930,7 +1010,7 @@ export default function AdminPage() {
               </button>
             </div>
           ) : (
-            <div className="space-y-6">
+            <div className="space-y-6 w-full">
               {paginatedTvShows.map((show) => {
                 const title = show.displayTitle || show.frontmatter.title || show.showSlug;
                 const tmdbId = show.frontmatter.tmdb_id;
@@ -940,10 +1020,10 @@ export default function AdminPage() {
                 return (
                   <div
                     key={show.showSlug}
-                    className="p-5 sm:p-6 rounded-2xl bg-[#0c1224] border border-white/10 hover:border-pink-500/40 transition-all shadow-lg shadow-black/30"
+                    className="p-5 sm:p-6 rounded-2xl bg-[#0c1224] border border-white/10 hover:border-pink-500/40 transition-all shadow-lg shadow-black/30 w-full"
                   >
                     {/* Show Main Header */}
-                    <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4 pb-4 border-b border-white/10">
+                    <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4 pb-4 border-b border-white/10 w-full">
                       <div className="flex items-center gap-3.5">
                         <div className="relative w-14 h-20 rounded-lg overflow-hidden bg-slate-900 flex-shrink-0 border border-white/10 shadow-md">
                           {poster ? (
@@ -957,13 +1037,18 @@ export default function AdminPage() {
                         </div>
 
                         <div>
-                          <div className="flex items-center gap-1.5 mb-1">
+                          <div className="flex items-center gap-1.5 mb-1 flex-wrap">
                             <span className="px-2 py-0.5 rounded text-[10px] font-bold bg-pink-500/10 text-pink-400 border border-pink-500/30">
                               TMDB {tmdbId}
                             </span>
                             <span className="px-2 py-0.5 rounded text-[10px] font-bold bg-purple-500/10 text-purple-400 border border-purple-500/30">
                               {show.episodes.length} Episodes
                             </span>
+                            {show.isOptimistic && (
+                              <span className="px-1.5 py-0.5 rounded text-[9px] font-extrabold bg-blue-500/20 text-blue-300 border border-blue-500/40">
+                                ✨ Live Preview
+                              </span>
+                            )}
                           </div>
                           <h3 className="font-bold text-white text-lg leading-snug">
                             {title} {year ? <span className="text-slate-400 font-normal text-sm">({year})</span> : ''}
@@ -1023,8 +1108,8 @@ export default function AdminPage() {
                       </div>
                     </div>
 
-                    {/* Episodes Grid */}
-                    <div className="mt-4">
+                    {/* Episodes Grid - Full Width Seamless Alignment */}
+                    <div className="mt-4 w-full">
                       <h4 className="text-xs font-bold text-slate-400 uppercase tracking-wider mb-3">
                         Daftar Episode:
                       </h4>
@@ -1032,7 +1117,7 @@ export default function AdminPage() {
                       {show.episodes.length === 0 ? (
                         <p className="text-xs text-slate-500 italic">Belum ada episode di series ini.</p>
                       ) : (
-                        <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-3">
+                        <div className="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-3 lg:grid-cols-4 gap-3 w-full">
                           {show.episodes.map((ep) => {
                             const epTitle = ep.displayTitle || ep.frontmatter.title || ep.slug;
                             const epVideo = ep.frontmatter.videourl || ep.frontmatter.video_url;
@@ -1044,7 +1129,7 @@ export default function AdminPage() {
                             return (
                               <div
                                 key={ep.relativePath}
-                                className="p-3.5 rounded-xl bg-black/40 border border-white/5 flex flex-col justify-between"
+                                className="p-3.5 rounded-xl bg-black/40 border border-white/5 flex flex-col justify-between w-full"
                               >
                                 <div>
                                   <div className="flex items-center justify-between gap-2 mb-1.5">
@@ -1112,7 +1197,7 @@ export default function AdminPage() {
 
         {/* Pagination Bar */}
         {totalItems > 0 && (
-          <div className="flex flex-col sm:flex-row items-center justify-between gap-4 mt-8 pt-6 border-t border-white/10">
+          <div className="flex flex-col sm:flex-row items-center justify-between gap-4 mt-8 pt-6 border-t border-white/10 w-full">
             <div className="text-xs text-slate-400">
               Menampilkan{' '}
               <span className="font-bold text-white">
@@ -1171,7 +1256,7 @@ export default function AdminPage() {
       </div>
 
       {/* ────────────────────────────────────────── */}
-      {/* Modal: Pengaturan GitHub Token (Bypass EROFS di Vercel) */}
+      {/* Modal: Pengaturan GitHub Token */}
       {/* ────────────────────────────────────────── */}
       {isSettingsOpen && (
         <div className="fixed inset-0 z-50 bg-black/80 backdrop-blur-sm flex items-center justify-center p-4">

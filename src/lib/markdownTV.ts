@@ -281,7 +281,24 @@ export async function getCustomTVShowBySlug(showSlugOrTmdbId: string | number): 
     }
   }
 
-  if (!matchedDir || !fs.existsSync(showDirFullPath)) {
+  // 3. Fallback: Check GitHub Raw live if TV show was just created via CMS before Vercel build
+  if (!matchedDir) {
+    const candSlugs = [cleanWithoutSuffix, searchKey];
+    for (const cSlug of candSlugs) {
+      try {
+        const ghUrl = `https://raw.githubusercontent.com/genstava789/filmes/main/tv/${cSlug}/_index.md`;
+        const res = await fetch(ghUrl, { cache: 'no-store' });
+        if (res.ok) {
+          matchedDir = cSlug;
+          break;
+        }
+      } catch {
+        // ignore network error
+      }
+    }
+  }
+
+  if (!matchedDir) {
     return null;
   }
 

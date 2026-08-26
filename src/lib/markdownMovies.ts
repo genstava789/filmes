@@ -217,13 +217,34 @@ export async function getCustomMovieBySlug(slugOrId: string | number): Promise<C
     }
   }
 
+  // 3. Fallback: Check GitHub Raw live if file was just created/updated via CMS before Vercel build
   if (!matchedFile) {
-    return null;
+    const candidates = [
+      `${cleanKey}.md`,
+      `${cleanWithoutSuffix}.md`,
+      `${searchKey}.md`,
+    ];
+
+    for (const cand of candidates) {
+      try {
+        const ghUrl = `https://raw.githubusercontent.com/genstava789/filmes/main/video/${cand}`;
+        const res = await fetch(ghUrl, { cache: 'no-store' });
+        if (res.ok) {
+          const text = await res.text();
+          if (text && text.includes('---')) {
+            matchedFile = cand;
+            fileContent = text;
+            break;
+          }
+        }
+      } catch {
+        // ignore network error
+      }
+    }
   }
 
-  if (!fileContent) {
-    const filePath = path.join(CONTENT_DIR, matchedFile);
-    fileContent = fs.readFileSync(filePath, 'utf8');
+  if (!matchedFile || !fileContent) {
+    return null;
   }
 
   const { data, content } = matter(fileContent);
