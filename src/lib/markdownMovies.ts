@@ -228,7 +228,7 @@ export async function getCustomMovieBySlug(slugOrId: string | number): Promise<C
     for (const cand of candidates) {
       try {
         const ghUrl = `https://raw.githubusercontent.com/genstava789/filmes/main/video/${cand}`;
-        const res = await fetch(ghUrl, { cache: 'no-store' });
+        const res = await fetch(ghUrl, { next: { revalidate: 60 } });
         if (res.ok) {
           const text = await res.text();
           if (text && text.includes('---')) {

@@ -287,7 +287,7 @@ export async function getCustomTVShowBySlug(showSlugOrTmdbId: string | number): 
     for (const cSlug of candSlugs) {
       try {
         const ghUrl = `https://raw.githubusercontent.com/genstava789/filmes/main/tv/${cSlug}/_index.md`;
-        const res = await fetch(ghUrl, { cache: 'no-store' });
+        const res = await fetch(ghUrl, { next: { revalidate: 60 } });
         if (res.ok) {
           matchedDir = cSlug;
           break;
