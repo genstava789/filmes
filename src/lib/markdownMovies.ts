@@ -5,7 +5,7 @@ import { marked } from 'marked';
 import { MovieDetail } from '@/types/tmdb';
 import { getMovieDetails, getImageUrl, searchMovies } from '@/lib/tmdb';
 import siteConfig, { FeaturedItem } from '@/config';
-import { cleanVideoUrl } from '@/lib/urls';
+import { cleanVideoUrl, getMovieUrl } from '@/lib/urls';
 import { getGitHubRawFile } from '@/lib/githubStorage';
 
 export interface CustomMovieFrontmatter {
@@ -527,7 +527,7 @@ export async function getAllFeaturedCustomMovies(): Promise<FeaturedItem[]> {
             duration: detail.runtime ? `${Math.floor(detail.runtime / 60)}h ${detail.runtime % 60}m` : undefined,
             type: 'movie' as const,
             genres: detail.genres?.map((g) => g.name) || [],
-            link: `/movie/${detail.customSlug || detail.id}`,
+            link: getMovieUrl(detail),
             badge: 'Featured',
             featured: true,
             isCustom: true,

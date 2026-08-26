@@ -5,7 +5,7 @@ import { marked } from 'marked';
 import { TVShowDetail } from '@/types/tmdb';
 import { getTVShowDetails, getImageUrl, searchTVShows } from '@/lib/tmdb';
 import { FeaturedItem } from '@/config';
-import { cleanVideoUrl } from '@/lib/urls';
+import { cleanVideoUrl, getTVUrl } from '@/lib/urls';
 import { getGitHubRawFile } from '@/lib/githubStorage';
 
 export interface CustomTVFrontmatter {
@@ -715,7 +715,7 @@ export async function getAllFeaturedCustomTV(): Promise<FeaturedItem[]> {
         const detail = await getTVShowDetailsWithCustomOverride([slug]);
         if (detail) {
           const firstEp = detail.allEpisodes?.[0];
-          const link = firstEp?.urlPath || `/tv/${detail.customSlug || detail.id}`;
+          const link = firstEp?.urlPath || getTVUrl(detail);
           const customImg = detail.customImageUrl || customData.frontmatter.image_url || customData.frontmatter.poster_path || customData.frontmatter.backdrop_url;
           const backdrop = customImg
             ? getImageUrl(customImg, 'w1280')

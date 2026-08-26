@@ -31,8 +31,12 @@ export function getMovieUrl(movie: {
   customSlug?: string | null;
   link?: string | null;
 }): string {
-  // If a valid custom link is directly defined (and not outdated '/movie/movie')
-  if (movie.link && movie.link !== '/movie/movie' && !movie.link.startsWith('http')) {
+  // If a valid custom link is directly defined (and not placeholder filenames)
+  if (
+    movie.link &&
+    !['/movie/movie', '/movie/test', '/movie/temp', '/movie/film', '/movie/undefined'].includes(movie.link) &&
+    !movie.link.startsWith('http')
+  ) {
     return movie.link;
   }
 
@@ -45,9 +49,8 @@ export function getMovieUrl(movie: {
   // Check if customSlug is a generic placeholder or filename rather than an explicit custom route
   const isGenericSlug =
     !customSlug ||
-    customSlug === 'movie' ||
-    customSlug === 'movie.md' ||
-    /^movie-\d+$/i.test(customSlug) ||
+    ['movie', 'test', 'temp', 'film', 'untitled', 'custom', 'index', 'undefined'].includes(customSlug.toLowerCase().replace(/\.(md|markdown)$/i, '')) ||
+    /^(movie|test|temp|film)-\d+$/i.test(customSlug) ||
     customSlug === String(id);
 
   if (siteConfig.useTitleSlug) {
