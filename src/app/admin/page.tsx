@@ -311,19 +311,23 @@ export default function AdminPage() {
     }
   };
 
-  // Handler for typing or pasting into TMDB ID input
+  // Handler for typing or pasting into TMDB ID input (no auto-fetch on typing/pasting)
   const handleTmdbIdInputChange = (val: string) => {
     const extracted = extractTmdbIdAndType(val);
     if (val.includes('themoviedb.org') || val.includes('/movie/') || val.includes('/tv/')) {
       if (extracted.id) {
         setFormTmdbId(extracted.id);
-        const targetType = extracted.type || (contentType === 'movie' ? 'movie' : 'tv');
         if (extracted.type && extracted.type === 'tv' && contentType === 'movie') {
           setContentType('tv_show');
         } else if (extracted.type && extracted.type === 'movie' && contentType === 'tv_show') {
           setContentType('movie');
         }
-        handleFetchTmdbPreview(extracted.id, targetType);
+        // Biarkan kosong untuk manual, fetch hanya dipicu saat tombol Auto-Fetch ditekan
+        setFormErrors((prev) => {
+          const next = { ...prev };
+          delete next.tmdb_id;
+          return next;
+        });
         return;
       }
     }
@@ -1684,33 +1688,52 @@ export default function AdminPage() {
                 />
               </div>
 
-              {/* Rating & Featured (Optional) */}
-              <div className="grid grid-cols-2 gap-4">
-                <div>
-                  <label className="block text-xs font-medium text-slate-400 mb-1">Rating (Opsional)</label>
-                  <input
-                    type="number"
-                    step="0.1"
-                    value={formRating}
-                    onChange={(e) => setFormRating(e.target.value)}
-                    placeholder="Contoh: 8.8"
-                    className="w-full px-3.5 py-2.5 bg-black/40 border border-white/10 rounded-xl text-sm text-white focus:outline-none focus:border-cyan-400"
-                  />
-                </div>
+              {/* Rating (Optional) */}
+              <div>
+                <label className="block text-xs font-medium text-slate-400 mb-1">Rating (Opsional)</label>
+                <input
+                  type="number"
+                  step="0.1"
+                  value={formRating}
+                  onChange={(e) => setFormRating(e.target.value)}
+                  placeholder="Contoh: 8.8"
+                  className="w-full px-3.5 py-2.5 bg-black/40 border border-white/10 rounded-xl text-sm text-white focus:outline-none focus:border-cyan-400"
+                />
+              </div>
 
-                <div className="flex items-center gap-3 pt-6">
+              {/* Featured in Homepage Toggle (Only for Movie & TV Show) */}
+              {(contentType === 'movie' || contentType === 'tv_show') && (
+                <div
+                  className={`p-3.5 rounded-xl border transition-all cursor-pointer flex items-center justify-between ${
+                    formFeatured
+                      ? 'bg-cyan-500/10 border-cyan-500/40'
+                      : 'bg-black/30 border-white/10 hover:border-white/20'
+                  }`}
+                  onClick={() => setFormFeatured(!formFeatured)}
+                >
+                  <div className="flex items-center gap-3">
+                    <div
+                      className={`w-8 h-8 rounded-lg flex items-center justify-center text-base ${
+                        formFeatured ? 'bg-cyan-500/20 text-cyan-300' : 'bg-white/5 text-slate-400'
+                      }`}
+                    >
+                      ✨
+                    </div>
+                    <div>
+                      <p className="text-xs font-bold text-white select-none">Jadikan Featured di Homepage</p>
+                      <p className="text-[11px] text-slate-400 select-none">Tampilkan di slider / banner utama beranda</p>
+                    </div>
+                  </div>
                   <input
                     type="checkbox"
                     id="featuredCheckbox"
                     checked={formFeatured}
                     onChange={(e) => setFormFeatured(e.target.checked)}
-                    className="w-5 h-5 rounded bg-black/40 border-white/10 text-cyan-500 focus:ring-cyan-400"
+                    onClick={(e) => e.stopPropagation()}
+                    className="w-5 h-5 rounded bg-black/40 border-white/20 text-cyan-500 focus:ring-cyan-400 cursor-pointer"
                   />
-                  <label htmlFor="featuredCheckbox" className="text-xs font-bold text-white select-none cursor-pointer">
-                    ✨ Jadikan Featured di Homepage
-                  </label>
                 </div>
-              </div>
+              )}
 
               {/* Subtitles (Optional) */}
               <div>
@@ -1892,25 +1915,51 @@ export default function AdminPage() {
                 />
               </div>
 
-              {/* Rating & Featured */}
-              <div className="grid grid-cols-2 gap-4">
-                <div>
-                  <label className="block text-xs font-medium text-slate-400 mb-1">Rating</label>
-                  <input
-                    type="number"
-                    step="0.1"
-                    value={editingItem.frontmatter.rating || ''}
-                    onChange={(e) =>
-                      setEditingItem({
-                        ...editingItem,
-                        frontmatter: { ...editingItem.frontmatter, rating: e.target.value },
-                      })
-                    }
-                    className="w-full px-3.5 py-2.5 bg-black/40 border border-white/10 rounded-xl text-sm text-white focus:outline-none focus:border-cyan-400"
-                  />
-                </div>
+              {/* Rating */}
+              <div>
+                <label className="block text-xs font-medium text-slate-400 mb-1">Rating</label>
+                <input
+                  type="number"
+                  step="0.1"
+                  value={editingItem.frontmatter.rating || ''}
+                  onChange={(e) =>
+                    setEditingItem({
+                      ...editingItem,
+                      frontmatter: { ...editingItem.frontmatter, rating: e.target.value },
+                    })
+                  }
+                  className="w-full px-3.5 py-2.5 bg-black/40 border border-white/10 rounded-xl text-sm text-white focus:outline-none focus:border-cyan-400"
+                />
+              </div>
 
-                <div className="flex items-center gap-3 pt-6">
+              {/* Featured in Homepage (Movie and TV Show) */}
+              {editingItem.type !== 'tv_episode' && (
+                <div
+                  className={`p-3.5 rounded-xl border transition-all cursor-pointer flex items-center justify-between ${
+                    editingItem.frontmatter.featured
+                      ? 'bg-cyan-500/10 border-cyan-500/40'
+                      : 'bg-black/30 border-white/10 hover:border-white/20'
+                  }`}
+                  onClick={() =>
+                    setEditingItem({
+                      ...editingItem,
+                      frontmatter: { ...editingItem.frontmatter, featured: !editingItem.frontmatter.featured },
+                    })
+                  }
+                >
+                  <div className="flex items-center gap-3">
+                    <div
+                      className={`w-8 h-8 rounded-lg flex items-center justify-center text-base ${
+                        editingItem.frontmatter.featured ? 'bg-cyan-500/20 text-cyan-300' : 'bg-white/5 text-slate-400'
+                      }`}
+                    >
+                      ✨
+                    </div>
+                    <div>
+                      <p className="text-xs font-bold text-white select-none">Jadikan Featured di Homepage</p>
+                      <p className="text-[11px] text-slate-400 select-none">Tampilkan di slider / banner utama beranda</p>
+                    </div>
+                  </div>
                   <input
                     type="checkbox"
                     id="editFeatured"
@@ -1921,13 +1970,11 @@ export default function AdminPage() {
                         frontmatter: { ...editingItem.frontmatter, featured: e.target.checked },
                       })
                     }
-                    className="w-5 h-5 rounded bg-black/40 border-white/10 text-cyan-500 focus:ring-cyan-400"
+                    onClick={(e) => e.stopPropagation()}
+                    className="w-5 h-5 rounded bg-black/40 border-white/20 text-cyan-500 focus:ring-cyan-400 cursor-pointer"
                   />
-                  <label htmlFor="editFeatured" className="text-xs font-bold text-white select-none cursor-pointer">
-                    Featured di Homepage
-                  </label>
                 </div>
-              </div>
+              )}
 
               {/* Markdown Content */}
               <div>
