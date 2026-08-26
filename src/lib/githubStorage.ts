@@ -246,3 +246,72 @@ export async function listGitHubDir(dirPath: string, options: GitHubOptions = {}
   return [];
 }
 
+export interface GitHubTreeItem {
+  path: string;
+  mode: string;
+  type: 'blob' | 'tree';
+  sha: string;
+  size?: number;
+  url: string;
+}
+
+/**
+ * Gets full repository tree (all files and directories) recursively in a single fast API call.
+ */
+export async function getGitHubTree(options: GitHubOptions = {}): Promise<GitHubTreeItem[]> {
+  const owner = options.owner || DEFAULT_OWNER;
+  const repo = options.repo || DEFAULT_REPO;
+  const branch = options.branch || DEFAULT_BRANCH;
+  const token = getEffectiveToken(options.token);
+
+  const headers: Record<string, string> = {
+    Accept: 'application/vnd.github.v3+json',
+    'User-Agent': 'LeviStream-CMS',
+  };
+  if (token) {
+    headers['Authorization'] = `Bearer ${token}`;
+  }
+
+  try {
+    const url = `https://api.github.com/repos/${owner}/${repo}/git/trees/${branch}?recursive=1&_t=${Date.now()}`;
+    const res = await fetch(url, { headers, cache: 'no-store' });
+    if (res.ok) {
+      const data = await res.json();
+      if (data && Array.isArray(data.tree)) {
+        return data.tree as GitHubTreeItem[];
+      }
+    }
+  } catch (err) {
+    console.warn('getGitHubTree notice:', err);
+  }
+
+  return [];
+}
+
+/**
+ * Reads a git blob by its SHA directly from GitHub API.
+ */
+export async function getGitHubBlob(sha: string, options: GitHubOptions = {}): Promise<string | null> {
+  const owner = options.owner || DEFAULT_OWNER;
+  const repo = options.repo || DEFAULT_REPO;
+  const token = getEffectiveToken(options.token);
+
+  const headers: Record<string, string> = {
+    Accept: 'application/vnd.github.v3.raw',
+    'User-Agent': 'LeviStream-CMS',
+  };
+  if (token) {
+    headers['Authorization'] = `Bearer ${token}`;
+  }
+
+  try {
+    const url = `https://api.github.com/repos/${owner}/${repo}/git/blobs/${sha}`;
+    const res = await fetch(url, { headers, cache: 'no-store' });
+    if (res.ok) {
+      return await res.text();
+    }
+  } catch {}
+
+  return null;
+}
+

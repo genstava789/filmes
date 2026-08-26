@@ -4,7 +4,13 @@ import path from 'path';
 import matter from 'gray-matter';
 import { revalidatePath } from 'next/cache';
 import { slugify, cleanVideoUrl, extractTmdbIdAndType } from '@/lib/urls';
-import { saveGitHubFile, deleteGitHubFile } from '@/lib/githubStorage';
+import {
+  saveGitHubFile,
+  deleteGitHubFile,
+  getGitHubTree,
+  getGitHubBlob,
+  getGitHubRawFile,
+} from '@/lib/githubStorage';
 import { getMovieDetails, getTVShowDetails, getImageUrl } from '@/lib/tmdb';
 import { memoryCache } from '@/lib/cache';
 import { getContentProvider } from '@/lib/content';
@@ -63,52 +69,277 @@ function revalidateAll() {
 // ──────────────────────────────────────────
 // GET: Fetch all custom movies and TV series
 // ──────────────────────────────────────────
-export async function GET() {
+export async function GET(request: NextRequest) {
   ensureDirectories();
+  const ghConfig = getGitHubConfig(request);
+  const isLocal = !process.env.VERCEL && process.env.NODE_ENV !== 'production';
 
   try {
-    // 1. Movies in video/
-    let movieFiles: string[] = [];
-    try {
-      if (fs.existsSync(VIDEO_DIR)) {
-        movieFiles = fs.readdirSync(VIDEO_DIR).filter((f) => /\.(md|markdown)$/i.test(f));
+    let rawMovies: Array<{
+      filename: string;
+      slug: string;
+      relativePath: string;
+      frontmatter: Record<string, any>;
+      content: string;
+      updatedAt: number;
+    }> = [];
+
+    const rawTvShowsMap: Map<
+      string,
+      {
+        showSlug: string;
+        relativePath: string;
+        indexFrontmatter: Record<string, any>;
+        indexContent: string;
+        updatedAt: number;
+        episodes: any[];
       }
-    } catch (e) {
-      console.warn('Read video dir notice:', e);
+    > = new Map();
+
+    // If on Vercel or if GitHub token is provided, fetch live files directly from GitHub
+    let fetchedFromGitHub = false;
+    if ((!isLocal || ghConfig.token) && ghConfig.token) {
+      try {
+        const tree = await getGitHubTree(ghConfig);
+        if (tree && tree.length > 0) {
+          const videoBlobs = tree.filter(
+            (item) => item.type === 'blob' && item.path.startsWith('video/') && /\.(md|markdown)$/i.test(item.path)
+          );
+          const tvBlobs = tree.filter(
+            (item) => item.type === 'blob' && item.path.startsWith('tv/') && /\.(md|markdown)$/i.test(item.path)
+          );
+
+          if (videoBlobs.length > 0 || tvBlobs.length > 0) {
+            fetchedFromGitHub = true;
+
+            // Fetch video files from GitHub
+            const movieItems = await Promise.all(
+              videoBlobs.map(async (item) => {
+                const filename = path.basename(item.path);
+                const raw =
+                  (await getGitHubBlob(item.sha, ghConfig)) ||
+                  (await getGitHubRawFile(item.path, ghConfig)) ||
+                  '';
+                const { data, content } = matter(raw);
+                return {
+                  filename,
+                  slug: filename.replace(/\.(md|markdown)$/i, ''),
+                  relativePath: item.path,
+                  frontmatter: data,
+                  content: content || '',
+                  updatedAt: Date.now(),
+                };
+              })
+            );
+            rawMovies = movieItems;
+
+            // Fetch TV files from GitHub
+            const tvItems = await Promise.all(
+              tvBlobs.map(async (item) => {
+                const raw =
+                  (await getGitHubBlob(item.sha, ghConfig)) ||
+                  (await getGitHubRawFile(item.path, ghConfig)) ||
+                  '';
+                const { data, content } = matter(raw);
+                return {
+                  path: item.path,
+                  data,
+                  content,
+                };
+              })
+            );
+
+            for (const { path: relPath, data, content } of tvItems) {
+              const parts = relPath.replace(/^tv\//, '').split('/');
+              const showDir = parts[0];
+              if (!showDir) continue;
+
+              if (!rawTvShowsMap.has(showDir)) {
+                rawTvShowsMap.set(showDir, {
+                  showSlug: showDir,
+                  relativePath: `tv/${showDir}/_index.md`,
+                  indexFrontmatter: {},
+                  indexContent: '',
+                  updatedAt: Date.now(),
+                  episodes: [],
+                });
+              }
+
+              const currentShow = rawTvShowsMap.get(showDir)!;
+              const filename = parts[parts.length - 1];
+
+              if (filename === '_index.md' || filename === 'index.md') {
+                currentShow.indexFrontmatter = data;
+                currentShow.indexContent = content || '';
+              } else if (parts.length === 3) {
+                const seasonFolder = parts[1];
+                currentShow.episodes.push({
+                  showSlug: showDir,
+                  seasonFolder,
+                  filename,
+                  slug: filename.replace(/\.(md|markdown)$/i, ''),
+                  relativePath: relPath,
+                  frontmatter: data,
+                  content: content || '',
+                  displayTitle: data.title || filename.replace(/\.(md|markdown)$/i, ''),
+                  posterUrl: data.image_url || null,
+                  updatedAt: Date.now(),
+                });
+              } else if (parts.length === 2) {
+                currentShow.episodes.push({
+                  showSlug: showDir,
+                  seasonFolder: null,
+                  filename,
+                  slug: filename.replace(/\.(md|markdown)$/i, ''),
+                  relativePath: relPath,
+                  frontmatter: data,
+                  content: content || '',
+                  displayTitle: data.title || filename.replace(/\.(md|markdown)$/i, ''),
+                  posterUrl: data.image_url || null,
+                  updatedAt: Date.now(),
+                });
+              }
+            }
+          }
+        }
+      } catch (ghErr) {
+        console.warn('Admin GET GitHub tree fetch notice:', ghErr);
+      }
     }
 
-    const rawMovies = movieFiles.map((file) => {
-      const fullPath = path.join(VIDEO_DIR, file);
-      const raw = fs.readFileSync(fullPath, 'utf8');
-      const stat = fs.statSync(fullPath);
-      const { data, content } = matter(raw);
-      return {
-        filename: file,
-        slug: file.replace(/\.(md|markdown)$/i, ''),
-        relativePath: `video/${file}`,
-        frontmatter: data,
-        content: content || '',
-        updatedAt: stat.mtimeMs || Date.now(),
-      };
-    });
+    // Fallback to local filesystem
+    if (!fetchedFromGitHub) {
+      let movieFiles: string[] = [];
+      try {
+        if (fs.existsSync(VIDEO_DIR)) {
+          movieFiles = fs.readdirSync(VIDEO_DIR).filter((f) => /\.(md|markdown)$/i.test(f));
+        }
+      } catch (e) {
+        console.warn('Read video dir notice:', e);
+      }
 
-    // Enrich movies with TMDB poster & title if missing
+      rawMovies = movieFiles.map((file) => {
+        const fullPath = path.join(VIDEO_DIR, file);
+        const raw = fs.readFileSync(fullPath, 'utf8');
+        const stat = fs.statSync(fullPath);
+        const { data, content } = matter(raw);
+        return {
+          filename: file,
+          slug: file.replace(/\.(md|markdown)$/i, ''),
+          relativePath: `video/${file}`,
+          frontmatter: data,
+          content: content || '',
+          updatedAt: stat.mtimeMs || Date.now(),
+        };
+      });
+
+      let tvDirs: string[] = [];
+      try {
+        if (fs.existsSync(TV_DIR)) {
+          tvDirs = fs
+            .readdirSync(TV_DIR, { withFileTypes: true })
+            .filter((d) => d.isDirectory())
+            .map((d) => d.name);
+        }
+      } catch (e) {
+        console.warn('Read tv dir notice:', e);
+      }
+
+      for (const showDir of tvDirs) {
+        const showPath = path.join(TV_DIR, showDir);
+        let indexFrontmatter: any = {};
+        let indexContent = '';
+        let updatedAt = Date.now();
+
+        const indexPath = fs.existsSync(path.join(showPath, '_index.md'))
+          ? path.join(showPath, '_index.md')
+          : fs.existsSync(path.join(showPath, 'index.md'))
+          ? path.join(showPath, 'index.md')
+          : null;
+
+        if (indexPath) {
+          const raw = fs.readFileSync(indexPath, 'utf8');
+          const stat = fs.statSync(indexPath);
+          const parsed = matter(raw);
+          indexFrontmatter = parsed.data;
+          indexContent = parsed.content || '';
+          updatedAt = stat.mtimeMs || Date.now();
+        }
+
+        const episodes: any[] = [];
+        const entries = fs.readdirSync(showPath, { withFileTypes: true });
+
+        for (const entry of entries) {
+          if (entry.name === '_index.md' || entry.name === 'index.md') continue;
+
+          if (entry.isDirectory()) {
+            const seasonFolder = entry.name;
+            const seasonPath = path.join(showPath, seasonFolder);
+            const epFiles = fs.readdirSync(seasonPath).filter((f) => /\.(md|markdown)$/i.test(f));
+
+            for (const epFile of epFiles) {
+              const epFullPath = path.join(seasonPath, epFile);
+              const raw = fs.readFileSync(epFullPath, 'utf8');
+              const epStat = fs.statSync(epFullPath);
+              const { data, content } = matter(raw);
+              episodes.push({
+                showSlug: showDir,
+                seasonFolder,
+                filename: epFile,
+                slug: epFile.replace(/\.(md|markdown)$/i, ''),
+                relativePath: `tv/${showDir}/${seasonFolder}/${epFile}`,
+                frontmatter: data,
+                content: content || '',
+                displayTitle: data.title || epFile.replace(/\.(md|markdown)$/i, ''),
+                posterUrl: data.image_url || null,
+                updatedAt: epStat.mtimeMs || Date.now(),
+              });
+            }
+          } else if (/\.(md|markdown)$/i.test(entry.name)) {
+            const epFullPath = path.join(showPath, entry.name);
+            const raw = fs.readFileSync(epFullPath, 'utf8');
+            const epStat = fs.statSync(epFullPath);
+            const { data, content } = matter(raw);
+            episodes.push({
+              showSlug: showDir,
+              seasonFolder: null,
+              filename: entry.name,
+              slug: entry.name.replace(/\.(md|markdown)$/i, ''),
+              relativePath: `tv/${showDir}/${entry.name}`,
+              frontmatter: data,
+              content: content || '',
+              displayTitle: data.title || entry.name.replace(/\.(md|markdown)$/i, ''),
+              posterUrl: data.image_url || null,
+              updatedAt: epStat.mtimeMs || Date.now(),
+            });
+          }
+        }
+
+        rawTvShowsMap.set(showDir, {
+          showSlug: showDir,
+          relativePath: `tv/${showDir}/_index.md`,
+          indexFrontmatter,
+          indexContent,
+          updatedAt,
+          episodes,
+        });
+      }
+    }
+
+    // Enrich movies with TMDB metadata & vertical poster
     const movies = await Promise.all(
       rawMovies.map(async (m) => {
-        let posterUrl = m.frontmatter.image_url || m.frontmatter.poster_path || null;
-        if (posterUrl) {
-          posterUrl = getImageUrl(posterUrl, 'w500');
-        }
         let displayTitle = m.frontmatter.title || m.slug;
         let year: number | null = null;
         let rating = m.frontmatter.rating ? Number(m.frontmatter.rating) : null;
+        let tmdbPoster: string | null = null;
 
         if (m.frontmatter.tmdb_id) {
           try {
             const tmdb = await getMovieDetails(Number(m.frontmatter.tmdb_id)).catch(() => null);
             if (tmdb) {
-              if (!posterUrl && tmdb.poster_path) {
-                posterUrl = getImageUrl(tmdb.poster_path, 'w500');
+              if (tmdb.poster_path) {
+                tmdbPoster = getImageUrl(tmdb.poster_path, 'w500');
               }
               if (!m.frontmatter.title && tmdb.title) {
                 displayTitle = tmdb.title;
@@ -125,6 +356,15 @@ export async function GET() {
           }
         }
 
+        // Prefer vertical TMDB poster for thumbnail, fallback to frontmatter poster/image
+        let posterUrl = tmdbPoster;
+        if (!posterUrl && m.frontmatter.poster_path) {
+          posterUrl = getImageUrl(m.frontmatter.poster_path, 'w500');
+        }
+        if (!posterUrl && m.frontmatter.image_url) {
+          posterUrl = getImageUrl(m.frontmatter.image_url, 'w500');
+        }
+
         return {
           ...m,
           posterUrl,
@@ -138,116 +378,23 @@ export async function GET() {
     // Sort movies newest first
     movies.sort((a, b) => (b.updatedAt || 0) - (a.updatedAt || 0));
 
-    // 2. TV Series in tv/
-    let tvDirs: string[] = [];
-    try {
-      if (fs.existsSync(TV_DIR)) {
-        tvDirs = fs.readdirSync(TV_DIR, { withFileTypes: true }).filter((d) => d.isDirectory()).map((d) => d.name);
-      }
-    } catch (e) {
-      console.warn('Read tv dir notice:', e);
-    }
-
-    const rawTvShows = tvDirs.map((showDir) => {
-      const showPath = path.join(TV_DIR, showDir);
-      let indexFrontmatter: any = {};
-      let indexContent = '';
-      let updatedAt = Date.now();
-
-      const indexPath = fs.existsSync(path.join(showPath, '_index.md'))
-        ? path.join(showPath, '_index.md')
-        : fs.existsSync(path.join(showPath, 'index.md'))
-        ? path.join(showPath, 'index.md')
-        : null;
-
-      if (indexPath) {
-        const raw = fs.readFileSync(indexPath, 'utf8');
-        const stat = fs.statSync(indexPath);
-        const parsed = matter(raw);
-        indexFrontmatter = parsed.data;
-        indexContent = parsed.content || '';
-        updatedAt = stat.mtimeMs || Date.now();
-      }
-
-      // Read episodes
-      const episodes: any[] = [];
-      const entries = fs.readdirSync(showPath, { withFileTypes: true });
-
-      for (const entry of entries) {
-        if (entry.name === '_index.md' || entry.name === 'index.md') continue;
-
-        if (entry.isDirectory()) {
-          const seasonFolder = entry.name;
-          const seasonPath = path.join(showPath, seasonFolder);
-          const epFiles = fs.readdirSync(seasonPath).filter((f) => /\.(md|markdown)$/i.test(f));
-
-          for (const epFile of epFiles) {
-            const epFullPath = path.join(seasonPath, epFile);
-            const raw = fs.readFileSync(epFullPath, 'utf8');
-            const epStat = fs.statSync(epFullPath);
-            const { data, content } = matter(raw);
-            episodes.push({
-              showSlug: showDir,
-              seasonFolder,
-              filename: epFile,
-              slug: epFile.replace(/\.(md|markdown)$/i, ''),
-              relativePath: `tv/${showDir}/${seasonFolder}/${epFile}`,
-              frontmatter: data,
-              content: content || '',
-              displayTitle: data.title || epFile.replace(/\.(md|markdown)$/i, ''),
-              posterUrl: data.image_url || null,
-              updatedAt: epStat.mtimeMs || Date.now(),
-            });
-          }
-        } else if (/\.(md|markdown)$/i.test(entry.name)) {
-          const epFullPath = path.join(showPath, entry.name);
-          const raw = fs.readFileSync(epFullPath, 'utf8');
-          const epStat = fs.statSync(epFullPath);
-          const { data, content } = matter(raw);
-          episodes.push({
-            showSlug: showDir,
-            seasonFolder: null,
-            filename: entry.name,
-            slug: entry.name.replace(/\.(md|markdown)$/i, ''),
-            relativePath: `tv/${showDir}/${entry.name}`,
-            frontmatter: data,
-            content: content || '',
-            displayTitle: data.title || entry.name.replace(/\.(md|markdown)$/i, ''),
-            posterUrl: data.image_url || null,
-            updatedAt: epStat.mtimeMs || Date.now(),
-          });
-        }
-      }
-
-      return {
-        showSlug: showDir,
-        relativePath: `tv/${showDir}/_index.md`,
-        frontmatter: indexFrontmatter,
-        content: indexContent,
-        updatedAt,
-        episodes,
-      };
-    });
-
-    // Enrich TV shows with TMDB poster & metadata if missing
+    // Enrich TV shows with TMDB metadata & vertical poster
+    const rawTvShows = Array.from(rawTvShowsMap.values());
     const tvShows = await Promise.all(
       rawTvShows.map(async (s) => {
-        let posterUrl = s.frontmatter.image_url || null;
-        if (posterUrl) {
-          posterUrl = getImageUrl(posterUrl, 'w500');
-        }
-        let displayTitle = s.frontmatter.title || s.showSlug;
+        let displayTitle = s.indexFrontmatter.title || s.showSlug;
         let year: number | null = null;
-        let rating = s.frontmatter.rating ? Number(s.frontmatter.rating) : null;
+        let rating = s.indexFrontmatter.rating ? Number(s.indexFrontmatter.rating) : null;
+        let tmdbPoster: string | null = null;
 
-        if (s.frontmatter.tmdb_id) {
+        if (s.indexFrontmatter.tmdb_id) {
           try {
-            const tmdb = await getTVShowDetails(Number(s.frontmatter.tmdb_id)).catch(() => null);
+            const tmdb = await getTVShowDetails(Number(s.indexFrontmatter.tmdb_id)).catch(() => null);
             if (tmdb) {
-              if (!posterUrl && tmdb.poster_path) {
-                posterUrl = getImageUrl(tmdb.poster_path, 'w500');
+              if (tmdb.poster_path) {
+                tmdbPoster = getImageUrl(tmdb.poster_path, 'w500');
               }
-              if (!s.frontmatter.title && tmdb.name) {
+              if (!s.indexFrontmatter.title && tmdb.name) {
                 displayTitle = tmdb.name;
               }
               if (tmdb.first_air_date) {
@@ -262,8 +409,21 @@ export async function GET() {
           }
         }
 
+        let posterUrl = tmdbPoster;
+        if (!posterUrl && s.indexFrontmatter.poster_path) {
+          posterUrl = getImageUrl(s.indexFrontmatter.poster_path, 'w500');
+        }
+        if (!posterUrl && s.indexFrontmatter.image_url) {
+          posterUrl = getImageUrl(s.indexFrontmatter.image_url, 'w500');
+        }
+
         return {
-          ...s,
+          showSlug: s.showSlug,
+          relativePath: s.relativePath,
+          frontmatter: s.indexFrontmatter,
+          content: s.indexContent,
+          updatedAt: s.updatedAt,
+          episodes: s.episodes,
           posterUrl,
           displayTitle,
           year,
@@ -274,8 +434,6 @@ export async function GET() {
 
     // Sort TV shows newest first
     tvShows.sort((a, b) => (b.updatedAt || 0) - (a.updatedAt || 0));
-
-    const isLocal = !process.env.VERCEL && process.env.NODE_ENV !== 'production';
 
     return NextResponse.json({
       movies,

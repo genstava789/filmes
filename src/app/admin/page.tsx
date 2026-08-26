@@ -1890,8 +1890,8 @@ export default function AdminPage() {
                   >
                     <div>
                       <div className="flex items-start gap-3 mb-2.5">
-                        <div className="relative w-16 h-23 sm:w-18 sm:h-26 rounded-lg sm:rounded-xl overflow-hidden bg-slate-900 flex-shrink-0 border border-white/15 shadow-md">
-                          <SafeAdminImage src={poster} alt={title} sizes="72px" />
+                        <div className="relative w-16 sm:w-20 aspect-[2/3] min-h-[96px] sm:min-h-[120px] rounded-lg sm:rounded-xl overflow-hidden bg-slate-900 flex-shrink-0 border border-white/15 shadow-md">
+                          <SafeAdminImage src={poster} alt={title} sizes="(max-width: 640px) 64px, 80px" />
                         </div>
 
                         <div className="flex-1 min-w-0">
@@ -2015,8 +2015,8 @@ export default function AdminPage() {
                     {/* Show Main Header */}
                     <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-2.5 pb-3 border-b border-white/10 w-full">
                       <div className="flex items-center gap-2.5">
-                        <div className="relative w-10 h-14 rounded overflow-hidden bg-slate-900 flex-shrink-0 border border-white/10 shadow-sm">
-                          <SafeAdminImage src={poster} alt={title} sizes="40px" />
+                        <div className="relative w-12 sm:w-14 aspect-[2/3] min-h-[72px] sm:min-h-[84px] rounded-lg overflow-hidden bg-slate-900 flex-shrink-0 border border-white/10 shadow-sm">
+                          <SafeAdminImage src={poster} alt={title} sizes="56px" />
                         </div>
 
                         <div>
@@ -2187,7 +2187,7 @@ export default function AdminPage() {
                                               className="p-2.5 sm:p-3 rounded-xl bg-[#090e1e]/90 border border-white/10 flex items-start gap-3 w-full hover:border-purple-500/50 hover:bg-[#0c1328] transition-all shadow-sm group"
                                             >
                                               {/* Left: Compact 16:9 Thumbnail */}
-                                              <div className="relative w-16 h-11 sm:w-20 sm:h-13 rounded-lg overflow-hidden bg-slate-900 border border-white/10 flex-shrink-0 shadow-sm mt-0.5">
+                                              <div className="relative w-16 sm:w-20 aspect-video rounded-lg overflow-hidden bg-slate-900 border border-white/10 flex-shrink-0 shadow-sm mt-0.5">
                                                 <SafeAdminImage src={epPoster} fallbackSrc={poster} alt={epTitle} sizes="80px" />
                                               </div>
 
