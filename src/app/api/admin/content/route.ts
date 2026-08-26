@@ -383,7 +383,7 @@ export async function POST(request: NextRequest) {
 
       fileContent = matter.stringify(content || '', frontmatterData);
     } else if (contentType === 'tv_show') {
-      let { tmdb_id, title, desc, poster, rating, featured, showSlug, content = '' } = body;
+      let { tmdb_id, title, desc, poster, rating, featured, showSlug, content = '', seasons = [] } = body;
 
       const extracted = extractTmdbIdAndType(String(tmdb_id || ''));
       const parsedId = extracted.id ? Number(extracted.id) : Number(tmdb_id);
@@ -465,6 +465,88 @@ export async function POST(request: NextRequest) {
       }
 
       fileContent = matter.stringify(content || '', frontmatterData);
+
+      // Save _index.md
+      let wroteIndexLocal = false;
+      try {
+        const fullPath = path.join(process.cwd(), relativePath);
+        const dir = path.dirname(fullPath);
+        if (!fs.existsSync(dir)) fs.mkdirSync(dir, { recursive: true });
+        fs.writeFileSync(fullPath, fileContent, 'utf8');
+        wroteIndexLocal = true;
+      } catch (fsErr: any) {
+        if (fsErr.code !== 'EROFS' && !fsErr.message?.includes('read-only')) {
+          throw fsErr;
+        }
+      }
+
+      if (!wroteIndexLocal || token) {
+        if (token) {
+          await saveGitHubFile(relativePath, fileContent, `cms: save ${relativePath}`, { token });
+        }
+      }
+
+      // If multi-season episodes are provided, save each episode file!
+      let savedEpisodesCount = 0;
+      if (Array.isArray(seasons) && seasons.length > 0) {
+        for (const s of seasons) {
+          const rawSeason = String(s.season || s.name || 's1').trim();
+          const cleanSeason = rawSeason.toLowerCase().startsWith('s') ? rawSeason.toLowerCase() : `s${rawSeason.replace(/\D/g, '') || '1'}`;
+          const episodesList = Array.isArray(s.episodes) ? s.episodes : [];
+
+          for (const ep of episodesList) {
+            const rawEp = String(ep.episode || ep.slug || 'e1').trim();
+            const epNum = rawEp.replace(/\D/g, '') || '1';
+            const cleanEp = `e${epNum}`;
+            const epCleanVideo = cleanVideoUrl(ep.videourl || ep.video_url || '');
+
+            if (epCleanVideo) {
+              const epRelPath = `tv/${existingShowSlug}/${cleanSeason}/${cleanEp}.md`;
+              const epFrontmatter: Record<string, any> = {
+                videourl: epCleanVideo,
+              };
+              if (ep.title && ep.title.trim()) epFrontmatter.title = ep.title.trim();
+              if (ep.desc && ep.desc.trim()) epFrontmatter.deskripsi = ep.desc.trim();
+              if (ep.poster || ep.image_url) epFrontmatter.image_url = (ep.poster || ep.image_url).trim();
+              if (ep.rating !== undefined && ep.rating !== null && ep.rating !== '') epFrontmatter.rating = Number(ep.rating);
+              if (ep.duration && ep.duration.trim()) epFrontmatter.duration = ep.duration.trim();
+              if (ep.subtitles && ep.subtitles.trim()) epFrontmatter.subtitles = ep.subtitles.trim();
+
+              const epContentStr = matter.stringify(ep.content || '', epFrontmatter);
+
+              let wroteEpLocal = false;
+              try {
+                const fullEpPath = path.join(process.cwd(), epRelPath);
+                const epDir = path.dirname(fullEpPath);
+                if (!fs.existsSync(epDir)) fs.mkdirSync(epDir, { recursive: true });
+                fs.writeFileSync(fullEpPath, epContentStr, 'utf8');
+                wroteEpLocal = true;
+              } catch (fsErr: any) {
+                if (fsErr.code !== 'EROFS' && !fsErr.message?.includes('read-only')) {
+                  throw fsErr;
+                }
+              }
+
+              if (!wroteEpLocal || token) {
+                if (token) {
+                  await saveGitHubFile(epRelPath, epContentStr, `cms: save ${epRelPath}`, { token });
+                }
+              }
+              savedEpisodesCount++;
+            }
+          }
+        }
+      }
+
+      revalidateAll();
+      return NextResponse.json({
+        success: true,
+        relativePath,
+        isUpdate,
+        hasChanges,
+        changedFields,
+        savedEpisodesCount,
+      });
     } else if (contentType === 'tv_episode') {
       const { showSlug, season = 's1', episode = 'e1', videourl, title, desc, poster, rating, subtitles, duration, content = '' } = body;
 
