@@ -1,5 +1,5 @@
 import { NextRequest, NextResponse } from 'next/server';
-import { getMovieDetails, getTVShowDetails, getImageUrl } from '@/lib/tmdb';
+import { getMovieDetails, getTVShowDetails, getMediaImages, getImageUrl } from '@/lib/tmdb';
 import { extractTmdbIdAndType } from '@/lib/urls';
 
 export async function GET(request: NextRequest) {
@@ -16,6 +16,34 @@ export async function GET(request: NextRequest) {
   const type = extracted.type || queryType;
 
   try {
+    const imagesData = await getMediaImages(tmdbId, type === 'tv' ? 'tv' : 'movie').catch(() => null);
+
+    const backdrops = (imagesData?.backdrops || []).map((b) => ({
+      filePath: b.file_path,
+      url: getImageUrl(b.file_path, 'w1280'),
+      thumbUrl: getImageUrl(b.file_path, 'w400'),
+      originalUrl: getImageUrl(b.file_path, 'original'),
+      width: b.width,
+      height: b.height,
+      aspectRatio: b.aspect_ratio,
+      language: b.iso_639_1 ? b.iso_639_1.toLowerCase() : 'xx', // 'xx' represents no language / textless
+      voteAverage: b.vote_average ? Math.round(b.vote_average * 10) / 10 : null,
+      voteCount: b.vote_count || 0,
+    }));
+
+    const posters = (imagesData?.posters || []).map((p) => ({
+      filePath: p.file_path,
+      url: getImageUrl(p.file_path, 'w780'),
+      thumbUrl: getImageUrl(p.file_path, 'w300'),
+      originalUrl: getImageUrl(p.file_path, 'original'),
+      width: p.width,
+      height: p.height,
+      aspectRatio: p.aspect_ratio,
+      language: p.iso_639_1 ? p.iso_639_1.toLowerCase() : 'xx',
+      voteAverage: p.vote_average ? Math.round(p.vote_average * 10) / 10 : null,
+      voteCount: p.vote_count || 0,
+    }));
+
     if (type === 'tv') {
       const show = await getTVShowDetails(tmdbId);
       if (!show) {
@@ -32,6 +60,8 @@ export async function GET(request: NextRequest) {
         numberOfSeasons: show.number_of_seasons || 1,
         numberOfEpisodes: show.number_of_episodes || 1,
         genres: show.genres?.map((g) => g.name) || [],
+        backdrops,
+        posters,
       });
     } else {
       const movie = await getMovieDetails(tmdbId);
@@ -48,6 +78,8 @@ export async function GET(request: NextRequest) {
         rating: movie.vote_average ? Math.round(movie.vote_average * 10) / 10 : null,
         runtime: movie.runtime ? `${Math.floor(movie.runtime / 60)}h ${movie.runtime % 60}m` : null,
         genres: movie.genres?.map((g) => g.name) || [],
+        backdrops,
+        posters,
       });
     }
   } catch (err: any) {

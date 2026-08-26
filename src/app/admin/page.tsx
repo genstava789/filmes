@@ -106,6 +106,19 @@ interface TVShowItem {
   episodes: TVEpisodeItem[];
 }
 
+export interface TMDBBackdropItem {
+  filePath: string;
+  url: string;
+  thumbUrl: string;
+  originalUrl: string;
+  width: number;
+  height: number;
+  aspectRatio: number;
+  language: string; // 'xx', 'en', 'id', etc.
+  voteAverage: number | null;
+  voteCount: number;
+}
+
 interface TMDBPreviewData {
   id: number;
   title: string;
@@ -118,6 +131,8 @@ interface TMDBPreviewData {
   numberOfSeasons?: number;
   numberOfEpisodes?: number;
   genres?: string[];
+  backdrops?: TMDBBackdropItem[];
+  posters?: TMDBBackdropItem[];
 }
 
 type SortOption = 'newest' | 'oldest' | 'title_asc' | 'title_desc' | 'rating_desc';
@@ -173,9 +188,17 @@ export default function AdminPage() {
   const [formErrors, setFormErrors] = useState<Record<string, string>>({});
   const [editErrors, setEditErrors] = useState<Record<string, string>>({});
 
-  // Live TMDB Preview State
+  // Live TMDB Preview & Backdrop Picker State for Create Modal
   const [tmdbPreview, setTmdbPreview] = useState<TMDBPreviewData | null>(null);
   const [fetchingTmdb, setFetchingTmdb] = useState(false);
+  const [selectedBackdropLang, setSelectedBackdropLang] = useState<string>('all');
+  const [showBackdropPicker, setShowBackdropPicker] = useState(false);
+
+  // Live TMDB Preview & Backdrop Picker State for Edit Modal
+  const [editTmdbPreview, setEditTmdbPreview] = useState<TMDBPreviewData | null>(null);
+  const [fetchingEditTmdb, setFetchingEditTmdb] = useState(false);
+  const [editSelectedBackdropLang, setEditSelectedBackdropLang] = useState<string>('all');
+  const [showEditBackdropPicker, setShowEditBackdropPicker] = useState(false);
 
   // Load saved token & optimistic cache from localStorage on mount (eliminates flicker)
   useEffect(() => {
@@ -233,7 +256,8 @@ export default function AdminPage() {
   const fetchContent = useCallback(async () => {
     setLoading(true);
     try {
-      const res = await fetch('/api/admin/content', {
+      const res = await fetch(`/api/admin/content?_t=${Date.now()}`, {
+        cache: 'no-store',
         headers: getHeaders(),
       });
       const data = await res.json();
@@ -253,6 +277,42 @@ export default function AdminPage() {
       setLoading(false);
     }
   }, [getHeaders]);
+
+  // Fetch TMDB images/details for Edit Modal
+  const handleFetchEditTmdbPreview = async (idOrUrl: string, type: 'movie' | 'tv') => {
+    const extracted = extractTmdbIdAndType(idOrUrl);
+    if (!extracted.id) return;
+    setFetchingEditTmdb(true);
+    try {
+      const res = await fetch(`/api/admin/tmdb-preview?id=${extracted.id}&type=${extracted.type || type}`);
+      const data = await res.json();
+      if (res.ok) {
+        setEditTmdbPreview(data);
+      }
+    } catch (e) {
+      console.warn('Error fetching TMDB preview for edit modal:', e);
+    } finally {
+      setFetchingEditTmdb(false);
+    }
+  };
+
+  // Open Edit Modal with fresh state
+  const openEditModal = (item: {
+    type: 'movie' | 'tv_show' | 'tv_episode';
+    relativePath: string;
+    frontmatter: Record<string, any>;
+    content: string;
+  }) => {
+    setEditingItem(item);
+    setEditErrors({});
+    setEditTmdbPreview(null);
+    setShowEditBackdropPicker(false);
+    setEditSelectedBackdropLang('all');
+    setIsEditModalOpen(true);
+    if (item.frontmatter.tmdb_id) {
+      handleFetchEditTmdbPreview(String(item.frontmatter.tmdb_id), item.type === 'movie' ? 'movie' : 'tv');
+    }
+  };
 
   useEffect(() => {
     fetchContent();
@@ -357,6 +417,8 @@ export default function AdminPage() {
     setFormEpisode('e1');
     setFormErrors({});
     setTmdbPreview(null);
+    setShowBackdropPicker(false);
+    setSelectedBackdropLang('all');
   };
 
   // Validate create form
@@ -513,26 +575,67 @@ export default function AdminPage() {
 
     if (!requireToken('mengedit konten')) return;
 
-    // Optimistic UI update in local state
+    // Optimistic UI update in local state for Movie, TV Show, and Episode
     if (editingItem.type === 'movie') {
       setMovies((prev) =>
         prev.map((m) =>
           m.relativePath === editingItem.relativePath
             ? {
                 ...m,
-                frontmatter: { ...editingItem.frontmatter },
+                frontmatter: {
+                  ...editingItem.frontmatter,
+                  featured: Boolean(editingItem.frontmatter.featured),
+                },
                 displayTitle: editingItem.frontmatter.title || m.displayTitle,
                 posterUrl: editingItem.frontmatter.image_url || m.posterUrl,
+                rating: editingItem.frontmatter.rating ? Number(editingItem.frontmatter.rating) : m.rating,
                 updatedAt: Date.now(),
                 isOptimistic: true,
               }
             : m
         )
       );
+    } else if (editingItem.type === 'tv_show') {
+      setTvShows((prev) =>
+        prev.map((s) =>
+          s.relativePath === editingItem.relativePath
+            ? {
+                ...s,
+                frontmatter: {
+                  ...editingItem.frontmatter,
+                  featured: Boolean(editingItem.frontmatter.featured),
+                },
+                displayTitle: editingItem.frontmatter.title || s.displayTitle,
+                posterUrl: editingItem.frontmatter.image_url || s.posterUrl,
+                rating: editingItem.frontmatter.rating ? Number(editingItem.frontmatter.rating) : s.rating,
+                updatedAt: Date.now(),
+                isOptimistic: true,
+              }
+            : s
+        )
+      );
+    } else if (editingItem.type === 'tv_episode') {
+      setTvShows((prev) =>
+        prev.map((s) => ({
+          ...s,
+          episodes: s.episodes.map((ep) =>
+            ep.relativePath === editingItem.relativePath
+              ? {
+                  ...ep,
+                  frontmatter: { ...editingItem.frontmatter },
+                  displayTitle: editingItem.frontmatter.title || ep.displayTitle,
+                  posterUrl: editingItem.frontmatter.image_url || ep.posterUrl,
+                  updatedAt: Date.now(),
+                  isOptimistic: true,
+                }
+              : ep
+          ),
+        }))
+      );
     }
 
     setIsEditModalOpen(false);
-    showToast('Menyimpan perubahan ke GitHub...', 'success');
+    showToast('Menyimpan perubahan...', 'success');
 
     try {
       const res = await fetch('/api/admin/content', {
@@ -1014,14 +1117,12 @@ export default function AdminPage() {
                         <button
                           onClick={() => {
                             if (!requireToken('mengedit movie')) return;
-                            setEditingItem({
+                            openEditModal({
                               type: 'movie',
                               relativePath: movie.relativePath,
                               frontmatter: { ...movie.frontmatter },
                               content: movie.content,
                             });
-                            setEditErrors({});
-                            setIsEditModalOpen(true);
                           }}
                           className="p-2 rounded-lg bg-white/5 hover:bg-white/10 text-slate-300 hover:text-white transition-all"
                           title="Edit Post"
@@ -1148,14 +1249,12 @@ export default function AdminPage() {
                         <button
                           onClick={() => {
                             if (!requireToken('mengedit TV series')) return;
-                            setEditingItem({
+                            openEditModal({
                               type: 'tv_show',
                               relativePath: show.relativePath,
                               frontmatter: { ...show.frontmatter },
                               content: show.content,
                             });
-                            setEditErrors({});
-                            setIsEditModalOpen(true);
                           }}
                           className="p-1.5 rounded-lg bg-white/5 hover:bg-white/10 text-slate-300"
                           title="Edit Show Details"
@@ -1212,14 +1311,12 @@ export default function AdminPage() {
                                       <button
                                         onClick={() => {
                                           if (!requireToken('mengedit episode')) return;
-                                          setEditingItem({
+                                          openEditModal({
                                             type: 'tv_episode',
                                             relativePath: ep.relativePath,
                                             frontmatter: { ...ep.frontmatter },
                                             content: ep.content,
                                           });
-                                          setEditErrors({});
-                                          setIsEditModalOpen(true);
                                         }}
                                         className="p-1 rounded text-slate-400 hover:text-white"
                                         title="Edit Episode"
@@ -1676,16 +1773,146 @@ export default function AdminPage() {
 
               {/* Poster / Image URL (Optional) */}
               <div>
-                <label className="block text-xs font-medium text-slate-400 mb-1">
-                  Poster Image URL (Opsional - otomatis diambil dari TMDB jika kosong)
-                </label>
+                <div className="flex items-center justify-between mb-1">
+                  <label className="text-xs font-medium text-slate-400">
+                    Poster / Backdrop Image URL (Opsional)
+                  </label>
+                  {formTmdbId && (
+                    <button
+                      type="button"
+                      onClick={() => {
+                        if (!tmdbPreview) {
+                          handleFetchTmdbPreview(formTmdbId, contentType === 'movie' ? 'movie' : 'tv');
+                        }
+                        setShowBackdropPicker(!showBackdropPicker);
+                      }}
+                      className="text-[11px] font-bold text-cyan-400 hover:text-cyan-300 flex items-center gap-1 transition-all"
+                    >
+                      <ImageIcon size={12} />
+                      <span>
+                        {tmdbPreview?.backdrops && tmdbPreview.backdrops.length > 0
+                          ? `${showBackdropPicker ? 'Tutup Galeri' : 'Pilih Backdrop TMDB'} (${tmdbPreview.backdrops.length})`
+                          : 'Cari Backdrop TMDB'}
+                      </span>
+                    </button>
+                  )}
+                </div>
                 <input
                   type="text"
                   value={formPoster}
                   onChange={(e) => setFormPoster(e.target.value)}
-                  placeholder="https://image.tmdb.org/... atau link gambar"
+                  placeholder="https://image.tmdb.org/... atau pilih dari galeri backdrop di bawah"
                   className="w-full px-3.5 py-2.5 bg-black/40 border border-white/10 rounded-xl text-sm text-white focus:outline-none focus:border-cyan-400"
                 />
+
+                {/* Live TMDB Backdrop Image Gallery Picker */}
+                {tmdbPreview?.backdrops && tmdbPreview.backdrops.length > 0 && showBackdropPicker && (
+                  <div className="mt-3 p-3 bg-black/50 border border-cyan-500/30 rounded-xl space-y-3 animate-fade-in">
+                    <div className="flex items-center justify-between">
+                      <span className="text-xs font-bold text-cyan-300 flex items-center gap-1.5">
+                        <ImageIcon size={14} /> Pilih Gambar Backdrop ({tmdbPreview.backdrops.length} tersedia)
+                      </span>
+                      <span className="text-[10px] text-slate-400">Klik untuk memilih (single choice)</span>
+                    </div>
+
+                    {/* Language Filter Tabs */}
+                    <div className="flex items-center gap-1.5 flex-wrap">
+                      <span className="text-[10px] font-semibold text-slate-400 mr-1 flex items-center gap-0.5">
+                        <Filter size={10} /> Filter Bahasa:
+                      </span>
+                      {(() => {
+                        const availableLangs = Array.from(new Set(tmdbPreview.backdrops!.map((b) => b.language)));
+                        return [
+                          { code: 'all', label: `Semua (${tmdbPreview.backdrops!.length})` },
+                          ...availableLangs.map((lang) => {
+                            const count = tmdbPreview.backdrops!.filter((b) => b.language === lang).length;
+                            const langLabel =
+                              lang === 'xx' || lang === 'null'
+                                ? `No Language / Tanpa Teks (${count})`
+                                : lang.toUpperCase() === 'ID'
+                                ? `Indonesia (ID) (${count})`
+                                : lang.toUpperCase() === 'EN'
+                                ? `English (EN) (${count})`
+                                : `${lang.toUpperCase()} (${count})`;
+                            return { code: lang, label: langLabel };
+                          }),
+                        ].map((tab) => (
+                          <button
+                            key={tab.code}
+                            type="button"
+                            onClick={() => setSelectedBackdropLang(tab.code)}
+                            className={`px-2.5 py-1 rounded-lg text-[11px] font-bold transition-all ${
+                              selectedBackdropLang === tab.code
+                                ? 'bg-cyan-500 text-black shadow-md shadow-cyan-500/25'
+                                : 'bg-white/5 text-slate-300 hover:bg-white/10 hover:text-white border border-white/10'
+                            }`}
+                          >
+                            {tab.label}
+                          </button>
+                        ));
+                      })()}
+                    </div>
+
+                    {/* Backdrops Grid */}
+                    <div className="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-4 gap-2.5 max-h-64 overflow-y-auto pr-1">
+                      {tmdbPreview.backdrops!
+                        .filter((b) => selectedBackdropLang === 'all' || b.language === selectedBackdropLang)
+                        .map((b, idx) => {
+                          const isSelected = formPoster === b.url || formPoster === b.originalUrl;
+                          return (
+                            <div
+                              key={`${b.filePath}-${idx}`}
+                              onClick={() => setFormPoster(b.url)}
+                              className={`group relative rounded-lg overflow-hidden border cursor-pointer transition-all aspect-video ${
+                                isSelected
+                                  ? 'ring-2 ring-cyan-400 border-cyan-400 shadow-lg shadow-cyan-500/30'
+                                  : 'border-white/10 hover:border-cyan-500/50 bg-black/40'
+                              }`}
+                            >
+                              <Image
+                                src={b.thumbUrl}
+                                alt="Backdrop"
+                                fill
+                                className="object-cover group-hover:scale-105 transition-transform duration-300"
+                                sizes="(max-width: 640px) 50vw, (max-width: 768px) 33vw, 25vw"
+                              />
+
+                              {/* Badges */}
+                              <div className="absolute top-1 left-1">
+                                <span className="px-1.5 py-0.5 rounded text-[9px] font-extrabold bg-black/75 text-cyan-300 backdrop-blur-sm border border-white/10">
+                                  {b.language === 'xx' || b.language === 'null' ? 'No Text' : b.language.toUpperCase()}
+                                </span>
+                              </div>
+
+                              <div className="absolute top-1 right-1">
+                                <span className="px-1.5 py-0.5 rounded text-[9px] font-bold bg-black/75 text-slate-300 backdrop-blur-sm border border-white/10">
+                                  {b.width}×{b.height}
+                                </span>
+                              </div>
+
+                              {/* Selected Checkmark */}
+                              {isSelected && (
+                                <div className="absolute inset-0 bg-cyan-950/60 backdrop-blur-[1px] flex items-center justify-center">
+                                  <div className="flex items-center gap-1 px-2 py-0.5 rounded-full bg-cyan-500 text-black font-extrabold text-[10px] shadow-md">
+                                    <CheckCircle size={12} />
+                                    <span>Terpilih</span>
+                                  </div>
+                                </div>
+                              )}
+
+                              {b.voteAverage ? (
+                                <div className="absolute bottom-1 left-1">
+                                  <span className="px-1.5 py-0.5 rounded text-[9px] font-bold bg-black/80 text-amber-300 flex items-center gap-0.5 backdrop-blur-sm">
+                                    <Star size={9} fill="currentColor" /> {b.voteAverage}
+                                  </span>
+                                </div>
+                              ) : null}
+                            </div>
+                          );
+                        })}
+                    </div>
+                  </div>
+                )}
               </div>
 
               {/* Rating (Optional) */}
@@ -1901,7 +2128,33 @@ export default function AdminPage() {
 
               {/* Image URL */}
               <div>
-                <label className="block text-xs font-medium text-slate-400 mb-1">Poster / Image URL</label>
+                <div className="flex items-center justify-between mb-1">
+                  <label className="text-xs font-medium text-slate-400">Poster / Image URL</label>
+                  {editingItem.frontmatter.tmdb_id && (
+                    <button
+                      type="button"
+                      onClick={() => {
+                        if (!editTmdbPreview) {
+                          handleFetchEditTmdbPreview(
+                            String(editingItem.frontmatter.tmdb_id),
+                            editingItem.type === 'movie' ? 'movie' : 'tv'
+                          );
+                        }
+                        setShowEditBackdropPicker(!showEditBackdropPicker);
+                      }}
+                      className="text-[11px] font-bold text-cyan-400 hover:text-cyan-300 flex items-center gap-1 transition-all"
+                    >
+                      <ImageIcon size={12} />
+                      <span>
+                        {editTmdbPreview?.backdrops && editTmdbPreview.backdrops.length > 0
+                          ? `${showEditBackdropPicker ? 'Tutup Galeri' : 'Pilih Backdrop TMDB'} (${editTmdbPreview.backdrops.length})`
+                          : fetchingEditTmdb
+                          ? 'Mengambil Galeri...'
+                          : 'Cari Backdrop TMDB'}
+                      </span>
+                    </button>
+                  )}
+                </div>
                 <input
                   type="text"
                   value={editingItem.frontmatter.image_url || editingItem.frontmatter.poster_path || ''}
@@ -1911,8 +2164,124 @@ export default function AdminPage() {
                       frontmatter: { ...editingItem.frontmatter, image_url: e.target.value },
                     })
                   }
+                  placeholder="https://image.tmdb.org/... atau pilih dari galeri backdrop di bawah"
                   className="w-full px-3.5 py-2.5 bg-black/40 border border-white/10 rounded-xl text-sm text-white focus:outline-none focus:border-cyan-400"
                 />
+
+                {/* Live TMDB Backdrop Image Gallery Picker in Edit Modal */}
+                {editTmdbPreview?.backdrops && editTmdbPreview.backdrops.length > 0 && showEditBackdropPicker && (
+                  <div className="mt-3 p-3 bg-black/50 border border-cyan-500/30 rounded-xl space-y-3 animate-fade-in">
+                    <div className="flex items-center justify-between">
+                      <span className="text-xs font-bold text-cyan-300 flex items-center gap-1.5">
+                        <ImageIcon size={14} /> Pilih Gambar Backdrop ({editTmdbPreview.backdrops.length} tersedia)
+                      </span>
+                      <span className="text-[10px] text-slate-400">Klik untuk memilih (single choice)</span>
+                    </div>
+
+                    {/* Language Filter Tabs */}
+                    <div className="flex items-center gap-1.5 flex-wrap">
+                      <span className="text-[10px] font-semibold text-slate-400 mr-1 flex items-center gap-0.5">
+                        <Filter size={10} /> Filter Bahasa:
+                      </span>
+                      {(() => {
+                        const availableLangs = Array.from(new Set(editTmdbPreview.backdrops!.map((b) => b.language)));
+                        return [
+                          { code: 'all', label: `Semua (${editTmdbPreview.backdrops!.length})` },
+                          ...availableLangs.map((lang) => {
+                            const count = editTmdbPreview.backdrops!.filter((b) => b.language === lang).length;
+                            const langLabel =
+                              lang === 'xx' || lang === 'null'
+                                ? `No Language / Tanpa Teks (${count})`
+                                : lang.toUpperCase() === 'ID'
+                                ? `Indonesia (ID) (${count})`
+                                : lang.toUpperCase() === 'EN'
+                                ? `English (EN) (${count})`
+                                : `${lang.toUpperCase()} (${count})`;
+                            return { code: lang, label: langLabel };
+                          }),
+                        ].map((tab) => (
+                          <button
+                            key={tab.code}
+                            type="button"
+                            onClick={() => setEditSelectedBackdropLang(tab.code)}
+                            className={`px-2.5 py-1 rounded-lg text-[11px] font-bold transition-all ${
+                              editSelectedBackdropLang === tab.code
+                                ? 'bg-cyan-500 text-black shadow-md shadow-cyan-500/25'
+                                : 'bg-white/5 text-slate-300 hover:bg-white/10 hover:text-white border border-white/10'
+                            }`}
+                          >
+                            {tab.label}
+                          </button>
+                        ));
+                      })()}
+                    </div>
+
+                    {/* Backdrops Grid */}
+                    <div className="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-4 gap-2.5 max-h-64 overflow-y-auto pr-1">
+                      {editTmdbPreview.backdrops!
+                        .filter((b) => editSelectedBackdropLang === 'all' || b.language === editSelectedBackdropLang)
+                        .map((b, idx) => {
+                          const currentImg = editingItem.frontmatter.image_url || editingItem.frontmatter.poster_path;
+                          const isSelected = currentImg === b.url || currentImg === b.originalUrl;
+                          return (
+                            <div
+                              key={`edit-bg-${b.filePath}-${idx}`}
+                              onClick={() =>
+                                setEditingItem({
+                                  ...editingItem,
+                                  frontmatter: { ...editingItem.frontmatter, image_url: b.url },
+                                })
+                              }
+                              className={`group relative rounded-lg overflow-hidden border cursor-pointer transition-all aspect-video ${
+                                isSelected
+                                  ? 'ring-2 ring-cyan-400 border-cyan-400 shadow-lg shadow-cyan-500/30'
+                                  : 'border-white/10 hover:border-cyan-500/50 bg-black/40'
+                              }`}
+                            >
+                              <Image
+                                src={b.thumbUrl}
+                                alt="Backdrop"
+                                fill
+                                className="object-cover group-hover:scale-105 transition-transform duration-300"
+                                sizes="(max-width: 640px) 50vw, (max-width: 768px) 33vw, 25vw"
+                              />
+
+                              {/* Badges */}
+                              <div className="absolute top-1 left-1">
+                                <span className="px-1.5 py-0.5 rounded text-[9px] font-extrabold bg-black/75 text-cyan-300 backdrop-blur-sm border border-white/10">
+                                  {b.language === 'xx' || b.language === 'null' ? 'No Text' : b.language.toUpperCase()}
+                                </span>
+                              </div>
+
+                              <div className="absolute top-1 right-1">
+                                <span className="px-1.5 py-0.5 rounded text-[9px] font-bold bg-black/75 text-slate-300 backdrop-blur-sm border border-white/10">
+                                  {b.width}×{b.height}
+                                </span>
+                              </div>
+
+                              {/* Selected Checkmark */}
+                              {isSelected && (
+                                <div className="absolute inset-0 bg-cyan-950/60 backdrop-blur-[1px] flex items-center justify-center">
+                                  <div className="flex items-center gap-1 px-2 py-0.5 rounded-full bg-cyan-500 text-black font-extrabold text-[10px] shadow-md">
+                                    <CheckCircle size={12} />
+                                    <span>Terpilih</span>
+                                  </div>
+                                </div>
+                              )}
+
+                              {b.voteAverage ? (
+                                <div className="absolute bottom-1 left-1">
+                                  <span className="px-1.5 py-0.5 rounded text-[9px] font-bold bg-black/80 text-amber-300 flex items-center gap-0.5 backdrop-blur-sm">
+                                    <Star size={9} fill="currentColor" /> {b.voteAverage}
+                                  </span>
+                                </div>
+                              ) : null}
+                            </div>
+                          );
+                        })}
+                    </div>
+                  </div>
+                )}
               </div>
 
               {/* Rating */}

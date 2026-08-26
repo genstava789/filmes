@@ -212,3 +212,40 @@ export async function discoverTVShows(
   return fetchTMDB<TMDBResponse<TVShow>>('/discover/tv', params);
 }
 
+export interface TMDBImageItem {
+  aspect_ratio: number;
+  file_path: string;
+  height: number;
+  iso_639_1: string | null;
+  vote_average: number;
+  vote_count: number;
+  width: number;
+}
+
+export interface TMDBImagesResponse {
+  id: number;
+  backdrops: TMDBImageItem[];
+  posters: TMDBImageItem[];
+  logos?: TMDBImageItem[];
+}
+
+/**
+ * Fetches all available images (backdrops & posters) from TMDB for a movie or TV show.
+ * Includes all language options including "no language" / textless (xx/null), en, id, etc.
+ */
+export async function getMediaImages(
+  id: number,
+  type: 'movie' | 'tv' = 'movie',
+  includeImageLanguage: string = 'en,id,null,xx'
+): Promise<TMDBImagesResponse | null> {
+  try {
+    return await fetchTMDB<TMDBImagesResponse>(`/${type}/${id}/images`, {
+      include_image_language: includeImageLanguage,
+    });
+  } catch (e) {
+    console.warn(`TMDB getMediaImages error for ${type} ${id}:`, e);
+    return null;
+  }
+}
+
+
