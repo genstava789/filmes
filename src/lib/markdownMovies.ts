@@ -443,8 +443,13 @@ export async function getMovieDetailsWithCustomOverride(
   const overriddenTagline = frontmatter.tagline?.trim() || tmdbMovie.tagline;
 
   const videoUrl = cleanVideoUrl(frontmatter.videourl || frontmatter.video_url);
-  const imageUrl = frontmatter.image_url || null;
+  const imageUrl = frontmatter.image_url || frontmatter.poster_path || frontmatter.backdrop_url || null;
   const subtitles = frontmatter.subtitles || frontmatter.subtitle || frontmatter.subtitle_url || frontmatter.sub_url || frontmatter.caption_url || null;
+
+  const overriddenPoster = imageUrl || tmdbMovie.poster_path;
+  const overriddenBackdrop = frontmatter.backdrop_url || imageUrl || tmdbMovie.backdrop_path;
+  const overriddenReleaseDate = frontmatter.year ? `${frontmatter.year}-01-01` : (frontmatter.release_date || tmdbMovie.release_date);
+  const overriddenRuntime = frontmatter.duration ? (typeof frontmatter.duration === 'number' ? frontmatter.duration : tmdbMovie.runtime) : tmdbMovie.runtime;
 
   return {
     ...tmdbMovie,
@@ -452,6 +457,10 @@ export async function getMovieDetailsWithCustomOverride(
     vote_average: overriddenRating,
     overview: overriddenOverview,
     tagline: overriddenTagline,
+    release_date: overriddenReleaseDate,
+    runtime: overriddenRuntime,
+    poster_path: overriddenPoster,
+    backdrop_path: overriddenBackdrop,
     isCustomMarkdown: true,
     customSlug: customMovie.slug,
     customVideoUrl: videoUrl,

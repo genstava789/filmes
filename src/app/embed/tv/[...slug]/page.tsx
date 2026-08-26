@@ -127,8 +127,15 @@ export default async function TVEpisodeEmbedPage({ params }: PageProps) {
 
   const siteUrl = process.env.NEXT_PUBLIC_SITE_URL || siteConfig.url;
   const videoUrl = activeEpisode.videoUrl;
-  const defaultBackdrop = data.customImageUrl || (data.backdrop_path ? getImageUrl(data.backdrop_path, 'original') : undefined);
-  const thumbnailImage = activeEpisode.imageUrl || defaultBackdrop || (data.poster_path ? getImageUrl(data.poster_path, 'w500') : '');
+  const defaultBackdrop = data.customImageUrl
+    ? getImageUrl(data.customImageUrl, 'w1280')
+    : data.backdrop_path
+    ? getImageUrl(data.backdrop_path, 'original')
+    : undefined;
+  const thumbnailImage =
+    (activeEpisode.imageUrl ? getImageUrl(activeEpisode.imageUrl, 'w1280') : null) ||
+    defaultBackdrop ||
+    (data.poster_path ? getImageUrl(data.poster_path, 'w500') : '');
 
   const creditSuffix = siteConfig.useCreditTitleForRave && siteConfig.name ? ` | ${siteConfig.name}` : '';
   const videoTitle = `${data.name} - ${activeEpisode.episodeLabel}: ${activeEpisode.title}${creditSuffix}`;

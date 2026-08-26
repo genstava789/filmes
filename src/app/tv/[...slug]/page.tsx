@@ -191,8 +191,15 @@ export default async function TVShowPage({ params }: PageProps) {
     data.videos?.results?.[0];
   const trailerKey = trailer?.key || null;
 
-  const defaultBackdrop = data.customImageUrl || (data.backdrop_path ? getImageUrl(data.backdrop_path, 'original') : undefined);
-  const thumbnailImage = activeEpisode?.imageUrl || defaultBackdrop || (data.poster_path ? getImageUrl(data.poster_path, 'w500') : '');
+  const defaultBackdrop = data.customImageUrl
+    ? getImageUrl(data.customImageUrl, 'w1280')
+    : data.backdrop_path
+    ? getImageUrl(data.backdrop_path, 'original')
+    : undefined;
+  const thumbnailImage =
+    (activeEpisode?.imageUrl ? getImageUrl(activeEpisode.imageUrl, 'w1280') : null) ||
+    defaultBackdrop ||
+    (data.poster_path ? getImageUrl(data.poster_path, 'w500') : '');
 
   const creditSuffix = siteConfig.useCreditTitleForRave && siteConfig.name ? ` | ${siteConfig.name}` : '';
   const videoTitle = isEpisodePage && activeEpisode

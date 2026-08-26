@@ -58,7 +58,9 @@ export async function generateMetadata({ params }: PageProps): Promise<Metadata>
   const pageUrl = `${siteUrl}/movie/${params.id}`;
   const embedUrl = `${siteUrl}/embed/movie/${params.id}`;
 
-  const image = movie.backdrop_path
+  const image = movie.customImageUrl
+    ? getImageUrl(movie.customImageUrl, 'w1280')
+    : movie.backdrop_path
     ? getImageUrl(movie.backdrop_path, 'w1280')
     : movie.poster_path
     ? getImageUrl(movie.poster_path, 'w500')
@@ -183,10 +185,14 @@ export default async function MovieDetailPage({ params }: PageProps) {
   const pageUrl = `${siteUrl}/movie/${params.id}`;
   const embedUrl = `${siteUrl}/embed/movie/${params.id}`;
 
-  const defaultBackdrop = movie.backdrop_path
+  const defaultBackdrop = movie.customImageUrl
+    ? getImageUrl(movie.customImageUrl, 'w1280')
+    : movie.backdrop_path
     ? getImageUrl(movie.backdrop_path, 'original')
     : undefined;
-  const thumbnailImage = defaultBackdrop || (movie.poster_path ? getImageUrl(movie.poster_path, 'w500') : '');
+  const thumbnailImage = movie.customImageUrl
+    ? getImageUrl(movie.customImageUrl, 'w1280')
+    : defaultBackdrop || (movie.poster_path ? getImageUrl(movie.poster_path, 'w500') : '');
 
   const yearStr = year ? ` (${year})` : '';
   const creditSuffix = siteConfig.useCreditTitleForRave && siteConfig.name ? ` | ${siteConfig.name}` : '';
