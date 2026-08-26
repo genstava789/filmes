@@ -185,7 +185,8 @@ export default function GenrePageClient({
               genres={allGenres}
               activeGenreId={genreId}
               type={isTV ? 'tv' : 'movie'}
-              allHref={isTV ? '/tv' : '/'}
+              allHref={isTV ? '/tv/browse' : '/movie'}
+              hideTitle={true}
             />
           </div>
         )}

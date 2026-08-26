@@ -115,101 +115,87 @@ export default function MoviePageClient({
     <div className="min-h-screen pt-20 sm:pt-24 pb-4 sm:pb-6" style={{ background: '#050816' }}>
       <div className="w-full px-4 sm:px-6 md:px-8 lg:px-10 xl:px-12 2xl:px-14">
         
-        {/* ── Landing Page Style Hero Header (Centered) ── */}
-        <div className="relative text-center pt-2 pb-6 sm:pb-8 max-w-3xl mx-auto">
-          {/* Ambient Lighting Glow Accent */}
-          <div
-            className="absolute top-1/2 left-1/2 -translate-x-1/2 -translate-y-1/2 w-72 sm:w-[480px] h-32 sm:h-56 rounded-full pointer-events-none blur-3xl opacity-25"
-            style={{
-              background:
-                'radial-gradient(circle, rgba(6,182,212,0.45) 0%, rgba(124,58,237,0.35) 50%, transparent 75%)',
-            }}
-          />
+        {/* ── Page Header: Title on Left, Sort Dropdown on Right ── */}
+        <div className="mb-6 sm:mb-8">
+          <div className="flex items-center justify-between gap-3">
+            <div className="flex-1 min-w-0">
+              <h1 className="text-xl sm:text-3xl md:text-4xl font-black truncate sm:whitespace-normal mb-1">
+                <span
+                  style={{
+                    background: 'linear-gradient(135deg, #06b6d4, #7c3aed)',
+                    WebkitBackgroundClip: 'text',
+                    WebkitTextFillColor: 'transparent',
+                    backgroundClip: 'text',
+                  }}
+                >
+                  Browse Movies
+                </span>
+              </h1>
+              <p className="text-xs sm:text-sm font-medium" style={{ color: '#94a3b8' }}>
+                Jelajahi <span className="text-cyan-400 font-bold">{totalResults > 0 ? totalResults.toLocaleString() : '129'}</span> movie untuk ditonton
+              </p>
+            </div>
 
-          {/* Heading: Browse Movies */}
-          <h1 className="relative text-3xl xs:text-4xl sm:text-5xl md:text-6xl font-black text-white tracking-tight mb-3">
-            <span
-              style={{
-                background: 'linear-gradient(135deg, #06b6d4 0%, #a78bfa 50%, #ec4899 100%)',
-                WebkitBackgroundClip: 'text',
-                WebkitTextFillColor: 'transparent',
-                backgroundClip: 'text',
-              }}
-            >
-              Browse Movies
-            </span>
-          </h1>
+            {/* Sort Dropdown - pinned to top right */}
+            <div className="relative flex-shrink-0" ref={sortRef}>
+              <button
+                onClick={() => setSortOpen(!sortOpen)}
+                className="flex items-center gap-1.5 sm:gap-2 px-3 py-2 sm:px-4 sm:py-2.5 rounded-xl text-xs sm:text-sm font-medium transition-all duration-200"
+                style={{
+                  background: 'rgba(255,255,255,0.06)',
+                  border: '1px solid rgba(255,255,255,0.1)',
+                  color: '#94a3b8',
+                }}
+              >
+                <SlidersHorizontal size={14} className="sm:w-[15px] sm:h-[15px] text-cyan-400" />
+                <span className="whitespace-nowrap">{currentSortLabel}</span>
+                <ChevronRight
+                  size={13}
+                  className="transition-transform duration-200"
+                  style={{ transform: sortOpen ? 'rotate(90deg)' : 'rotate(0deg)' }}
+                />
+              </button>
 
-          {/* Subtitle Paragraph */}
-          <p className="relative text-slate-400 font-medium text-sm sm:text-base md:text-lg max-w-md mx-auto leading-relaxed">
-            Jelajahi{' '}
-            <span className="text-cyan-400 font-bold">
-              {totalResults > 0 ? totalResults.toLocaleString() : '129'}
-            </span>{' '}
-            movie untuk di tonton
-          </p>
+              {sortOpen && (
+                <div
+                  className="absolute right-0 top-full mt-2 w-44 sm:w-48 rounded-xl overflow-hidden z-30"
+                  style={{
+                    background: '#0B1020',
+                    border: '1px solid rgba(6,182,212,0.3)',
+                    boxShadow: '0 20px 40px rgba(0,0,0,0.6)',
+                  }}
+                >
+                  {SORT_OPTIONS.map((option) => (
+                    <button
+                      key={option.value}
+                      onClick={() => handleSortChange(option.value)}
+                      className="w-full px-3.5 py-2.5 sm:px-4 sm:py-3 text-left text-xs sm:text-sm transition-colors duration-150 hover:bg-white/5"
+                      style={{
+                        color: sort === option.value ? '#06b6d4' : '#94a3b8',
+                        fontWeight: sort === option.value ? 600 : 400,
+                      }}
+                    >
+                      {option.label}
+                    </button>
+                  ))}
+                </div>
+              )}
+            </div>
+          </div>
         </div>
 
-        {/* ── Browse by Genre Filter (Full Width) ── */}
+        {/* ── Browse by Genre Filter ── */}
         {allGenres.length > 0 && (
-          <div className="mb-3">
+          <div className="mb-8">
             <GenreFilter
               genres={allGenres}
               activeGenreId={genreId}
               type="movie"
               allHref="/movie"
+              hideTitle={true}
             />
           </div>
         )}
-
-        {/* ── Sort Filter Bar (Left-aligned below Genre Filter) ── */}
-        <div className="flex justify-start items-center mb-6">
-          <div className="relative" ref={sortRef}>
-            <button
-              onClick={() => setSortOpen(!sortOpen)}
-              className="flex items-center gap-2 px-3.5 py-2 sm:px-4 sm:py-2 rounded-xl text-xs sm:text-sm font-semibold transition-all duration-200 hover:scale-105 active:scale-95"
-              style={{
-                background: 'rgba(255,255,255,0.06)',
-                border: '1px solid rgba(255,255,255,0.12)',
-                color: '#e2e8f0',
-                boxShadow: '0 4px 15px rgba(0,0,0,0.3)',
-              }}
-            >
-              <SlidersHorizontal size={14} className="text-cyan-400" />
-              <span className="whitespace-nowrap">{currentSortLabel}</span>
-              <ChevronRight
-                size={13}
-                className="transition-transform duration-200 text-slate-400"
-                style={{ transform: sortOpen ? 'rotate(90deg)' : 'rotate(0deg)' }}
-              />
-            </button>
-
-            {sortOpen && (
-              <div
-                className="absolute left-0 top-full mt-2 w-44 sm:w-48 rounded-xl overflow-hidden z-30"
-                style={{
-                  background: '#0B1020',
-                  border: '1px solid rgba(6,182,212,0.3)',
-                  boxShadow: '0 20px 40px rgba(0,0,0,0.7)',
-                }}
-              >
-                {SORT_OPTIONS.map((option) => (
-                  <button
-                    key={option.value}
-                    onClick={() => handleSortChange(option.value)}
-                    className="w-full px-4 py-2.5 sm:py-3 text-left text-xs sm:text-sm transition-colors duration-150 hover:bg-white/5"
-                    style={{
-                      color: sort === option.value ? '#06b6d4' : '#94a3b8',
-                      fontWeight: sort === option.value ? 600 : 400,
-                    }}
-                  >
-                    {option.label}
-                  </button>
-                ))}
-              </div>
-            )}
-          </div>
-        </div>
 
         {/* ── Movies Grid ── */}
         {loading ? (

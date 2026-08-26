@@ -73,8 +73,8 @@ export default function MovieCard({ item, type = 'movie' }: MovieCardProps) {
           )}
         </div>
 
-        {/* ── Hover Play Overlay ── */}
-        <div className="absolute inset-0 z-20 bg-black/40 backdrop-blur-[2px] opacity-0 group-hover:opacity-100 transition-opacity duration-300 flex items-center justify-center">
+        {/* ── Hover Play Overlay (Crystal clear poster, no blur) ── */}
+        <div className="absolute inset-0 z-20 bg-black/30 opacity-0 group-hover:opacity-100 transition-opacity duration-300 flex items-center justify-center">
           <div className="w-11 h-11 sm:w-12 sm:h-12 rounded-full bg-gradient-to-tr from-cyan-500 to-purple-600 text-white flex items-center justify-center shadow-lg shadow-cyan-500/40 transform scale-75 group-hover:scale-100 transition-transform duration-300">
             <Play size={18} fill="white" className="ml-0.5" />
           </div>

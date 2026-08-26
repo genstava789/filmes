@@ -12,6 +12,7 @@ interface GenreFilterProps {
   title?: string;
   type?: 'movie' | 'tv';
   allHref?: string;
+  hideTitle?: boolean;
 }
 
 export default function GenreFilter({
@@ -20,6 +21,7 @@ export default function GenreFilter({
   title,
   type = 'movie',
   allHref,
+  hideTitle = false,
 }: GenreFilterProps) {
   const router = useRouter();
   const scrollRef = useRef<HTMLDivElement>(null);
@@ -68,48 +70,50 @@ export default function GenreFilter({
     if (allHref) {
       router.push(allHref);
     } else if (type === 'tv') {
-      router.push('/tv');
+      router.push('/tv/browse');
     } else {
-      router.push('/');
+      router.push('/movie');
     }
   };
 
   return (
     <div className="relative group/genres w-full max-w-full overflow-hidden">
-      {/* Header with Title & Desktop Navigation Arrows */}
-      <div className="flex items-center justify-between mb-4">
-        <h2 className="text-lg sm:text-xl md:text-2xl font-bold text-white tracking-tight">
-          {title || siteConfig.homepageSections?.browseGenres || 'Browse by Genre'}
-        </h2>
+      {/* Header with Title & Desktop Navigation Arrows (if not hidden) */}
+      {!hideTitle && (
+        <div className="flex items-center justify-between mb-4">
+          <h2 className="text-lg sm:text-xl md:text-2xl font-bold text-white tracking-tight">
+            {title || (type === 'tv' ? (siteConfig.tvSections?.browseGenres || 'Browse Series by Genre') : (siteConfig.homepageSections?.browseGenres || 'Browse by Genre'))}
+          </h2>
 
-        {/* Scroll Arrows for Desktop */}
-        <div className="hidden sm:flex items-center gap-2">
-          <button
-            onClick={() => handleScroll('left')}
-            disabled={!canScrollLeft}
-            title="Scroll Left"
-            className={`w-8 h-8 rounded-xl flex items-center justify-center transition-all duration-200 ${
-              canScrollLeft
-                ? 'bg-white/[0.08] hover:bg-cyan-500/20 text-slate-300 hover:text-cyan-400 border border-white/10 hover:border-cyan-500/40 cursor-pointer'
-                : 'bg-white/[0.02] text-slate-600 border border-transparent cursor-not-allowed opacity-40'
-            }`}
-          >
-            <ChevronLeft size={16} />
-          </button>
-          <button
-            onClick={() => handleScroll('right')}
-            disabled={!canScrollRight}
-            title="Scroll Right"
-            className={`w-8 h-8 rounded-xl flex items-center justify-center transition-all duration-200 ${
-              canScrollRight
-                ? 'bg-white/[0.08] hover:bg-cyan-500/20 text-slate-300 hover:text-cyan-400 border border-white/10 hover:border-cyan-500/40 cursor-pointer'
-                : 'bg-white/[0.02] text-slate-600 border border-transparent cursor-not-allowed opacity-40'
-            }`}
-          >
-            <ChevronRight size={16} />
-          </button>
+          {/* Scroll Arrows for Desktop */}
+          <div className="hidden sm:flex items-center gap-2">
+            <button
+              onClick={() => handleScroll('left')}
+              disabled={!canScrollLeft}
+              title="Scroll Left"
+              className={`w-8 h-8 rounded-xl flex items-center justify-center transition-all duration-200 ${
+                canScrollLeft
+                  ? 'bg-white/[0.08] hover:bg-cyan-500/20 text-slate-300 hover:text-cyan-400 border border-white/10 hover:border-cyan-500/40 cursor-pointer'
+                  : 'bg-white/[0.02] text-slate-600 border border-transparent cursor-not-allowed opacity-40'
+              }`}
+            >
+              <ChevronLeft size={16} />
+            </button>
+            <button
+              onClick={() => handleScroll('right')}
+              disabled={!canScrollRight}
+              title="Scroll Right"
+              className={`w-8 h-8 rounded-xl flex items-center justify-center transition-all duration-200 ${
+                canScrollRight
+                  ? 'bg-white/[0.08] hover:bg-cyan-500/20 text-slate-300 hover:text-cyan-400 border border-white/10 hover:border-cyan-500/40 cursor-pointer'
+                  : 'bg-white/[0.02] text-slate-600 border border-transparent cursor-not-allowed opacity-40'
+              }`}
+            >
+              <ChevronRight size={16} />
+            </button>
+          </div>
         </div>
-      </div>
+      )}
 
       {/* Genre Pills Scroll Container */}
       <div className="relative w-full max-w-full">
