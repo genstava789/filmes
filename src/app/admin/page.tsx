@@ -1855,7 +1855,7 @@ export default function AdminPage() {
               </button>
             </div>
           ) : (
-            <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-3.5">
+            <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-3.5 sm:gap-4">
               {paginatedMovies.map((movie) => {
                 const title = movie.displayTitle || movie.frontmatter.title || movie.slug;
                 const tmdbId = movie.frontmatter.tmdb_id;
@@ -1866,44 +1866,44 @@ export default function AdminPage() {
                 return (
                   <div
                     key={movie.relativePath}
-                    className="p-3 rounded-xl bg-[#0c1224] border border-white/10 hover:border-cyan-500/40 transition-all flex flex-col justify-between shadow-sm"
+                    className="p-3.5 sm:p-4 rounded-xl sm:rounded-2xl bg-[#0c1224] border border-white/10 hover:border-cyan-500/40 transition-all flex flex-col justify-between shadow-sm"
                   >
                     <div>
-                      <div className="flex items-start gap-2.5 mb-2">
-                        <div className="relative w-12 h-16 rounded-md overflow-hidden bg-slate-900 flex-shrink-0 border border-white/10 shadow-sm">
-                          <SafeAdminImage src={poster} alt={title} sizes="48px" />
+                      <div className="flex items-start gap-3 mb-2.5">
+                        <div className="relative w-16 h-23 sm:w-18 sm:h-26 rounded-lg sm:rounded-xl overflow-hidden bg-slate-900 flex-shrink-0 border border-white/15 shadow-md">
+                          <SafeAdminImage src={poster} alt={title} sizes="72px" />
                         </div>
 
                         <div className="flex-1 min-w-0">
-                          <div className="flex items-center gap-1.5 mb-0.5 flex-wrap">
-                            <span className="px-1.5 py-0.2 rounded text-[9px] font-bold bg-cyan-500/10 text-cyan-400 border border-cyan-500/30">
+                          <div className="flex items-center gap-1.5 mb-1 flex-wrap">
+                            <span className="px-2 py-0.5 rounded-md text-[9.5px] sm:text-[10px] font-bold bg-cyan-500/10 text-cyan-400 border border-cyan-500/30">
                               TMDB {tmdbId || 'N/A'}
                             </span>
                             {isFeatured && (
-                              <span className="px-1.5 py-0.2 rounded text-[9px] font-bold bg-amber-500/20 text-amber-300 border border-amber-500/30 flex items-center gap-0.5">
-                                <Star size={9} fill="currentColor" /> Featured
+                              <span className="px-2 py-0.5 rounded-md text-[9.5px] sm:text-[10px] font-bold bg-amber-500/20 text-amber-300 border border-amber-500/30 flex items-center gap-1">
+                                <Star size={10} fill="currentColor" /> Featured
                               </span>
                             )}
                           </div>
 
-                          <h3 className="font-bold text-white text-xs leading-tight line-clamp-2" title={title}>
-                            {title} {movie.year ? <span className="text-slate-400 font-normal">({movie.year})</span> : ''}
+                          <h3 className="font-extrabold text-white text-xs sm:text-sm leading-snug line-clamp-2" title={title}>
+                            {title} {movie.year ? <span className="text-slate-400 font-normal text-xs">({movie.year})</span> : ''}
                           </h3>
 
                           {rating ? (
-                            <p className="text-[10px] text-amber-400 font-bold mt-0.5 flex items-center gap-1">
-                              <Star size={10} fill="currentColor" /> {rating}
+                            <p className="text-[11px] sm:text-xs text-amber-400 font-black mt-1 flex items-center gap-1">
+                              <Star size={11} fill="currentColor" /> {rating}
                             </p>
                           ) : null}
 
-                          <p className="text-[9px] text-slate-500 font-mono truncate mt-0.5">
+                          <p className="text-[9.5px] sm:text-[10px] text-slate-400 font-mono truncate mt-1" title={movie.relativePath}>
                             {movie.relativePath}
                           </p>
                         </div>
                       </div>
                     </div>
 
-                    <div className="flex items-center justify-between pt-2 border-t border-white/5">
+                    <div className="flex items-center justify-between pt-2.5 border-t border-white/10">
                       <Link
                         href={getMovieUrl({
                           id: movie.frontmatter.tmdb_id,
@@ -1913,13 +1913,13 @@ export default function AdminPage() {
                           customSlug: movie.slug,
                         })}
                         target="_blank"
-                        className="inline-flex items-center gap-1 text-[10px] font-semibold text-cyan-400 hover:text-cyan-300 hover:underline"
+                        className="inline-flex items-center gap-1.5 text-xs font-bold text-cyan-400 hover:text-cyan-300 hover:underline transition-colors"
                       >
-                        <ExternalLink size={11} />
+                        <ExternalLink size={13} />
                         <span>Buka Halaman</span>
                       </Link>
 
-                      <div className="flex items-center gap-1">
+                      <div className="flex items-center gap-1.5">
                         <button
                           onClick={() => {
                             if (!requireToken('mengedit movie')) return;
@@ -1930,18 +1930,18 @@ export default function AdminPage() {
                               content: movie.content,
                             });
                           }}
-                          className="p-1.5 rounded bg-white/5 hover:bg-white/10 text-slate-300 hover:text-white transition-all"
+                          className="p-2 rounded-lg bg-white/5 hover:bg-white/10 text-slate-200 hover:text-white transition-all shadow-sm active:scale-95"
                           title="Edit Post"
                         >
-                          <Edit2 size={12} />
+                          <Edit2 size={13} />
                         </button>
 
                         <button
                           onClick={() => handleDelete(movie.relativePath, title)}
-                          className="p-1.5 rounded bg-red-500/10 hover:bg-red-500/20 text-red-400 hover:text-red-300 transition-all"
+                          className="p-2 rounded-lg bg-red-500/10 hover:bg-red-500/20 text-red-400 hover:text-red-300 transition-all shadow-sm active:scale-95"
                           title="Hapus Post"
                         >
-                          <Trash2 size={12} />
+                          <Trash2 size={13} />
                         </button>
                       </div>
                     </div>

@@ -89,11 +89,8 @@ export default function MovieCard({ item, type = 'movie' }: MovieCardProps) {
         >
           {title}
         </h3>
-        <div className="flex items-center justify-between text-[11px] sm:text-xs text-slate-400 font-medium">
+        <div className="flex items-center text-[11px] sm:text-xs text-slate-400 font-medium">
           <span>{year || '2025'}</span>
-          <span className="text-[9.5px] sm:text-[10.5px] uppercase font-bold tracking-wider text-slate-300 bg-white/5 px-1.5 py-0.5 rounded border border-white/10">
-            HD
-          </span>
         </div>
       </div>
     </Link>
