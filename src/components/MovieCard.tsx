@@ -19,227 +19,81 @@ function isMovie(item: Movie | TVShow): item is Movie {
 
 export default function MovieCard({ item, type = 'movie' }: MovieCardProps) {
   const [imgError, setImgError] = useState(false);
-  const [isHovered, setIsHovered] = useState(false);
 
   const title = isMovie(item) ? item.title : item.name;
   const date = isMovie(item) ? item.release_date : item.first_air_date;
   const year = date ? new Date(date).getFullYear() : null;
-  const rating = Math.round(item.vote_average * 10) / 10;
+  const rating = Math.round((item.vote_average || 0) * 10) / 10;
   const href = type === 'tv' ? getTVUrl(item) : getMovieUrl(item);
-
-  const getRatingColor = (r: number) => {
-    if (r >= 7) return '#4ade80';
-    if (r >= 5) return '#facc15';
-    return '#f87171';
-  };
 
   const imagePath = item.poster_path || item.backdrop_path;
 
   return (
-    <Link href={href} className="block">
-      <div
-        style={{
-          position: 'relative',
-          borderRadius: '14px',
-          overflow: 'hidden',
-          background: '#0c1224',
-          border: isHovered
-            ? '1px solid rgba(6,182,212,0.45)'
-            : '1px solid rgba(255,255,255,0.07)',
-          transform: isHovered ? 'translateY(-6px) scale(1.02)' : 'translateY(0) scale(1)',
-          boxShadow: isHovered
-            ? '0 24px 48px rgba(0,0,0,0.65), 0 0 0 1px rgba(6,182,212,0.1)'
-            : '0 4px 20px rgba(0,0,0,0.45)',
-          transition: 'all 0.28s cubic-bezier(0.4,0,0.2,1)',
-          cursor: 'pointer',
-        }}
-        onMouseEnter={() => setIsHovered(true)}
-        onMouseLeave={() => setIsHovered(false)}
-      >
-        {/* ── Poster area ── */}
-        <div style={{ position: 'relative', aspectRatio: '2/3', width: '100%', overflow: 'hidden' }}>
-
-          {/* Image */}
-          {imagePath && !imgError ? (
-            <Image
-              src={getImageUrl(imagePath, 'w500')}
-              alt={title}
-              fill
-              className="object-cover"
-              style={{
-                transform: isHovered ? 'scale(1.07)' : 'scale(1)',
-                transition: 'transform 0.45s cubic-bezier(0.4,0,0.2,1)',
-              }}
-              sizes="(max-width: 640px) 50vw, (max-width: 1024px) 33vw, 20vw"
-              onError={() => setImgError(true)}
-            />
-          ) : (
-            <div
-              style={{
-                width: '100%',
-                height: '100%',
-                display: 'flex',
-                flexDirection: 'column',
-                alignItems: 'center',
-                justifyContent: 'center',
-                gap: '8px',
-                background: 'linear-gradient(145deg, #0f1a2e, #1a2540)',
-              }}
-            >
-              <Film size={28} style={{ color: '#334155' }} />
-              <span style={{ color: '#334155', fontSize: '11px', textAlign: 'center', padding: '0 8px' }}>{title}</span>
-            </div>
-          )}
-
-          {/* Permanent deep gradient at bottom — title info lives here */}
-          <div
-            style={{
-              position: 'absolute',
-              bottom: 0,
-              left: 0,
-              right: 0,
-              height: '62%',
-              background: 'linear-gradient(to top, rgba(8,12,28,1) 0%, rgba(8,12,28,0.85) 35%, rgba(8,12,28,0.4) 65%, transparent 100%)',
-              zIndex: 1,
-            }}
+    <Link
+      href={href}
+      className="group block w-full select-none"
+    >
+      {/* ── Poster Wrapper ── */}
+      <div className="relative aspect-[2/3] w-full rounded-xl sm:rounded-2xl overflow-hidden bg-[#0c1224] border border-white/10 group-hover:border-cyan-500/50 shadow-md group-hover:shadow-[0_12px_32px_rgba(0,0,0,0.7),0_0_20px_rgba(6,182,212,0.25)] transition-all duration-300 transform group-hover:-translate-y-1.5">
+        {/* Poster Image */}
+        {imagePath && !imgError ? (
+          <Image
+            src={getImageUrl(imagePath, 'w500')}
+            alt={title || 'Movie Poster'}
+            fill
+            className="object-cover transition-transform duration-500 ease-out group-hover:scale-105"
+            sizes="(max-width: 640px) 50vw, (max-width: 1024px) 33vw, 20vw"
+            onError={() => setImgError(true)}
           />
-
-          {/* ── Rating badge — top right ── */}
-          <div
-            style={{
-              position: 'absolute',
-              top: '6px',
-              right: '6px',
-              zIndex: 3,
-              display: 'flex',
-              alignItems: 'center',
-              gap: '3px',
-              padding: '2px 6px',
-              borderRadius: '6px',
-              background: 'rgba(8,12,28,0.85)',
-              backdropFilter: 'blur(8px)',
-              WebkitBackdropFilter: 'blur(8px)',
-              border: `1px solid ${getRatingColor(rating)}40`,
-              color: getRatingColor(rating),
-              fontSize: '10.5px',
-              fontWeight: 700,
-              letterSpacing: '0.01em',
-            }}
-          >
-            <Star size={10} fill="currentColor" />
-            {rating.toFixed(1)}
+        ) : (
+          <div className="w-full h-full flex flex-col items-center justify-center gap-2 p-3 bg-gradient-to-br from-[#0f1a2e] to-[#1a2540] text-slate-500">
+            {type === 'tv' ? <Tv size={32} /> : <Film size={32} />}
+            <span className="text-xs text-center line-clamp-2 text-slate-400 font-medium">{title}</span>
           </div>
+        )}
 
-          {/* ── Type badge — top left (Movie / Series) ── */}
-          <div
-            style={{
-              position: 'absolute',
-              top: '6px',
-              left: '6px',
-              zIndex: 3,
-              display: 'flex',
-              alignItems: 'center',
-              gap: '3px',
-              padding: '2px 6px',
-              borderRadius: '6px',
-              background: 'rgba(8,12,28,0.85)',
-              backdropFilter: 'blur(8px)',
-              WebkitBackdropFilter: 'blur(8px)',
-              border: '1px solid rgba(255,255,255,0.14)',
-              color: type === 'tv' ? '#94a3b8' : '#38bdf8',
-              fontSize: '10px',
-              fontWeight: 700,
-              letterSpacing: '0.04em',
-              textTransform: 'uppercase' as const,
-            }}
-          >
-            {type === 'tv' ? (
-              <>
-                <Tv size={10} />
-                <span>Series</span>
-              </>
-            ) : (
-              <>
-                <Film size={10} />
-                <span>Movie</span>
-              </>
-            )}
-          </div>
+        {/* ── IMDb-Style Yellow Rating Badge (Top-Right) ── */}
+        <div className="absolute top-2 right-2 z-10 flex items-center gap-1 px-1.5 py-0.5 sm:px-2 sm:py-0.5 rounded-md bg-[#f5c518] text-black font-black text-[10px] sm:text-[11.5px] shadow-lg shadow-black/50 tracking-tight">
+          <Star size={11} fill="currentColor" stroke="none" className="text-black" />
+          <span>{rating > 0 ? rating.toFixed(1) : 'NR'}</span>
+        </div>
 
-          {/* ── Title + year — bottom overlay ── */}
-          <div
-            style={{
-              position: 'absolute',
-              bottom: 0,
-              left: 0,
-              right: 0,
-              padding: '0 10px 10px',
-              zIndex: 2,
-              transform: isHovered ? 'translateY(-3px)' : 'translateY(0)',
-              transition: 'transform 0.28s cubic-bezier(0.4,0,0.2,1)',
-            }}
-          >
-            <h3
-              title={title}
-              style={{
-                color: '#f1f5f9',
-                fontSize: '13px',
-                fontWeight: 600,
-                lineHeight: 1.35,
-                display: '-webkit-box',
-                WebkitLineClamp: 2,
-                WebkitBoxOrient: 'vertical' as const,
-                overflow: 'hidden',
-                marginBottom: year ? '3px' : 0,
-              }}
-            >
-              {title}
-            </h3>
-            {year && (
-              <span
-                style={{
-                  color: '#94a3b8',
-                  fontSize: '11px',
-                  fontWeight: 500,
-                  letterSpacing: '0.02em',
-                }}
-              >
-                {year}
-              </span>
-            )}
-          </div>
+        {/* ── Media Type Badge (Top-Left: Series / Movie) ── */}
+        <div className="absolute top-2 left-2 z-10 flex items-center gap-1 px-1.5 py-0.5 rounded-md bg-black/75 backdrop-blur-md border border-white/15 text-slate-200 font-bold text-[9px] sm:text-[10px] uppercase tracking-wider shadow-md">
+          {type === 'tv' ? (
+            <>
+              <Tv size={10} className="text-cyan-400" />
+              <span>Series</span>
+            </>
+          ) : (
+            <>
+              <Film size={10} className="text-cyan-400" />
+              <span>Movie</span>
+            </>
+          )}
+        </div>
 
-          {/* ── Hover play overlay ── */}
-          <div
-            style={{
-              position: 'absolute',
-              inset: 0,
-              background: 'rgba(4,8,20,0.5)',
-              display: 'flex',
-              alignItems: 'center',
-              justifyContent: 'center',
-              opacity: isHovered ? 1 : 0,
-              transition: 'opacity 0.25s ease',
-              zIndex: 4,
-            }}
-          >
-            <div
-              style={{
-                width: '42px',
-                height: '42px',
-                borderRadius: '50%',
-                background: 'linear-gradient(135deg, #06b6d4, #7c3aed)',
-                boxShadow: '0 0 20px rgba(6,182,212,0.55), 0 0 40px rgba(124,58,237,0.25)',
-                display: 'flex',
-                alignItems: 'center',
-                justifyContent: 'center',
-                transform: isHovered ? 'scale(1)' : 'scale(0.75)',
-                transition: 'transform 0.28s cubic-bezier(0.4,0,0.2,1)',
-              }}
-            >
-              <Play size={17} fill="white" color="white" style={{ marginLeft: '2px' }} />
-            </div>
+        {/* ── Hover Play Overlay ── */}
+        <div className="absolute inset-0 z-20 bg-black/40 backdrop-blur-[2px] opacity-0 group-hover:opacity-100 transition-opacity duration-300 flex items-center justify-center">
+          <div className="w-11 h-11 sm:w-12 sm:h-12 rounded-full bg-gradient-to-tr from-cyan-500 to-purple-600 text-white flex items-center justify-center shadow-lg shadow-cyan-500/40 transform scale-75 group-hover:scale-100 transition-transform duration-300">
+            <Play size={18} fill="white" className="ml-0.5" />
           </div>
+        </div>
+      </div>
+
+      {/* ── Info Outside Below Poster ── */}
+      <div className="pt-2 sm:pt-2.5 px-0.5 space-y-1">
+        <h3
+          title={title}
+          className="font-bold text-white text-xs sm:text-[13.5px] leading-snug line-clamp-2 transition-colors duration-200 group-hover:text-cyan-400"
+        >
+          {title}
+        </h3>
+        <div className="flex items-center justify-between text-[11px] sm:text-xs text-slate-400 font-medium">
+          <span>{year || '2025'}</span>
+          <span className="text-[9.5px] sm:text-[10.5px] uppercase font-bold tracking-wider text-slate-300 bg-white/5 px-1.5 py-0.5 rounded border border-white/10">
+            HD
+          </span>
         </div>
       </div>
     </Link>
@@ -248,18 +102,12 @@ export default function MovieCard({ item, type = 'movie' }: MovieCardProps) {
 
 export function MovieCardSkeleton() {
   return (
-    <div
-      style={{
-        borderRadius: '14px',
-        overflow: 'hidden',
-        background: '#0c1224',
-        border: '1px solid rgba(255,255,255,0.05)',
-      }}
-    >
-      <div
-        className="skeleton"
-        style={{ aspectRatio: '2/3', width: '100%' }}
-      />
+    <div className="w-full space-y-2">
+      <div className="aspect-[2/3] w-full rounded-xl sm:rounded-2xl overflow-hidden skeleton border border-white/5" />
+      <div className="space-y-1 px-0.5">
+        <div className="h-3.5 w-3/4 rounded skeleton" />
+        <div className="h-3 w-1/2 rounded skeleton" />
+      </div>
     </div>
   );
 }
