@@ -200,6 +200,52 @@ export default function AdminPage() {
   const [editSelectedBackdropLang, setEditSelectedBackdropLang] = useState<string>('all');
   const [showEditBackdropPicker, setShowEditBackdropPicker] = useState(false);
 
+  // Detect duplicate existing post when creating
+  const existingDuplicate = useMemo(() => {
+    if (contentType === 'movie') {
+      const extracted = extractTmdbIdAndType(formTmdbId);
+      const idNum = extracted.id ? Number(extracted.id) : null;
+      if (!idNum && !formSlug.trim()) return null;
+      return (
+        movies.find((m) => {
+          const matchId = idNum && Number(m.frontmatter.tmdb_id) === idNum;
+          const matchSlug =
+            formSlug.trim() && (m.slug === slugify(formSlug) || m.filename === `${slugify(formSlug)}.md`);
+          return matchId || matchSlug;
+        }) || null
+      );
+    }
+    if (contentType === 'tv_show') {
+      const extracted = extractTmdbIdAndType(formTmdbId);
+      const idNum = extracted.id ? Number(extracted.id) : null;
+      const cleanSlug = formShowSlug.trim() ? slugify(formShowSlug) : null;
+      if (!idNum && !cleanSlug) return null;
+      return (
+        tvShows.find((s) => {
+          const matchId = idNum && Number(s.frontmatter.tmdb_id) === idNum;
+          const matchSlug = cleanSlug && s.showSlug === cleanSlug;
+          return matchId || matchSlug;
+        }) || null
+      );
+    }
+    if (contentType === 'tv_episode') {
+      const cleanShow = formShowSlug.trim() ? slugify(formShowSlug) : null;
+      const cleanSeason = formSeason.trim() ? slugify(formSeason) : null;
+      const cleanEp = formEpisode.trim() ? slugify(formEpisode) : null;
+      if (!cleanShow || !cleanEp) return null;
+      const show = tvShows.find((s) => s.showSlug === cleanShow);
+      if (!show) return null;
+      return (
+        show.episodes.find((ep) => {
+          const sameSeason = (ep.seasonFolder || null) === (cleanSeason || null);
+          const sameEp = ep.slug === cleanEp || ep.filename === `${cleanEp}.md` || ep.slug.endsWith(cleanEp);
+          return sameSeason && sameEp;
+        }) || null
+      );
+    }
+    return null;
+  }, [contentType, formTmdbId, formSlug, formShowSlug, formSeason, formEpisode, movies, tvShows]);
+
   // Load saved token & optimistic cache from localStorage on mount (eliminates flicker)
   useEffect(() => {
     try {
@@ -523,7 +569,21 @@ export default function AdminPage() {
 
       const result = await res.json();
       if (res.ok) {
-        showToast(`Berhasil disimpan live: ${result.relativePath}`);
+        if (result.isUpdate) {
+          if (result.hasChanges && result.changedFields?.length > 0) {
+            showToast(
+              `Post sudah ada. Melakukan pengeditan dan berhasil memperbarui: ${result.changedFields.join(', ')}!`,
+              'success'
+            );
+          } else {
+            showToast(
+              `Post ini sudah ada dan tidak ada perbedaan data (data tetap sama).`,
+              'warning'
+            );
+          }
+        } else {
+          showToast(`Berhasil membuat post baru: ${result.relativePath}`, 'success');
+        }
         fetchContent();
       } else {
         if (result.requiresToken) {
@@ -1635,6 +1695,22 @@ export default function AdminPage() {
                 </div>
               )}
 
+              {/* Duplicate Post Detected Notice */}
+              {existingDuplicate && (
+                <div className="p-3.5 bg-amber-500/10 border border-amber-500/30 rounded-xl flex items-start gap-3 animate-fade-in">
+                  <AlertCircle size={18} className="text-amber-400 mt-0.5 flex-shrink-0" />
+                  <div className="text-xs space-y-1">
+                    <p className="font-bold text-amber-300">
+                      Konten ini sudah ada: {existingDuplicate.displayTitle || existingDuplicate.relativePath}
+                    </p>
+                    <p className="text-slate-300 text-[11px] leading-relaxed">
+                      Menyimpan form ini akan otomatis <strong>mengedit dan memperbarui data</strong> pada file target (
+                      <code className="text-cyan-300 font-mono">{existingDuplicate.relativePath}</code>) jika ada perubahan.
+                    </p>
+                  </div>
+                </div>
+              )}
+
               {/* URL Video (Required for Movie and Episode) */}
               {(contentType === 'movie' || contentType === 'tv_episode') && (
                 <div>
@@ -1862,7 +1938,10 @@ export default function AdminPage() {
                           return (
                             <div
                               key={`${b.filePath}-${idx}`}
-                              onClick={() => setFormPoster(b.url)}
+                              onClick={() => {
+                                setFormPoster(b.url);
+                                setShowBackdropPicker(false);
+                              }}
                               className={`group relative rounded-lg overflow-hidden border cursor-pointer transition-all aspect-video ${
                                 isSelected
                                   ? 'ring-2 ring-cyan-400 border-cyan-400 shadow-lg shadow-cyan-500/30'
@@ -1977,19 +2056,19 @@ export default function AdminPage() {
               </div>
 
               {/* Submit Buttons */}
-              <div className="flex items-center justify-end gap-3 pt-4 border-t border-white/10">
+              <div className="grid grid-cols-2 gap-2.5 w-full sm:flex sm:items-center sm:justify-end sm:w-auto pt-4 border-t border-white/10">
                 <button
                   type="button"
                   onClick={() => setIsCreateModalOpen(false)}
-                  className="px-5 py-2.5 rounded-xl text-sm font-semibold bg-white/5 hover:bg-white/10 text-slate-300"
+                  className="w-full sm:w-auto px-5 py-2.5 rounded-xl text-sm font-semibold bg-white/5 hover:bg-white/10 text-slate-300 text-center transition-all"
                 >
                   Batal
                 </button>
                 <button
                   type="submit"
-                  className="px-6 py-2.5 rounded-xl text-sm font-bold bg-gradient-to-r from-cyan-500 to-blue-600 hover:from-cyan-400 hover:to-blue-500 text-white shadow-lg shadow-cyan-500/25"
+                  className="w-full sm:w-auto px-6 py-2.5 rounded-xl text-sm font-bold bg-gradient-to-r from-cyan-500 to-blue-600 hover:from-cyan-400 hover:to-blue-500 text-white shadow-lg shadow-cyan-500/25 text-center transition-all"
                 >
-                  Simpan Post Konten
+                  {existingDuplicate ? 'Update Konten' : 'Simpan Post Konten'}
                 </button>
               </div>
             </form>
@@ -2226,12 +2305,13 @@ export default function AdminPage() {
                           return (
                             <div
                               key={`edit-bg-${b.filePath}-${idx}`}
-                              onClick={() =>
+                              onClick={() => {
                                 setEditingItem({
                                   ...editingItem,
                                   frontmatter: { ...editingItem.frontmatter, image_url: b.url },
-                                })
-                              }
+                                });
+                                setShowEditBackdropPicker(false);
+                              }}
                               className={`group relative rounded-lg overflow-hidden border cursor-pointer transition-all aspect-video ${
                                 isSelected
                                   ? 'ring-2 ring-cyan-400 border-cyan-400 shadow-lg shadow-cyan-500/30'
@@ -2360,17 +2440,17 @@ export default function AdminPage() {
               </div>
 
               {/* Submit Buttons */}
-              <div className="flex items-center justify-end gap-3 pt-4 border-t border-white/10">
+              <div className="grid grid-cols-2 gap-2.5 w-full sm:flex sm:items-center sm:justify-end sm:w-auto pt-4 border-t border-white/10">
                 <button
                   type="button"
                   onClick={() => setIsEditModalOpen(false)}
-                  className="px-5 py-2.5 rounded-xl text-sm font-semibold bg-white/5 hover:bg-white/10 text-slate-300"
+                  className="w-full sm:w-auto px-5 py-2.5 rounded-xl text-sm font-semibold bg-white/5 hover:bg-white/10 text-slate-300 text-center transition-all"
                 >
                   Batal
                 </button>
                 <button
                   type="submit"
-                  className="px-6 py-2.5 rounded-xl text-sm font-bold bg-cyan-500 hover:bg-cyan-400 text-white shadow-lg shadow-cyan-500/25"
+                  className="w-full sm:w-auto px-6 py-2.5 rounded-xl text-sm font-bold bg-cyan-500 hover:bg-cyan-400 text-white shadow-lg shadow-cyan-500/25 text-center transition-all"
                 >
                   Simpan Perubahan
                 </button>

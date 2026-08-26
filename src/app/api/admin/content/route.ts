@@ -266,6 +266,9 @@ export async function POST(request: NextRequest) {
 
     let relativePath = '';
     let fileContent = '';
+    let isUpdate = false;
+    let hasChanges = true;
+    const changedFields: string[] = [];
 
     if (contentType === 'movie') {
       let { tmdb_id, videourl, title, desc, poster, rating, featured, subtitles, content = '', slug } = body;
@@ -300,7 +303,26 @@ export async function POST(request: NextRequest) {
       }
 
       const fileSlug = slug ? slugify(slug) : title ? slugify(title) : `movie-${tmdbIdNum}`;
-      const filename = `${fileSlug}.md`;
+
+      // Check if existing file already exists for this tmdb_id or filename to perform in-place update
+      let existingFileName: string | null = null;
+      let existingFrontmatter: Record<string, any> = {};
+      try {
+        if (fs.existsSync(VIDEO_DIR)) {
+          const files = fs.readdirSync(VIDEO_DIR).filter((f) => f.endsWith('.md') || f.endsWith('.markdown'));
+          for (const f of files) {
+            const raw = fs.readFileSync(path.join(VIDEO_DIR, f), 'utf8');
+            const parsed = matter(raw);
+            if (Number(parsed.data.tmdb_id) === tmdbIdNum || f === `${fileSlug}.md` || (slug && f === `${slugify(slug)}.md`)) {
+              existingFileName = f;
+              existingFrontmatter = parsed.data;
+              break;
+            }
+          }
+        }
+      } catch {}
+
+      const filename = existingFileName || `${fileSlug}.md`;
       relativePath = `video/${filename}`;
 
       const frontmatterData: Record<string, any> = {
@@ -309,11 +331,34 @@ export async function POST(request: NextRequest) {
       };
 
       if (title && title.trim()) frontmatterData.title = title.trim();
+      else if (existingFrontmatter.title) frontmatterData.title = existingFrontmatter.title;
+
       if (desc && desc.trim()) frontmatterData.deskripsi = desc.trim();
+      else if (existingFrontmatter.deskripsi) frontmatterData.deskripsi = existingFrontmatter.deskripsi;
+
       if (poster && poster.trim()) frontmatterData.image_url = poster.trim();
+      else if (existingFrontmatter.image_url) frontmatterData.image_url = existingFrontmatter.image_url;
+
       if (rating !== undefined && rating !== null && rating !== '') frontmatterData.rating = Number(rating);
-      if (featured) frontmatterData.featured = true;
+      else if (existingFrontmatter.rating !== undefined) frontmatterData.rating = Number(existingFrontmatter.rating);
+
+      if (featured !== undefined) frontmatterData.featured = Boolean(featured);
+      else if (existingFrontmatter.featured !== undefined) frontmatterData.featured = Boolean(existingFrontmatter.featured);
+
       if (subtitles && subtitles.trim()) frontmatterData.subtitles = subtitles.trim();
+      else if (existingFrontmatter.subtitles) frontmatterData.subtitles = existingFrontmatter.subtitles;
+
+      if (existingFileName) {
+        isUpdate = true;
+        if (frontmatterData.image_url !== existingFrontmatter.image_url) changedFields.push('Image Poster/Backdrop');
+        if (Boolean(frontmatterData.featured) !== Boolean(existingFrontmatter.featured)) changedFields.push('Status Featured');
+        if (frontmatterData.rating !== existingFrontmatter.rating) changedFields.push('Rating');
+        if (frontmatterData.videourl !== existingFrontmatter.videourl) changedFields.push('URL Video');
+        if (frontmatterData.title && frontmatterData.title !== existingFrontmatter.title) changedFields.push('Judul');
+        if (frontmatterData.deskripsi && frontmatterData.deskripsi !== existingFrontmatter.deskripsi) changedFields.push('Deskripsi');
+        if (frontmatterData.subtitles !== existingFrontmatter.subtitles) changedFields.push('Subtitles');
+        hasChanges = changedFields.length > 0;
+      }
 
       fileContent = matter.stringify(content || '', frontmatterData);
     } else if (contentType === 'tv_show') {
@@ -344,17 +389,59 @@ export async function POST(request: NextRequest) {
       }
 
       const cleanShowSlug = showSlug ? slugify(showSlug) : title ? slugify(title) : `tv-${tmdb_id}`;
-      relativePath = `tv/${cleanShowSlug}/_index.md`;
+
+      let existingShowSlug = cleanShowSlug;
+      let existingFrontmatter: Record<string, any> = {};
+      let foundExisting = false;
+      try {
+        if (fs.existsSync(TV_DIR)) {
+          const shows = fs.readdirSync(TV_DIR, { withFileTypes: true }).filter((d) => d.isDirectory());
+          for (const s of shows) {
+            const indexPath = path.join(TV_DIR, s.name, '_index.md');
+            if (fs.existsSync(indexPath)) {
+              const raw = fs.readFileSync(indexPath, 'utf8');
+              const parsed = matter(raw);
+              if (Number(parsed.data.tmdb_id) === tmdbIdNum || s.name === cleanShowSlug) {
+                existingShowSlug = s.name;
+                existingFrontmatter = parsed.data;
+                foundExisting = true;
+                break;
+              }
+            }
+          }
+        }
+      } catch {}
+
+      relativePath = `tv/${existingShowSlug}/_index.md`;
 
       const frontmatterData: Record<string, any> = {
         tmdb_id: tmdbIdNum,
       };
 
       if (title && title.trim()) frontmatterData.title = title.trim();
+      else if (existingFrontmatter.title) frontmatterData.title = existingFrontmatter.title;
+
       if (desc && desc.trim()) frontmatterData.deskripsi = desc.trim();
+      else if (existingFrontmatter.deskripsi) frontmatterData.deskripsi = existingFrontmatter.deskripsi;
+
       if (poster && poster.trim()) frontmatterData.image_url = poster.trim();
+      else if (existingFrontmatter.image_url) frontmatterData.image_url = existingFrontmatter.image_url;
+
       if (rating !== undefined && rating !== null && rating !== '') frontmatterData.rating = Number(rating);
-      if (featured) frontmatterData.featured = true;
+      else if (existingFrontmatter.rating !== undefined) frontmatterData.rating = Number(existingFrontmatter.rating);
+
+      if (featured !== undefined) frontmatterData.featured = Boolean(featured);
+      else if (existingFrontmatter.featured !== undefined) frontmatterData.featured = Boolean(existingFrontmatter.featured);
+
+      if (foundExisting) {
+        isUpdate = true;
+        if (frontmatterData.image_url !== existingFrontmatter.image_url) changedFields.push('Image Poster/Backdrop');
+        if (Boolean(frontmatterData.featured) !== Boolean(existingFrontmatter.featured)) changedFields.push('Status Featured');
+        if (frontmatterData.rating !== existingFrontmatter.rating) changedFields.push('Rating');
+        if (frontmatterData.title && frontmatterData.title !== existingFrontmatter.title) changedFields.push('Judul');
+        if (frontmatterData.deskripsi && frontmatterData.deskripsi !== existingFrontmatter.deskripsi) changedFields.push('Deskripsi');
+        hasChanges = changedFields.length > 0;
+      }
 
       fileContent = matter.stringify(content || '', frontmatterData);
     } else if (contentType === 'tv_episode') {
@@ -377,16 +464,50 @@ export async function POST(request: NextRequest) {
         ? `tv/${cleanShowSlug}/${cleanSeason}/${filename}`
         : `tv/${cleanShowSlug}/${filename}`;
 
+      let foundExistingEp = false;
+      let existingFrontmatter: Record<string, any> = {};
+      try {
+        const fullEpPath = path.join(process.cwd(), relativePath);
+        if (fs.existsSync(fullEpPath)) {
+          const raw = fs.readFileSync(fullEpPath, 'utf8');
+          existingFrontmatter = matter(raw).data;
+          foundExistingEp = true;
+        }
+      } catch {}
+
       const frontmatterData: Record<string, any> = {
         videourl: cleanVideo,
       };
 
       if (title && title.trim()) frontmatterData.title = title.trim();
+      else if (existingFrontmatter.title) frontmatterData.title = existingFrontmatter.title;
+
       if (desc && desc.trim()) frontmatterData.deskripsi = desc.trim();
+      else if (existingFrontmatter.deskripsi) frontmatterData.deskripsi = existingFrontmatter.deskripsi;
+
       if (poster && poster.trim()) frontmatterData.image_url = poster.trim();
+      else if (existingFrontmatter.image_url) frontmatterData.image_url = existingFrontmatter.image_url;
+
       if (rating !== undefined && rating !== null && rating !== '') frontmatterData.rating = Number(rating);
+      else if (existingFrontmatter.rating !== undefined) frontmatterData.rating = Number(existingFrontmatter.rating);
+
       if (duration && duration.trim()) frontmatterData.duration = duration.trim();
+      else if (existingFrontmatter.duration) frontmatterData.duration = existingFrontmatter.duration;
+
       if (subtitles && subtitles.trim()) frontmatterData.subtitles = subtitles.trim();
+      else if (existingFrontmatter.subtitles) frontmatterData.subtitles = existingFrontmatter.subtitles;
+
+      if (foundExistingEp) {
+        isUpdate = true;
+        if (frontmatterData.videourl !== existingFrontmatter.videourl) changedFields.push('URL Video');
+        if (frontmatterData.image_url !== existingFrontmatter.image_url) changedFields.push('Image Poster');
+        if (frontmatterData.rating !== existingFrontmatter.rating) changedFields.push('Rating');
+        if (frontmatterData.duration !== existingFrontmatter.duration) changedFields.push('Durasi');
+        if (frontmatterData.subtitles !== existingFrontmatter.subtitles) changedFields.push('Subtitles');
+        if (frontmatterData.title && frontmatterData.title !== existingFrontmatter.title) changedFields.push('Judul');
+        if (frontmatterData.deskripsi && frontmatterData.deskripsi !== existingFrontmatter.deskripsi) changedFields.push('Deskripsi');
+        hasChanges = changedFields.length > 0;
+      }
 
       fileContent = matter.stringify(content || '', frontmatterData);
     } else {
@@ -420,11 +541,17 @@ export async function POST(request: NextRequest) {
         );
       }
 
-      await saveGitHubFile(relativePath, fileContent, `cms: create ${relativePath}`, { token });
+      await saveGitHubFile(relativePath, fileContent, `cms: ${isUpdate ? 'update' : 'create'} ${relativePath}`, { token });
     }
 
     revalidateAll();
-    return NextResponse.json({ success: true, relativePath });
+    return NextResponse.json({
+      success: true,
+      relativePath,
+      isUpdate,
+      hasChanges,
+      changedFields,
+    });
   } catch (error: any) {
     console.error('Error creating content:', error);
     return NextResponse.json({ error: error.message || 'Failed to create content' }, { status: 500 });
