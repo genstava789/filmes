@@ -211,8 +211,6 @@ export default function TVDetailClient({
             content={
               activeEpisode.videoUrl.includes('.m3u8')
                 ? 'application/x-mpegURL'
-                : activeEpisode.videoUrl.includes('.mkv')
-                ? 'video/x-matroska'
                 : 'video/mp4'
             }
           />

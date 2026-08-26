@@ -910,18 +910,9 @@ export default function VideoPlayer({
                 >
                   <source
                     src={videoUrl}
-                    type={
-                      videoUrl.includes('.m3u8')
-                        ? 'application/x-mpegURL'
-                        : videoUrl.includes('.mp4')
-                        ? 'video/mp4'
-                        : videoUrl.includes('.webm')
-                        ? 'video/webm'
-                        : isMkv
-                        ? 'video/x-matroska'
-                        : 'video/mp4'
-                    }
+                    type={videoUrl.includes('.m3u8') ? 'application/x-mpegURL' : 'video/mp4'}
                   />
+                  {isMkv && <source src={videoUrl} type="video/x-matroska" />}
 
                   {extSubs.map((sub, idx) => (
                     <track

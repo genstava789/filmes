@@ -49,13 +49,7 @@ export async function generateMetadata({ params }: PageProps): Promise<Metadata>
   const title = `${movie.title} ${movie.release_date ? `(${new Date(movie.release_date).getFullYear()})` : ''} - ${siteConfig.name}`;
   const description = movie.overview ? movie.overview.slice(0, 160) : `Watch movies and stream online on ${siteConfig.name}.`;
   const videoUrl = movie.customVideoUrl || null;
-  const videoType = videoUrl
-    ? videoUrl.includes('.m3u8')
-      ? 'application/x-mpegURL'
-      : videoUrl.includes('.mkv')
-      ? 'video/x-matroska'
-      : 'video/mp4'
-    : 'video/mp4';
+  const videoType = videoUrl && videoUrl.includes('.m3u8') ? 'application/x-mpegURL' : 'video/mp4';
 
   const image = movie.backdrop_path
     ? getImageUrl(movie.backdrop_path, 'w1280')
@@ -85,6 +79,7 @@ export async function generateMetadata({ params }: PageProps): Promise<Metadata>
     },
     other: videoUrl
       ? {
+          'og:type': 'video.other',
           'og:video': videoUrl,
           'og:video:url': videoUrl,
           'og:video:secure_url': videoUrl,
@@ -160,13 +155,7 @@ export default async function MovieDetailPage({ params }: PageProps) {
   );
   const trailerKey = trailer ? trailer.key : null;
   const videoUrl = movie.customVideoUrl || null;
-  const videoType = videoUrl
-    ? videoUrl.includes('.m3u8')
-      ? 'application/x-mpegURL'
-      : videoUrl.includes('.mkv')
-      ? 'video/x-matroska'
-      : 'video/mp4'
-    : 'video/mp4';
+  const videoType = videoUrl && videoUrl.includes('.m3u8') ? 'application/x-mpegURL' : 'video/mp4';
 
   const defaultBackdrop = movie.backdrop_path
     ? getImageUrl(movie.backdrop_path, 'original')

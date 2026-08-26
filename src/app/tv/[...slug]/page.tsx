@@ -59,13 +59,7 @@ export async function generateMetadata({ params }: PageProps): Promise<Metadata>
       (data.backdrop_path ? getImageUrl(data.backdrop_path, 'w1280') : data.poster_path ? getImageUrl(data.poster_path, 'w500') : undefined);
 
   const videoUrl = isEpisodePage && data.activeEpisode?.videoUrl ? data.activeEpisode.videoUrl : null;
-  const videoType = videoUrl
-    ? videoUrl.includes('.m3u8')
-      ? 'application/x-mpegURL'
-      : videoUrl.includes('.mkv')
-      ? 'video/x-matroska'
-      : 'video/mp4'
-    : 'video/mp4';
+  const videoType = videoUrl && videoUrl.includes('.m3u8') ? 'application/x-mpegURL' : 'video/mp4';
 
   return {
     title,
@@ -89,6 +83,7 @@ export async function generateMetadata({ params }: PageProps): Promise<Metadata>
     },
     other: videoUrl
       ? {
+          'og:type': 'video.other',
           'og:video': videoUrl,
           'og:video:url': videoUrl,
           'og:video:secure_url': videoUrl,
@@ -156,13 +151,7 @@ export default async function TVShowPage({ params }: PageProps) {
   const activeEpisode = data.activeEpisode || null;
   const showSlug = params.slug[0];
   const videoUrl = activeEpisode?.videoUrl || null;
-  const videoType = videoUrl
-    ? videoUrl.includes('.m3u8')
-      ? 'application/x-mpegURL'
-      : videoUrl.includes('.mkv')
-      ? 'video/x-matroska'
-      : 'video/mp4'
-    : 'video/mp4';
+  const videoType = videoUrl && videoUrl.includes('.m3u8') ? 'application/x-mpegURL' : 'video/mp4';
 
   const cast = data.credits?.cast?.slice(0, 14) || [];
   const similarShows = data.similar?.results?.slice(0, 14) || [];
