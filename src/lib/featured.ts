@@ -24,11 +24,42 @@ export function normalizeTitle(title?: string): string {
  * Enriches a single FeaturedItem config by fetching missing metadata (rating, duration, title, poster, etc.)
  * from TMDB API if tmdbId is provided.
  */
-export async function enrichConfigFeaturedItem(item: FeaturedItem): Promise<FeaturedItem> {
+export async function enrichConfigFeaturedItem(item: FeaturedItem): Promise<FeaturedItem | null> {
   const rawTmdbId = item.tmdbId !== undefined ? item.tmdbId : (typeof item.id === 'number' || (typeof item.id === 'string' && /^\d+$/.test(item.id)) ? Number(item.id) : undefined);
   const type = item.type || 'movie';
 
-  if (!rawTmdbId) {
+  const tmdbIdNum = rawTmdbId ? Number(rawTmdbId) : undefined;
+
+  // Check if a custom markdown file exists for this tmdb_id
+  let customFrontmatter: any = null;
+  let customMovieSlug: string | undefined;
+  let customTVSlug: string | undefined;
+
+  if (tmdbIdNum) {
+    if (type === 'tv') {
+      const customTV = await getCustomTVShowBySlug(tmdbIdNum);
+      if (customTV) {
+        customFrontmatter = customTV.frontmatter;
+        customTVSlug = customTV.showSlug;
+        // If the custom markdown file explicitly set featured: false or 'false', respect user preference and do NOT feature it!
+        if (customTV.frontmatter.featured === false || customTV.frontmatter.featured === 'false') {
+          return null;
+        }
+      }
+    } else {
+      const customMovie = await getCustomMovieBySlug(tmdbIdNum);
+      if (customMovie) {
+        customFrontmatter = customMovie.frontmatter;
+        customMovieSlug = customMovie.slug;
+        // If the custom markdown file explicitly set featured: false or 'false', respect user preference and do NOT feature it!
+        if (customMovie.frontmatter.featured === false || customMovie.frontmatter.featured === 'false') {
+          return null;
+        }
+      }
+    }
+  }
+
+  if (!tmdbIdNum) {
     // If no tmdbId provided, return item with safe fallback images
     return {
       ...item,
@@ -45,14 +76,6 @@ export async function enrichConfigFeaturedItem(item: FeaturedItem): Promise<Feat
     };
   }
 
-  const tmdbIdNum = Number(rawTmdbId);
-
-  // Check if a custom markdown file exists for this tmdb_id
-  const movieMapping = getCustomMovieTmdbMapping();
-  const tvMapping = getCustomTVTmdbMapping();
-  const customMovieSlug = movieMapping[String(tmdbIdNum)]?.replace(/\.(md|markdown)$/i, '');
-  const customTVSlug = tvMapping[String(tmdbIdNum)];
-
   let tmdbData: (MovieDetail | TVShowDetail) | null = null;
   try {
     if (type === 'tv') {
@@ -67,53 +90,54 @@ export async function enrichConfigFeaturedItem(item: FeaturedItem): Promise<Feat
   const tmdbMovie = (type === 'movie' ? tmdbData as MovieDetail : null);
   const tmdbTV = (type === 'tv' ? tmdbData as TVShowDetail : null);
 
-  const title = item.title && item.title.trim() !== ''
-    ? item.title
-    : (tmdbMovie?.title || tmdbTV?.name || 'Featured Item');
+  const title = customFrontmatter?.title?.trim() ||
+    (item.title && item.title.trim() !== '' ? item.title : (tmdbMovie?.title || tmdbTV?.name || 'Featured Item'));
 
-  const tagline = item.tagline !== undefined
-    ? item.tagline
-    : (tmdbData?.tagline || undefined);
+  const tagline = customFrontmatter?.tagline?.trim() ||
+    (item.tagline !== undefined ? item.tagline : (tmdbData?.tagline || undefined));
 
-  const overview = item.overview && item.overview.trim() !== ''
-    ? item.overview
-    : (tmdbData?.overview || '');
+  const overview = (customFrontmatter?.deskripsi || customFrontmatter?.description)?.trim() ||
+    (item.overview && item.overview.trim() !== '' ? item.overview : (tmdbData?.overview || ''));
 
-  const backdropUrl = item.backdropUrl && item.backdropUrl.trim() !== ''
-    ? getImageUrl(item.backdropUrl, 'w1280')
+  const customImg = customFrontmatter?.image_url || customFrontmatter?.poster_path || customFrontmatter?.backdrop_url || item.backdropUrl || item.posterUrl;
+
+  const backdropUrl = customImg
+    ? getImageUrl(customImg, 'w1280')
     : (tmdbData?.backdrop_path
         ? getImageUrl(tmdbData.backdrop_path, 'w1280')
         : tmdbData?.poster_path
         ? getImageUrl(tmdbData.poster_path, 'w780')
         : '/placeholder-poster.svg');
 
-  const posterUrl = item.posterUrl && item.posterUrl.trim() !== ''
-    ? getImageUrl(item.posterUrl, 'w500')
+  const posterUrl = customImg
+    ? getImageUrl(customImg, 'w500')
     : (tmdbData?.poster_path
         ? getImageUrl(tmdbData.poster_path, 'w500')
         : tmdbData?.backdrop_path
         ? getImageUrl(tmdbData.backdrop_path, 'w780')
         : '/placeholder-poster.svg');
 
-  const rating = item.rating !== undefined
-    ? item.rating
-    : (tmdbData?.vote_average ? Math.round(tmdbData.vote_average * 10) / 10 : 8.5);
+  const rating = customFrontmatter?.rating !== undefined && customFrontmatter?.rating !== null && customFrontmatter?.rating !== ''
+    ? Number(customFrontmatter.rating)
+    : (item.rating !== undefined
+        ? item.rating
+        : (tmdbData?.vote_average ? Math.round(tmdbData.vote_average * 10) / 10 : 8.5));
 
-  const year = item.year !== undefined
+  const year = customFrontmatter?.year || (item.year !== undefined
     ? item.year
     : (tmdbMovie?.release_date
         ? new Date(tmdbMovie.release_date).getFullYear()
         : tmdbTV?.first_air_date
         ? new Date(tmdbTV.first_air_date).getFullYear()
-        : '2025');
+        : '2025'));
 
-  const duration = item.duration !== undefined
+  const duration = customFrontmatter?.duration || (item.duration !== undefined
     ? item.duration
     : (tmdbMovie?.runtime
         ? `${Math.floor(tmdbMovie.runtime / 60)}h ${tmdbMovie.runtime % 60}m`
         : tmdbTV?.number_of_episodes
         ? `${tmdbTV.number_of_episodes} Episodes`
-        : undefined);
+        : undefined));
 
   const genres = item.genres && item.genres.length > 0
     ? item.genres
@@ -171,9 +195,9 @@ export async function getEnrichedFeaturedItems(options: GetFeaturedOptions = {})
 
   // 2. Enrich configured featured items from siteConfig concurrently
   const rawConfigItems = siteConfig.featuredItems || [];
-  const enrichedConfigItems = await Promise.all(
-    rawConfigItems.map((item) => enrichConfigFeaturedItem(item))
-  );
+  const enrichedConfigItems = (
+    await Promise.all(rawConfigItems.map((item) => enrichConfigFeaturedItem(item)))
+  ).filter((item): item is FeaturedItem => item !== null);
 
   // 3. Merge & Deduplicate Featured Items
   const featuredList: FeaturedItem[] = [];

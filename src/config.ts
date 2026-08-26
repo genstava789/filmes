@@ -58,36 +58,9 @@ export const siteConfig = {
   heroIntervalSeconds: 6,
 
   // Customizable Featured Hero items for the carousel.
-  // When tmdbId is provided, any missing fields (title, overview, poster/backdrop, rating, duration, genres, etc.)
-  // are automatically fetched from TMDB API while respecting your custom overrides!
-  featuredItems: [
-    {
-      id: 'mutiny-custom',
-      tmdbId: 1288445,
-      type: 'movie',
-      title: 'Mutiny',
-      tagline: 'Trust No One. Fight Everyone.',
-      badge: 'Featured',
-    },
-    {
-      id: 'lanterns-dc',
-      tmdbId: 95350,
-      type: 'tv',
-      title: 'Lanterns',
-      tagline: 'In Brightest Day, In Blackest Night.',
-      badge: 'Featured',
-      link: '/tv/lanterns/s1/e1',
-    },
-    {
-      id: 'bleach-thousand-year',
-      tmdbId: 30984,
-      type: 'tv',
-      title: 'Bleach: Thousand-Year Blood War',
-      tagline: 'The Final War of Souls Begins.',
-      duration: 'Part 3',
-      badge: 'Featured',
-    },
-  ] as FeaturedItem[],
+  // When empty, items are dynamically sourced from custom markdown files with `featured: true` in frontmatter,
+  // and dynamically filled with trending titles.
+  featuredItems: [] as FeaturedItem[],
 
   // Customizable Section Headings for Homepage
   homepageSections: {

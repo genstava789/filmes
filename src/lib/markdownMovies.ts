@@ -491,11 +491,29 @@ export async function getAllFeaturedCustomMovies(): Promise<FeaturedItem[]> {
       const baseSlug = file.replace(/\.(md|markdown)$/i, '');
       const customData = await getCustomMovieBySlug(baseSlug);
 
-      if (customData && (customData.frontmatter.featured === true || customData.frontmatter.featured === 'true')) {
+      if (
+        customData &&
+        (customData.frontmatter.featured === true ||
+          customData.frontmatter.featured === 'true' ||
+          customData.frontmatter.featured === '1')
+      ) {
         const detail = await getMovieDetailsWithCustomOverride(baseSlug);
         if (detail) {
-          const backdrop = detail.customImageUrl || (detail.backdrop_path ? getImageUrl(detail.backdrop_path, 'w1280') : (detail.poster_path ? getImageUrl(detail.poster_path, 'w780') : '/placeholder-poster.svg'));
-          const poster = detail.customImageUrl || (detail.poster_path ? getImageUrl(detail.poster_path, 'w500') : (detail.backdrop_path ? getImageUrl(detail.backdrop_path, 'w780') : '/placeholder-poster.svg'));
+          const customImg = detail.customImageUrl || customData.frontmatter.image_url || customData.frontmatter.poster_path || customData.frontmatter.backdrop_url;
+          const backdrop = customImg
+            ? getImageUrl(customImg, 'w1280')
+            : detail.backdrop_path
+            ? getImageUrl(detail.backdrop_path, 'w1280')
+            : detail.poster_path
+            ? getImageUrl(detail.poster_path, 'w780')
+            : '/placeholder-poster.svg';
+          const poster = customImg
+            ? getImageUrl(customImg, 'w500')
+            : detail.poster_path
+            ? getImageUrl(detail.poster_path, 'w500')
+            : detail.backdrop_path
+            ? getImageUrl(detail.backdrop_path, 'w780')
+            : '/placeholder-poster.svg';
 
           featuredMovies.push({
             id: `movie-${detail.customSlug || detail.id}`,

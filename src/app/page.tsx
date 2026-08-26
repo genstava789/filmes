@@ -55,7 +55,7 @@ export default async function HomePage() {
         movie={featuredMovie}
         movies={trending}
         genres={genreList}
-        customFeaturedItems={featuredItems.length > 0 ? featuredItems : undefined}
+        customFeaturedItems={featuredItems}
       />
 
       {/* Content sections */}

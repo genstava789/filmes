@@ -34,12 +34,13 @@ export default function Hero({
 }: HeroProps) {
   const isTV = type === 'tv' || (tvShows && tvShows.length > 0) || Boolean(tvShow);
 
-  // Build items list: prioritize customFeaturedItems -> siteConfig.featuredItems -> mapped TMDB movies/tv
+  // Build items list: prioritize customFeaturedItems -> mapped TMDB movies/tv
   const items: FeaturedItem[] = React.useMemo(() => {
-    if (customFeaturedItems && customFeaturedItems.length > 0) {
-      return customFeaturedItems;
-    }
-    if (siteConfig.featuredItems && siteConfig.featuredItems.length > 0 && !isTV) {
+    if (customFeaturedItems !== undefined) {
+      if (customFeaturedItems.length > 0) {
+        return customFeaturedItems;
+      }
+    } else if (siteConfig.featuredItems && siteConfig.featuredItems.length > 0 && !isTV) {
       return siteConfig.featuredItems;
     }
 
