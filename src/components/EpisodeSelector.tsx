@@ -9,6 +9,7 @@ import {
   Tv,
   Check,
   Sparkles,
+  Film,
 } from 'lucide-react';
 import { CustomSeason, CustomEpisode } from '@/lib/markdownTV';
 
@@ -19,6 +20,42 @@ interface EpisodeSelectorProps {
   showTitle: string;
   defaultBackdrop?: string;
   onSelectEpisode?: (ep: CustomEpisode) => void;
+}
+
+function EpisodeThumbnail({ src, fallbackSrc, title }: { src: string; fallbackSrc?: string; title: string }) {
+  const [currentSrc, setCurrentSrc] = useState<string>(src || fallbackSrc || '');
+  const [hasError, setHasError] = useState(false);
+
+  useEffect(() => {
+    setCurrentSrc(src || fallbackSrc || '');
+    setHasError(false);
+  }, [src, fallbackSrc]);
+
+  if (hasError || !currentSrc || (!currentSrc.startsWith('http') && !currentSrc.startsWith('/'))) {
+    return (
+      <div className="w-full h-full flex flex-col items-center justify-center bg-slate-900 text-slate-500">
+        <Film size={22} className="text-slate-600 mb-0.5" />
+        <span className="text-[9px] font-bold text-slate-500 uppercase tracking-wider">Episode</span>
+      </div>
+    );
+  }
+
+  return (
+    <Image
+      src={currentSrc}
+      alt={title}
+      fill
+      className="object-cover group-hover:scale-105 transition-transform duration-500"
+      sizes="(max-width: 640px) 100vw, (max-width: 1024px) 50vw, 25vw"
+      onError={() => {
+        if (fallbackSrc && currentSrc !== fallbackSrc && (fallbackSrc.startsWith('http') || fallbackSrc.startsWith('/'))) {
+          setCurrentSrc(fallbackSrc);
+        } else {
+          setHasError(true);
+        }
+      }}
+    />
+  );
 }
 
 export default function EpisodeSelector({
@@ -231,13 +268,7 @@ export default function EpisodeSelector({
               >
                 {/* 16:9 Thumbnail Container */}
                 <div className="relative w-full aspect-video overflow-hidden bg-black/60">
-                  <Image
-                    src={epImage}
-                    alt={ep.title}
-                    fill
-                    className="object-cover group-hover:scale-105 transition-transform duration-500"
-                    sizes="(max-width: 640px) 100vw, (max-width: 1024px) 50vw, 25vw"
-                  />
+                  <EpisodeThumbnail src={ep.imageUrl || ''} fallbackSrc={defaultBackdrop} title={ep.title} />
 
                   {/* Gradient Overlay */}
                   <div className="absolute inset-0 bg-gradient-to-t from-black/80 via-black/20 to-transparent" />

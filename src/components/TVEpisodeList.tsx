@@ -31,10 +31,17 @@ function EpisodeRowItem({
   showTitle: string;
   defaultBackdrop?: string;
 }) {
-  const [imgSrc, setImgSrc] = useState<string>(
-    ep.imageUrl || defaultBackdrop || '/placeholder-poster.jpg'
-  );
+  const initialSrc = ep.imageUrl || defaultBackdrop || '';
+  const [imgSrc, setImgSrc] = useState<string>(initialSrc);
   const [imgError, setImgError] = useState(false);
+
+  useEffect(() => {
+    const src = ep.imageUrl || defaultBackdrop || '';
+    setImgSrc(src);
+    setImgError(false);
+  }, [ep.imageUrl, defaultBackdrop]);
+
+  const isValidUrl = Boolean(imgSrc && (imgSrc.startsWith('http://') || imgSrc.startsWith('https://') || imgSrc.startsWith('/')));
 
   return (
     <Link
@@ -58,7 +65,7 @@ function EpisodeRowItem({
           border: '1px solid rgba(255, 255, 255, 0.1)',
         }}
       >
-        {!imgError ? (
+        {!imgError && isValidUrl ? (
           <Image
             src={imgSrc}
             alt={ep.title}
@@ -66,8 +73,11 @@ function EpisodeRowItem({
             className="object-cover group-hover:scale-105 transition-transform duration-300"
             sizes="(max-width: 640px) 96px, (max-width: 1024px) 128px, 144px"
             onError={() => {
-              setImgError(true);
-              setImgSrc('/placeholder-poster.jpg');
+              if (defaultBackdrop && imgSrc !== defaultBackdrop && (defaultBackdrop.startsWith('http') || defaultBackdrop.startsWith('/'))) {
+                setImgSrc(defaultBackdrop);
+              } else {
+                setImgError(true);
+              }
             }}
           />
         ) : (

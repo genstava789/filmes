@@ -111,7 +111,7 @@ interface TMDBBackdropItem {
   width: number;
   height: number;
   aspectRatio: number;
-  language: string; // 'xx', 'en', 'id', etc.
+  language: string;
   voteAverage: number | null;
   voteCount: number;
 }
@@ -153,6 +153,69 @@ interface SeasonDraft {
 
 type SortOption = 'newest' | 'oldest' | 'title_asc' | 'title_desc' | 'rating_desc';
 type FilterOption = 'all' | 'featured' | 'non_featured';
+
+/**
+ * Safe Image Component that catches errors, unoptimizes external URLs to avoid server 404 logs, and provides placeholders.
+ */
+function SafeAdminImage({
+  src,
+  fallbackSrc,
+  alt,
+  className = 'object-cover',
+  sizes,
+  fill = true,
+}: {
+  src?: string | null;
+  fallbackSrc?: string | null;
+  alt: string;
+  className?: string;
+  sizes?: string;
+  fill?: boolean;
+}) {
+  const [currentSrc, setCurrentSrc] = useState<string>(src || fallbackSrc || '');
+  const [hasError, setHasError] = useState(false);
+
+  useEffect(() => {
+    setCurrentSrc(src || fallbackSrc || '');
+    setHasError(false);
+  }, [src, fallbackSrc]);
+
+  const isValid = Boolean(
+    currentSrc &&
+      (currentSrc.startsWith('http://') || currentSrc.startsWith('https://') || currentSrc.startsWith('/')) &&
+      !hasError
+  );
+
+  if (!isValid) {
+    return (
+      <div className="w-full h-full flex flex-col items-center justify-center bg-slate-900 text-slate-600">
+        <Film size={14} className="text-slate-600 mb-0.5" />
+      </div>
+    );
+  }
+
+  return (
+    <Image
+      src={currentSrc}
+      alt={alt}
+      fill={fill}
+      className={className}
+      sizes={sizes}
+      unoptimized
+      onError={() => {
+        if (
+          fallbackSrc &&
+          currentSrc !== fallbackSrc &&
+          (fallbackSrc.startsWith('http://') || fallbackSrc.startsWith('https://') || fallbackSrc.startsWith('/'))
+        ) {
+          setCurrentSrc(fallbackSrc);
+        } else {
+          setHasError(true);
+        }
+      }}
+    />
+  );
+}
 
 /**
  * Formats a season slug (e.g. "s1", "s02", "season-3") into a clean display label (e.g. "Season 1", "Season 2", "Season 3").
@@ -794,7 +857,7 @@ export default function AdminPage() {
     const season = formSeasons.find((s) => s.season === seasonSlug);
     if (!season) return;
     const seasonEpIds = season.episodes.map((ep) => ep.id);
-    const allSelected = seasonEpIds.every((id) => selectedDraftEpIds.includes(id));
+    const allSelected = seasonEpIds.length > 0 && seasonEpIds.every((id) => selectedDraftEpIds.includes(id));
     if (allSelected) {
       setSelectedDraftEpIds((prev) => prev.filter((id) => !seasonEpIds.includes(id)));
     } else {
@@ -902,7 +965,7 @@ export default function AdminPage() {
       seasons: formSeasons,
     };
 
-    // 1. Instant update in local state
+    // Instant optimistic update
     if (contentType === 'movie') {
       const posterImg = payload.poster || tmdbPreview?.posterUrl || null;
       const formattedPoster = posterImg ? (posterImg.startsWith('http') ? posterImg : `https://image.tmdb.org/t/p/w500${posterImg}`) : null;
@@ -1225,7 +1288,7 @@ export default function AdminPage() {
       (ep) => (ep.seasonFolder || 's1').toLowerCase() === seasonSlug.toLowerCase()
     );
     const seasonPaths = seasonEps.map((ep) => ep.relativePath);
-    const allSelected = seasonPaths.every((p) => selectedEditEpPaths.includes(p));
+    const allSelected = seasonPaths.length > 0 && seasonPaths.every((p) => selectedEditEpPaths.includes(p));
 
     if (allSelected) {
       setSelectedEditEpPaths((prev) => prev.filter((p) => !seasonPaths.includes(p)));
@@ -1522,33 +1585,33 @@ export default function AdminPage() {
       )}
 
       {/* Top Header */}
-      <header className="sticky top-0 z-40 bg-[#070913]/90 backdrop-blur-md border-b border-white/10 px-4 sm:px-8 py-3.5">
+      <header className="sticky top-0 z-40 bg-[#070913]/90 backdrop-blur-md border-b border-white/10 px-4 sm:px-8 py-3">
         <div className="max-w-7xl mx-auto flex flex-col sm:flex-row items-center justify-between gap-3">
           <div className="flex items-center gap-3">
-            <div className="w-9 h-9 rounded-xl bg-gradient-to-tr from-cyan-500 to-blue-600 flex items-center justify-center shadow-lg shadow-cyan-500/20">
-              <Layers size={18} className="text-white" />
+            <div className="w-8 h-8 rounded-lg bg-gradient-to-tr from-cyan-500 to-blue-600 flex items-center justify-center shadow-md shadow-cyan-500/20">
+              <Layers size={16} className="text-white" />
             </div>
             <div>
-              <h1 className="text-lg font-bold tracking-tight bg-gradient-to-r from-white via-slate-200 to-slate-400 bg-clip-text text-transparent">
+              <h1 className="text-base sm:text-lg font-bold tracking-tight bg-gradient-to-r from-white via-slate-200 to-slate-400 bg-clip-text text-transparent">
                 Filmes Admin Panel
               </h1>
-              <p className="text-[11px] text-slate-400 font-medium">Content Management & Live Post Publisher</p>
+              <p className="text-[10px] text-slate-400 font-medium">Content Management & Live Post Publisher</p>
             </div>
           </div>
 
-          <div className="flex items-center gap-2.5 flex-wrap">
+          <div className="flex items-center gap-2 flex-wrap">
             {tokenChecked && (
               <button
                 onClick={() => setIsSettingsOpen(true)}
-                className={`px-3 py-1.5 rounded-lg text-xs font-semibold flex items-center gap-2 border transition-all ${
+                className={`px-2.5 py-1 rounded-md text-[11px] font-semibold flex items-center gap-1.5 border transition-all ${
                   githubToken
                     ? 'bg-emerald-950/40 text-emerald-300 border-emerald-500/30 hover:border-emerald-400'
                     : 'bg-amber-950/40 text-amber-300 border-amber-500/30 hover:border-amber-400 animate-pulse'
                 }`}
                 title="Klik untuk konfigurasi GitHub Token"
               >
-                {githubToken ? <ShieldCheck size={14} /> : <ShieldAlert size={14} />}
-                <span>{githubToken ? 'GitHub PAT Aktif' : 'Token Belum Terpasang'}</span>
+                {githubToken ? <ShieldCheck size={13} /> : <ShieldAlert size={13} />}
+                <span>{githubToken ? 'PAT Aktif' : 'Pasang Token'}</span>
               </button>
             )}
 
@@ -1557,78 +1620,78 @@ export default function AdminPage() {
                 resetCreateForm();
                 setIsCreateModalOpen(true);
               }}
-              className="px-3.5 py-1.5 rounded-lg text-xs font-bold bg-gradient-to-r from-cyan-500 to-blue-600 hover:from-cyan-400 hover:to-blue-500 text-white shadow-md shadow-cyan-500/20 flex items-center gap-1.5 transition-all"
+              className="px-3 py-1.5 rounded-lg text-xs font-bold bg-gradient-to-r from-cyan-500 to-blue-600 hover:from-cyan-400 hover:to-blue-500 text-white shadow-md shadow-cyan-500/20 flex items-center gap-1.5 transition-all"
             >
-              <Plus size={14} />
-              <span>Tambah Post Baru</span>
+              <Plus size={13} />
+              <span>Tambah Post</span>
             </button>
           </div>
         </div>
       </header>
 
       {/* Main Admin Body */}
-      <main className="max-w-7xl mx-auto px-4 sm:px-8 pt-6">
+      <main className="max-w-7xl mx-auto px-4 sm:px-8 pt-5">
         {/* Navigation Tabs (Movies / TV Series) */}
-        <div className="flex items-center justify-between border-b border-white/10 pb-3 mb-5 flex-wrap gap-3">
+        <div className="flex items-center justify-between border-b border-white/10 pb-2.5 mb-4 flex-wrap gap-2.5">
           <div className="flex items-center gap-2">
             <button
               onClick={() => setActiveTab('movies')}
-              className={`px-3.5 py-2 rounded-xl text-xs font-bold flex items-center gap-2 transition-all ${
+              className={`px-3 py-1.5 rounded-lg text-xs font-bold flex items-center gap-1.5 transition-all ${
                 activeTab === 'movies'
                   ? 'bg-cyan-500 text-white shadow-md shadow-cyan-500/20'
                   : 'bg-white/5 text-slate-400 hover:text-white hover:bg-white/10'
               }`}
             >
-              <Film size={15} />
+              <Film size={14} />
               <span>Movies ({movies.length})</span>
             </button>
 
             <button
               onClick={() => setActiveTab('tv')}
-              className={`px-3.5 py-2 rounded-xl text-xs font-bold flex items-center gap-2 transition-all ${
+              className={`px-3 py-1.5 rounded-lg text-xs font-bold flex items-center gap-1.5 transition-all ${
                 activeTab === 'tv'
                   ? 'bg-pink-500 text-white shadow-md shadow-pink-500/20'
                   : 'bg-white/5 text-slate-400 hover:text-white hover:bg-white/10'
               }`}
             >
-              <Tv size={15} />
+              <Tv size={14} />
               <span>TV Series ({tvShows.length})</span>
             </button>
           </div>
 
           <button
             onClick={fetchContent}
-            className="p-2 rounded-lg bg-white/5 hover:bg-white/10 text-slate-300 hover:text-white border border-white/10 flex items-center gap-1.5 text-xs font-semibold transition-all"
+            className="p-1.5 rounded-md bg-white/5 hover:bg-white/10 text-slate-300 hover:text-white border border-white/10 flex items-center gap-1 text-xs font-semibold transition-all"
             title="Refresh Data"
           >
-            <RefreshCw size={13} className={loading ? 'animate-spin' : ''} />
+            <RefreshCw size={12} className={loading ? 'animate-spin' : ''} />
             <span>Refresh</span>
           </button>
         </div>
 
         {/* Search, Filter & Sort Bar */}
-        <div className="grid grid-cols-1 sm:grid-cols-12 gap-2.5 mb-5">
+        <div className="grid grid-cols-1 sm:grid-cols-12 gap-2 mb-4">
           <div className="sm:col-span-6 relative">
-            <Search size={15} className="absolute left-3 top-1/2 -translate-y-1/2 text-slate-400" />
+            <Search size={14} className="absolute left-2.5 top-1/2 -translate-y-1/2 text-slate-400" />
             <input
               type="text"
               value={searchQuery}
               onChange={(e) => setSearchQuery(e.target.value)}
-              placeholder={`Cari ${activeTab === 'movies' ? 'Movie' : 'TV Series'} berdasarkan judul atau TMDB ID...`}
-              className="w-full pl-9 pr-3.5 py-2 rounded-xl bg-[#0c1224] border border-white/10 text-xs text-white placeholder:text-slate-500 focus:outline-none focus:border-cyan-400"
+              placeholder={`Cari ${activeTab === 'movies' ? 'Movie' : 'TV Series'}...`}
+              className="w-full pl-8 pr-3 py-1.5 rounded-lg bg-[#0c1224] border border-white/10 text-xs text-white placeholder:text-slate-500 focus:outline-none focus:border-cyan-400"
             />
           </div>
 
           <div className="sm:col-span-3">
             <div className="relative">
-              <Filter size={13} className="absolute left-3 top-1/2 -translate-y-1/2 text-slate-400" />
+              <Filter size={12} className="absolute left-2.5 top-1/2 -translate-y-1/2 text-slate-400" />
               <select
                 value={filterBy}
                 onChange={(e) => setFilterBy(e.target.value as FilterOption)}
-                className="w-full pl-8 pr-3 py-2 rounded-xl bg-[#0c1224] border border-white/10 text-xs font-semibold text-white focus:outline-none focus:border-cyan-400 cursor-pointer"
+                className="w-full pl-7 pr-3 py-1.5 rounded-lg bg-[#0c1224] border border-white/10 text-[11px] font-semibold text-white focus:outline-none focus:border-cyan-400 cursor-pointer"
               >
                 <option value="all">Semua Konten</option>
-                <option value="featured">Hanya Featured (Homepage)</option>
+                <option value="featured">Hanya Featured</option>
                 <option value="non_featured">Bukan Featured</option>
               </select>
             </div>
@@ -1636,16 +1699,16 @@ export default function AdminPage() {
 
           <div className="sm:col-span-3">
             <div className="relative">
-              <ArrowUpDown size={13} className="absolute left-3 top-1/2 -translate-y-1/2 text-slate-400" />
+              <ArrowUpDown size={12} className="absolute left-2.5 top-1/2 -translate-y-1/2 text-slate-400" />
               <select
                 value={sortBy}
                 onChange={(e) => setSortBy(e.target.value as SortOption)}
-                className="w-full pl-8 pr-3 py-2 rounded-xl bg-[#0c1224] border border-white/10 text-xs font-semibold text-white focus:outline-none focus:border-cyan-400 cursor-pointer"
+                className="w-full pl-7 pr-3 py-1.5 rounded-lg bg-[#0c1224] border border-white/10 text-[11px] font-semibold text-white focus:outline-none focus:border-cyan-400 cursor-pointer"
               >
-                <option value="newest">Paling Baru Diperbarui</option>
+                <option value="newest">Paling Baru</option>
                 <option value="oldest">Paling Lama</option>
-                <option value="title_asc">Judul (A - Z)</option>
-                <option value="title_desc">Judul (Z - A)</option>
+                <option value="title_asc">Judul (A-Z)</option>
+                <option value="title_desc">Judul (Z-A)</option>
                 <option value="rating_desc">Rating Tertinggi</option>
               </select>
             </div>
@@ -1655,15 +1718,15 @@ export default function AdminPage() {
         {/* Content List: Movies Tab */}
         {activeTab === 'movies' && (
           loading ? (
-            <div className="py-16 text-center text-slate-400">
-              <RefreshCw size={24} className="animate-spin mx-auto mb-2 text-cyan-400" />
+            <div className="py-12 text-center text-slate-400">
+              <RefreshCw size={22} className="animate-spin mx-auto mb-2 text-cyan-400" />
               <p className="text-xs">Memuat daftar movie...</p>
             </div>
           ) : paginatedMovies.length === 0 ? (
-            <div className="py-16 text-center bg-[#0c1224] rounded-2xl border border-white/5">
-              <Film size={36} className="mx-auto mb-2.5 text-slate-600" />
-              <h3 className="text-sm font-bold text-white mb-1">Belum Ada Movie Ditemukan</h3>
-              <p className="text-xs text-slate-400 mb-3">
+            <div className="py-12 text-center bg-[#0c1224] rounded-xl border border-white/5">
+              <Film size={32} className="mx-auto mb-2 text-slate-600" />
+              <h3 className="text-xs font-bold text-white mb-1">Belum Ada Movie Ditemukan</h3>
+              <p className="text-[11px] text-slate-400 mb-3">
                 {searchQuery ? 'Tidak ada hasil untuk pencarian Anda.' : 'Mulai tambahkan movie baru ke sistem.'}
               </p>
               <button
@@ -1672,14 +1735,14 @@ export default function AdminPage() {
                   setContentType('movie');
                   setIsCreateModalOpen(true);
                 }}
-                className="inline-flex items-center gap-1.5 px-3.5 py-1.5 rounded-lg text-xs font-bold bg-cyan-500 hover:bg-cyan-400 text-white transition-all"
+                className="inline-flex items-center gap-1 px-3 py-1.5 rounded-lg text-xs font-bold bg-cyan-500 hover:bg-cyan-400 text-white transition-all"
               >
-                <Plus size={14} />
-                <span>Tambah Movie Pertama</span>
+                <Plus size={13} />
+                <span>Tambah Movie</span>
               </button>
             </div>
           ) : (
-            <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-4">
+            <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-3.5">
               {paginatedMovies.map((movie) => {
                 const title = movie.displayTitle || movie.frontmatter.title || movie.slug;
                 const tmdbId = movie.frontmatter.tmdb_id;
@@ -1690,50 +1753,44 @@ export default function AdminPage() {
                 return (
                   <div
                     key={movie.relativePath}
-                    className="p-3.5 rounded-xl bg-[#0c1224] border border-white/10 hover:border-cyan-500/40 transition-all flex flex-col justify-between shadow-md shadow-black/20"
+                    className="p-3 rounded-xl bg-[#0c1224] border border-white/10 hover:border-cyan-500/40 transition-all flex flex-col justify-between shadow-sm"
                   >
                     <div>
-                      <div className="flex items-start gap-3 mb-2.5">
-                        <div className="relative w-14 h-20 rounded-lg overflow-hidden bg-slate-900 flex-shrink-0 border border-white/10 shadow-sm">
-                          {poster ? (
-                            <Image src={poster} alt={title} fill className="object-cover" sizes="56px" />
-                          ) : (
-                            <div className="w-full h-full flex items-center justify-center text-slate-600">
-                              <Film size={20} />
-                            </div>
-                          )}
+                      <div className="flex items-start gap-2.5 mb-2">
+                        <div className="relative w-12 h-16 rounded-md overflow-hidden bg-slate-900 flex-shrink-0 border border-white/10 shadow-sm">
+                          <SafeAdminImage src={poster} alt={title} sizes="48px" />
                         </div>
 
                         <div className="flex-1 min-w-0">
-                          <div className="flex items-center gap-1.5 mb-1 flex-wrap">
-                            <span className="px-1.5 py-0.5 rounded text-[10px] font-bold bg-cyan-500/10 text-cyan-400 border border-cyan-500/30">
+                          <div className="flex items-center gap-1.5 mb-0.5 flex-wrap">
+                            <span className="px-1.5 py-0.2 rounded text-[9px] font-bold bg-cyan-500/10 text-cyan-400 border border-cyan-500/30">
                               TMDB {tmdbId || 'N/A'}
                             </span>
                             {isFeatured && (
-                              <span className="px-1.5 py-0.5 rounded text-[10px] font-bold bg-amber-500/20 text-amber-300 border border-amber-500/30 flex items-center gap-1">
-                                <Star size={10} fill="currentColor" /> Featured
+                              <span className="px-1.5 py-0.2 rounded text-[9px] font-bold bg-amber-500/20 text-amber-300 border border-amber-500/30 flex items-center gap-0.5">
+                                <Star size={9} fill="currentColor" /> Featured
                               </span>
                             )}
                           </div>
 
-                          <h3 className="font-bold text-white text-xs leading-snug line-clamp-2" title={title}>
+                          <h3 className="font-bold text-white text-xs leading-tight line-clamp-2" title={title}>
                             {title} {movie.year ? <span className="text-slate-400 font-normal">({movie.year})</span> : ''}
                           </h3>
 
                           {rating ? (
-                            <p className="text-[11px] text-amber-400 font-bold mt-1 flex items-center gap-1">
-                              <Star size={11} fill="currentColor" /> {rating}
+                            <p className="text-[10px] text-amber-400 font-bold mt-0.5 flex items-center gap-1">
+                              <Star size={10} fill="currentColor" /> {rating}
                             </p>
                           ) : null}
 
-                          <p className="text-[10px] text-slate-400 font-mono truncate mt-0.5">
+                          <p className="text-[9px] text-slate-500 font-mono truncate mt-0.5">
                             {movie.relativePath}
                           </p>
                         </div>
                       </div>
                     </div>
 
-                    <div className="flex items-center justify-between pt-2.5 border-t border-white/5">
+                    <div className="flex items-center justify-between pt-2 border-t border-white/5">
                       <Link
                         href={getMovieUrl({
                           id: movie.frontmatter.tmdb_id,
@@ -1743,9 +1800,9 @@ export default function AdminPage() {
                           customSlug: movie.slug,
                         })}
                         target="_blank"
-                        className="inline-flex items-center gap-1 text-[11px] font-semibold text-cyan-400 hover:text-cyan-300 hover:underline"
+                        className="inline-flex items-center gap-1 text-[10px] font-semibold text-cyan-400 hover:text-cyan-300 hover:underline"
                       >
-                        <ExternalLink size={12} />
+                        <ExternalLink size={11} />
                         <span>Buka Halaman</span>
                       </Link>
 
@@ -1760,18 +1817,18 @@ export default function AdminPage() {
                               content: movie.content,
                             });
                           }}
-                          className="p-1.5 rounded-lg bg-white/5 hover:bg-white/10 text-slate-300 hover:text-white transition-all"
+                          className="p-1.5 rounded bg-white/5 hover:bg-white/10 text-slate-300 hover:text-white transition-all"
                           title="Edit Post"
                         >
-                          <Edit2 size={13} />
+                          <Edit2 size={12} />
                         </button>
 
                         <button
                           onClick={() => handleDelete(movie.relativePath, title)}
-                          className="p-1.5 rounded-lg bg-red-500/10 hover:bg-red-500/20 text-red-400 hover:text-red-300 transition-all"
+                          className="p-1.5 rounded bg-red-500/10 hover:bg-red-500/20 text-red-400 hover:text-red-300 transition-all"
                           title="Hapus Post"
                         >
-                          <Trash2 size={13} />
+                          <Trash2 size={12} />
                         </button>
                       </div>
                     </div>
@@ -1785,15 +1842,15 @@ export default function AdminPage() {
         {/* Content List: TV Shows Tab */}
         {activeTab === 'tv' && (
           loading ? (
-            <div className="py-16 text-center text-slate-400">
-              <RefreshCw size={24} className="animate-spin mx-auto mb-2 text-pink-400" />
+            <div className="py-12 text-center text-slate-400">
+              <RefreshCw size={22} className="animate-spin mx-auto mb-2 text-pink-400" />
               <p className="text-xs">Memuat daftar TV Series...</p>
             </div>
           ) : paginatedTvShows.length === 0 ? (
-            <div className="py-16 text-center bg-[#0c1224] rounded-2xl border border-white/5">
-              <Tv size={36} className="mx-auto mb-2.5 text-slate-600" />
-              <h3 className="text-sm font-bold text-white mb-1">Belum Ada TV Series Ditemukan</h3>
-              <p className="text-xs text-slate-400 mb-3">
+            <div className="py-12 text-center bg-[#0c1224] rounded-xl border border-white/5">
+              <Tv size={32} className="mx-auto mb-2 text-slate-600" />
+              <h3 className="text-xs font-bold text-white mb-1">Belum Ada TV Series Ditemukan</h3>
+              <p className="text-[11px] text-slate-400 mb-3">
                 {searchQuery ? 'Tidak ada hasil untuk pencarian Anda.' : 'Mulai tambahkan TV Series baru ke sistem.'}
               </p>
               <button
@@ -1802,14 +1859,14 @@ export default function AdminPage() {
                   setContentType('tv_show');
                   setIsCreateModalOpen(true);
                 }}
-                className="inline-flex items-center gap-1.5 px-3.5 py-1.5 rounded-lg text-xs font-bold bg-pink-500 hover:bg-pink-400 text-white transition-all"
+                className="inline-flex items-center gap-1 px-3 py-1.5 rounded-lg text-xs font-bold bg-pink-500 hover:bg-pink-400 text-white transition-all"
               >
-                <Plus size={14} />
-                <span>Tambah TV Series Baru</span>
+                <Plus size={13} />
+                <span>Tambah TV Series</span>
               </button>
             </div>
           ) : (
-            <div className="space-y-4 w-full">
+            <div className="space-y-3.5 w-full">
               {paginatedTvShows.map((show) => {
                 const title = show.displayTitle || show.frontmatter.title || show.showSlug;
                 const tmdbId = show.frontmatter.tmdb_id;
@@ -1819,38 +1876,32 @@ export default function AdminPage() {
                 return (
                   <div
                     key={show.showSlug}
-                    className="p-4 sm:p-5 rounded-xl bg-[#0c1224] border border-white/10 hover:border-pink-500/40 transition-all shadow-md shadow-black/25 w-full"
+                    className="p-3.5 sm:p-4 rounded-xl bg-[#0c1224] border border-white/10 hover:border-pink-500/40 transition-all shadow-sm w-full"
                   >
                     {/* Show Main Header */}
-                    <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3 pb-3 border-b border-white/10 w-full">
-                      <div className="flex items-center gap-3">
-                        <div className="relative w-12 h-16 rounded-lg overflow-hidden bg-slate-900 flex-shrink-0 border border-white/10 shadow-sm">
-                          {poster ? (
-                            <Image src={poster} alt={title} fill className="object-cover" sizes="48px" />
-                          ) : (
-                            <div className="w-full h-full flex items-center justify-center text-slate-600">
-                              <Tv size={20} />
-                            </div>
-                          )}
+                    <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-2.5 pb-2.5 border-b border-white/10 w-full">
+                      <div className="flex items-center gap-2.5">
+                        <div className="relative w-10 h-14 rounded overflow-hidden bg-slate-900 flex-shrink-0 border border-white/10 shadow-sm">
+                          <SafeAdminImage src={poster} alt={title} sizes="40px" />
                         </div>
 
                         <div>
-                          <div className="flex items-center gap-1.5 mb-1 flex-wrap">
-                            <span className="px-1.5 py-0.5 rounded text-[10px] font-bold bg-pink-500/10 text-pink-400 border border-pink-500/30">
+                          <div className="flex items-center gap-1.5 mb-0.5 flex-wrap">
+                            <span className="px-1.5 py-0.2 rounded text-[9px] font-bold bg-pink-500/10 text-pink-400 border border-pink-500/30">
                               TMDB {tmdbId}
                             </span>
-                            <span className="px-1.5 py-0.5 rounded text-[10px] font-bold bg-purple-500/10 text-purple-400 border border-purple-500/30">
-                              {show.episodes.length} Episode
+                            <span className="px-1.5 py-0.2 rounded text-[9px] font-bold bg-purple-500/10 text-purple-400 border border-purple-500/30">
+                              {show.episodes.length} Ep
                             </span>
                           </div>
-                          <h3 className="font-bold text-white text-sm sm:text-base leading-snug">
+                          <h3 className="font-bold text-white text-xs sm:text-sm leading-snug">
                             {title} {year ? <span className="text-slate-400 font-normal text-xs">({year})</span> : ''}
                           </h3>
-                          <p className="text-[11px] text-slate-400 font-mono">tv/{show.showSlug}/_index.md</p>
+                          <p className="text-[10px] text-slate-500 font-mono">tv/{show.showSlug}/_index.md</p>
                         </div>
                       </div>
 
-                      <div className="flex items-center gap-2 flex-wrap">
+                      <div className="flex items-center gap-1.5 flex-wrap">
                         <Link
                           href={getTVUrl({
                             id: show.frontmatter.tmdb_id,
@@ -1860,10 +1911,10 @@ export default function AdminPage() {
                             customSlug: show.showSlug,
                           })}
                           target="_blank"
-                          className="inline-flex items-center gap-1 px-2.5 py-1 rounded-lg text-xs font-semibold bg-white/5 hover:bg-white/10 text-cyan-400 transition-all"
+                          className="inline-flex items-center gap-1 px-2 py-1 rounded text-[11px] font-semibold bg-white/5 hover:bg-white/10 text-cyan-400 transition-all"
                         >
-                          <ExternalLink size={12} />
-                          <span>Halaman Show</span>
+                          <ExternalLink size={11} />
+                          <span>Show</span>
                         </Link>
 
                         <button
@@ -1876,31 +1927,27 @@ export default function AdminPage() {
                               content: show.content,
                             });
                           }}
-                          className="inline-flex items-center gap-1 px-3 py-1 rounded-lg text-xs font-bold bg-pink-500/20 hover:bg-pink-500/30 text-pink-300 border border-pink-500/40 transition-all shadow-sm"
+                          className="inline-flex items-center gap-1 px-2.5 py-1 rounded text-[11px] font-bold bg-pink-500/20 hover:bg-pink-500/30 text-pink-300 border border-pink-500/40 transition-all"
                         >
-                          <Edit2 size={12} />
+                          <Edit2 size={11} />
                           <span>Kelola Series & Episode</span>
                         </button>
 
                         <button
                           onClick={() => handleDelete(`tv/${show.showSlug}`, title)}
-                          className="p-1 rounded-lg bg-red-500/10 hover:bg-red-500/20 text-red-400 transition-all"
+                          className="p-1 rounded bg-red-500/10 hover:bg-red-500/20 text-red-400 transition-all"
                           title="Hapus Seluruh TV Series"
                         >
-                          <Trash2 size={14} />
+                          <Trash2 size={13} />
                         </button>
                       </div>
                     </div>
 
                     {/* Episodes Grid */}
-                    <div className="mt-3 w-full">
-                      <h4 className="text-[11px] font-bold text-slate-400 uppercase tracking-wider mb-2">
-                        Daftar Episode:
-                      </h4>
-
+                    <div className="mt-2.5 w-full">
                       {show.episodes.length === 0 ? (
-                        <div className="p-4 text-center bg-black/20 rounded-xl border border-white/5">
-                          <p className="text-xs text-slate-400 mb-1.5">Belum ada episode di series ini.</p>
+                        <div className="p-3 text-center bg-black/20 rounded-lg border border-white/5">
+                          <p className="text-[11px] text-slate-400 mb-1">Belum ada episode di series ini.</p>
                           <button
                             onClick={() => {
                               if (!requireToken('menambah episode')) return;
@@ -1912,13 +1959,13 @@ export default function AdminPage() {
                               });
                               setEditShowTab('episodes');
                             }}
-                            className="text-xs font-bold text-pink-400 hover:text-pink-300 inline-flex items-center gap-1"
+                            className="text-[11px] font-bold text-pink-400 hover:text-pink-300 inline-flex items-center gap-1"
                           >
-                            <Plus size={12} /> Tambah Episode Pertama
+                            <Plus size={11} /> Tambah Episode
                           </button>
                         </div>
                       ) : (
-                        <div className="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-3 lg:grid-cols-4 gap-2.5 w-full">
+                        <div className="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-3 lg:grid-cols-4 gap-2 w-full">
                           {show.episodes.map((ep) => {
                             const seasonLabel = formatSeasonLabel(ep.seasonFolder);
                             const epTitle = ep.displayTitle || ep.frontmatter.title || ep.slug;
@@ -1938,25 +1985,22 @@ export default function AdminPage() {
                             return (
                               <div
                                 key={ep.relativePath}
-                                className="p-2.5 rounded-xl bg-black/40 border border-white/5 flex flex-col justify-between w-full hover:border-white/20 transition-all"
+                                className="p-2 rounded-lg bg-black/40 border border-white/5 flex flex-col justify-between w-full hover:border-white/20 transition-all"
                               >
                                 <div>
-                                  {epPoster && (
-                                    <div className="relative w-full aspect-video rounded-lg overflow-hidden mb-2 bg-slate-900 border border-white/5">
-                                      <Image src={epPoster} alt={epTitle} fill className="object-cover" sizes="(max-width: 640px) 100vw, 25vw" />
-                                      <span className="absolute top-1 left-1 px-1.5 py-0.5 rounded text-[9px] font-extrabold bg-black/80 text-purple-300 backdrop-blur-sm">
-                                        {seasonLabel} • {ep.slug.toUpperCase()}
-                                      </span>
-                                    </div>
-                                  )}
+                                  {/* Episode Thumbnail with Safe Fallback */}
+                                  <div className="relative w-full aspect-video rounded overflow-hidden mb-1.5 bg-slate-900 border border-white/5">
+                                    <SafeAdminImage src={epPoster} fallbackSrc={poster} alt={epTitle} sizes="(max-width: 640px) 100vw, 25vw" />
+                                    <span className="absolute top-1 left-1 px-1 py-0.2 rounded text-[8px] font-extrabold bg-black/80 text-purple-300 backdrop-blur-sm">
+                                      {seasonLabel} • {ep.slug.toUpperCase()}
+                                    </span>
+                                  </div>
 
-                                  <div className="flex items-center justify-between gap-1.5 mb-1">
-                                    {!epPoster && (
-                                      <span className="px-1.5 py-0.5 rounded text-[10px] font-bold bg-white/10 text-slate-300">
-                                        {seasonLabel} : {ep.slug.toUpperCase()}
-                                      </span>
-                                    )}
-                                    <div className="flex items-center gap-1 ml-auto">
+                                  <div className="flex items-center justify-between gap-1 mb-0.5">
+                                    <h5 className="font-semibold text-white text-xs truncate flex-1" title={epTitle}>
+                                      {epTitle}
+                                    </h5>
+                                    <div className="flex items-center gap-0.5 flex-shrink-0">
                                       <button
                                         onClick={() => {
                                           if (!requireToken('mengedit episode')) return;
@@ -1970,33 +2014,30 @@ export default function AdminPage() {
                                         className="p-1 rounded text-slate-400 hover:text-white"
                                         title="Edit Episode"
                                       >
-                                        <Edit2 size={12} />
+                                        <Edit2 size={11} />
                                       </button>
                                       <button
                                         onClick={() => handleDelete(ep.relativePath, epTitle)}
                                         className="p-1 rounded text-red-400 hover:text-red-300"
                                         title="Hapus Episode"
                                       >
-                                        <Trash2 size={12} />
+                                        <Trash2 size={11} />
                                       </button>
                                     </div>
                                   </div>
 
-                                  <h5 className="font-semibold text-white text-xs truncate mb-0.5" title={epTitle}>
-                                    {epTitle}
-                                  </h5>
                                   <p className="text-[10px] text-slate-400 font-mono truncate" title={epVideo}>
                                     {epVideo || <span className="text-red-400 font-bold">Video belum ada</span>}
                                   </p>
                                 </div>
 
-                                <div className="mt-1.5 pt-1.5 border-t border-white/5 flex justify-end">
+                                <div className="mt-1 pt-1 border-t border-white/5 flex justify-end">
                                   <Link
                                     href={linkPath}
                                     target="_blank"
-                                    className="inline-flex items-center gap-1 text-[11px] text-cyan-400 hover:underline"
+                                    className="inline-flex items-center gap-1 text-[10px] text-cyan-400 hover:underline"
                                   >
-                                    <Play size={11} />
+                                    <Play size={10} />
                                     <span>Tonton</span>
                                   </Link>
                                 </div>
@@ -2015,8 +2056,8 @@ export default function AdminPage() {
 
         {/* Pagination Bar */}
         {totalItems > 0 && (
-          <div className="flex flex-col sm:flex-row items-center justify-between gap-3 mt-6 pt-5 border-t border-white/10 w-full">
-            <div className="text-xs text-slate-400 font-medium">
+          <div className="flex flex-col sm:flex-row items-center justify-between gap-2.5 mt-5 pt-4 border-t border-white/10 w-full">
+            <div className="text-[11px] text-slate-400 font-medium">
               Menampilkan{' '}
               <span className="font-bold text-white">
                 {Math.min(totalItems, (currentPage - 1) * itemsPerPage + 1)}
@@ -2028,45 +2069,45 @@ export default function AdminPage() {
               dari <span className="font-bold text-white">{totalItems}</span> konten
             </div>
 
-            <div className="flex items-center gap-1.5">
+            <div className="flex items-center gap-1">
               <button
                 onClick={() => setCurrentPage(1)}
                 disabled={currentPage === 1}
-                className="p-1.5 rounded-lg bg-white/5 border border-white/10 text-slate-400 hover:text-white disabled:opacity-30 disabled:cursor-not-allowed transition-all"
+                className="p-1 rounded bg-white/5 border border-white/10 text-slate-400 hover:text-white disabled:opacity-30 disabled:cursor-not-allowed transition-all"
                 title="Halaman Pertama"
               >
-                <ChevronsLeft size={14} />
+                <ChevronsLeft size={13} />
               </button>
 
               <button
                 onClick={() => setCurrentPage((p) => Math.max(1, p - 1))}
                 disabled={currentPage === 1}
-                className="p-1.5 rounded-lg bg-white/5 border border-white/10 text-slate-400 hover:text-white disabled:opacity-30 disabled:cursor-not-allowed transition-all"
+                className="p-1 rounded bg-white/5 border border-white/10 text-slate-400 hover:text-white disabled:opacity-30 disabled:cursor-not-allowed transition-all"
                 title="Sebelumnya"
               >
-                <ChevronLeft size={14} />
+                <ChevronLeft size={13} />
               </button>
 
-              <span className="px-2.5 py-1 rounded-lg bg-cyan-500/10 border border-cyan-500/30 text-cyan-300 text-xs font-bold">
+              <span className="px-2 py-0.5 rounded bg-cyan-500/10 border border-cyan-500/30 text-cyan-300 text-[11px] font-bold">
                 {currentPage} / {totalPages}
               </span>
 
               <button
                 onClick={() => setCurrentPage((p) => Math.min(totalPages, p + 1))}
                 disabled={currentPage === totalPages}
-                className="p-1.5 rounded-lg bg-white/5 border border-white/10 text-slate-400 hover:text-white disabled:opacity-30 disabled:cursor-not-allowed transition-all"
+                className="p-1 rounded bg-white/5 border border-white/10 text-slate-400 hover:text-white disabled:opacity-30 disabled:cursor-not-allowed transition-all"
                 title="Selanjutnya"
               >
-                <ChevronRight size={14} />
+                <ChevronRight size={13} />
               </button>
 
               <button
                 onClick={() => setCurrentPage(totalPages)}
                 disabled={currentPage === totalPages}
-                className="p-1.5 rounded-lg bg-white/5 border border-white/10 text-slate-400 hover:text-white disabled:opacity-30 disabled:cursor-not-allowed transition-all"
+                className="p-1 rounded bg-white/5 border border-white/10 text-slate-400 hover:text-white disabled:opacity-30 disabled:cursor-not-allowed transition-all"
                 title="Halaman Terakhir"
               >
-                <ChevronsRight size={14} />
+                <ChevronsRight size={13} />
               </button>
             </div>
           </div>
@@ -2077,41 +2118,41 @@ export default function AdminPage() {
       {/* Modal: GitHub Token Settings */}
       {/* ────────────────────────────────────────── */}
       {isSettingsOpen && (
-        <div className="fixed inset-0 z-50 bg-black/80 backdrop-blur-sm flex items-center justify-center p-4">
+        <div className="fixed inset-0 z-50 bg-black/80 backdrop-blur-sm flex items-center justify-center p-3 sm:p-4">
           <div className="w-full max-w-md bg-[#0c1224] border border-white/15 rounded-2xl shadow-2xl overflow-hidden animate-slide-up">
-            <div className="flex items-center justify-between p-4 border-b border-white/10 bg-white/5">
-              <div className="flex items-center gap-2">
-                <Key size={16} className="text-cyan-400" />
-                <h3 className="text-sm font-bold text-white tracking-tight">Pengaturan GitHub Token</h3>
+            <div className="flex items-center justify-between p-3.5 border-b border-white/10 bg-white/5">
+              <div className="flex items-center gap-1.5">
+                <Key size={15} className="text-cyan-400" />
+                <h3 className="text-xs sm:text-sm font-bold text-white tracking-tight">Pengaturan GitHub Token</h3>
               </div>
               <button onClick={() => setIsSettingsOpen(false)} className="text-slate-400 hover:text-white">
-                <X size={18} />
+                <X size={16} />
               </button>
             </div>
 
-            <div className="p-4 sm:p-5 space-y-3.5">
+            <div className="p-3.5 sm:p-4 space-y-3">
               {githubToken && (
-                <div className="p-3 bg-emerald-950/40 border border-emerald-500/30 rounded-xl flex items-center justify-between">
-                  <div className="flex items-center gap-2 text-xs text-emerald-300 font-semibold">
-                    <ShieldCheck size={15} />
+                <div className="p-2.5 bg-emerald-950/40 border border-emerald-500/30 rounded-lg flex items-center justify-between">
+                  <div className="flex items-center gap-1.5 text-xs text-emerald-300 font-semibold">
+                    <ShieldCheck size={14} />
                     <span>Token tersimpan di browser</span>
                   </div>
-                  <button onClick={removeToken} className="text-xs text-red-400 hover:text-red-300 font-bold underline">
+                  <button onClick={removeToken} className="text-[11px] text-red-400 hover:text-red-300 font-bold underline">
                     Hapus
                   </button>
                 </div>
               )}
 
-              <div className="p-3 rounded-xl bg-cyan-950/30 border border-cyan-500/20 text-xs text-slate-300 leading-relaxed">
-                <p className="font-bold text-cyan-300 mb-1 flex items-center gap-1">
-                  <HelpCircle size={13} />
+              <div className="p-2.5 rounded-lg bg-cyan-950/30 border border-cyan-500/20 text-[11px] text-slate-300 leading-relaxed">
+                <p className="font-bold text-cyan-300 mb-0.5 flex items-center gap-1">
+                  <HelpCircle size={12} />
                   Cara Mendapatkan Token:
                 </p>
-                Buka GitHub &gt; <em>Settings &gt; Developer settings &gt; Tokens (classic)</em>, pilih izin <code className="text-cyan-300 font-bold">repo</code>.
+                Buka GitHub &gt; <em>Settings &gt; Developer settings &gt; Tokens (classic)</em>, beri izin <code className="text-cyan-300 font-bold">repo</code>.
               </div>
 
               <div>
-                <label className="block text-xs font-bold text-slate-300 mb-1">
+                <label className="block text-[11px] font-bold text-slate-300 mb-1">
                   GitHub Token (PAT) <span className="text-red-400">*</span>
                 </label>
                 <input
@@ -2119,22 +2160,22 @@ export default function AdminPage() {
                   value={tempToken}
                   onChange={(e) => setTempToken(e.target.value)}
                   placeholder="ghp_... atau github_pat_..."
-                  className="w-full px-3 py-2 bg-black/50 border border-white/10 rounded-lg text-xs text-white focus:outline-none focus:border-cyan-400 font-mono"
+                  className="w-full px-2.5 py-1.5 bg-black/50 border border-white/10 rounded-lg text-xs text-white focus:outline-none focus:border-cyan-400 font-mono"
                 />
               </div>
 
-              <div className="flex items-center justify-end gap-2 pt-2 border-t border-white/10">
+              <div className="flex items-center justify-end gap-1.5 pt-2 border-t border-white/10">
                 <button
                   type="button"
                   onClick={() => setIsSettingsOpen(false)}
-                  className="px-3 py-1.5 rounded-lg text-xs font-semibold bg-white/5 hover:bg-white/10 text-slate-300"
+                  className="px-3 py-1 rounded-md text-xs font-semibold bg-white/5 hover:bg-white/10 text-slate-300"
                 >
                   Tutup
                 </button>
                 <button
                   type="button"
                   onClick={saveToken}
-                  className="px-4 py-1.5 rounded-lg text-xs font-bold bg-cyan-500 hover:bg-cyan-400 text-white shadow-md shadow-cyan-500/20"
+                  className="px-3.5 py-1 rounded-md text-xs font-bold bg-cyan-500 hover:bg-cyan-400 text-white shadow-sm"
                 >
                   Simpan Token
                 </button>
@@ -2149,23 +2190,23 @@ export default function AdminPage() {
       {/* ────────────────────────────────────────── */}
       {isCreateModalOpen && (
         <div className="fixed inset-0 z-50 bg-black/80 backdrop-blur-sm flex items-center justify-center p-3 sm:p-4 overflow-y-auto">
-          <div className="w-full max-w-2xl bg-[#0c1224] border border-white/15 rounded-2xl shadow-2xl overflow-hidden my-6">
-            <div className="flex items-center justify-between p-4 border-b border-white/10 bg-white/5">
-              <div className="flex items-center gap-2">
-                <Plus size={16} className="text-cyan-400" />
-                <h3 className="text-sm sm:text-base font-bold text-white tracking-tight">
+          <div className="w-full max-w-2xl bg-[#0c1224] border border-white/15 rounded-2xl shadow-2xl overflow-hidden my-4">
+            <div className="flex items-center justify-between p-3.5 border-b border-white/10 bg-white/5">
+              <div className="flex items-center gap-1.5">
+                <Plus size={15} className="text-cyan-400" />
+                <h3 className="text-xs sm:text-sm font-bold text-white tracking-tight">
                   Tambah {contentType === 'movie' ? 'Movie' : 'TV Series'} Baru
                 </h3>
               </div>
               <button onClick={() => setIsCreateModalOpen(false)} className="text-slate-400 hover:text-white">
-                <X size={18} />
+                <X size={16} />
               </button>
             </div>
 
-            <form onSubmit={handleCreateSubmit} className="p-4 sm:p-5 space-y-3.5 max-h-[82vh] overflow-y-auto">
+            <form onSubmit={handleCreateSubmit} className="p-3.5 sm:p-4 space-y-3 max-h-[82vh] overflow-y-auto">
               {/* Content Type Selector */}
               <div>
-                <label className="block text-[11px] font-bold text-slate-300 uppercase tracking-wider mb-1.5">
+                <label className="block text-[10px] font-bold text-slate-300 uppercase tracking-wider mb-1">
                   Tipe Konten
                 </label>
                 <div className="grid grid-cols-2 gap-2">
@@ -2176,13 +2217,13 @@ export default function AdminPage() {
                       setTmdbPreview(null);
                       setFormErrors({});
                     }}
-                    className={`py-2 px-3 rounded-lg text-xs font-bold transition-all flex items-center justify-center gap-2 ${
+                    className={`py-1.5 px-3 rounded-lg text-xs font-bold transition-all flex items-center justify-center gap-1.5 ${
                       contentType === 'movie'
-                        ? 'bg-cyan-500 text-white shadow-md shadow-cyan-500/20 ring-1 ring-cyan-400'
+                        ? 'bg-cyan-500 text-white shadow-sm ring-1 ring-cyan-400'
                         : 'bg-white/5 text-slate-400 hover:text-white hover:bg-white/10'
                     }`}
                   >
-                    <Film size={14} />
+                    <Film size={13} />
                     <span>Movie</span>
                   </button>
 
@@ -2193,13 +2234,13 @@ export default function AdminPage() {
                       setTmdbPreview(null);
                       setFormErrors({});
                     }}
-                    className={`py-2 px-3 rounded-lg text-xs font-bold transition-all flex items-center justify-center gap-2 ${
+                    className={`py-1.5 px-3 rounded-lg text-xs font-bold transition-all flex items-center justify-center gap-1.5 ${
                       contentType === 'tv_show'
-                        ? 'bg-gradient-to-r from-pink-500 to-purple-600 text-white shadow-md shadow-pink-500/20 ring-1 ring-pink-400'
+                        ? 'bg-gradient-to-r from-pink-500 to-purple-600 text-white shadow-sm ring-1 ring-pink-400'
                         : 'bg-white/5 text-slate-400 hover:text-white hover:bg-white/10'
                     }`}
                   >
-                    <Tv size={14} />
+                    <Tv size={13} />
                     <span>TV Series</span>
                   </button>
                 </div>
@@ -2208,22 +2249,22 @@ export default function AdminPage() {
               {/* TMDB ID & Live Autofetch */}
               <div>
                 <div className="flex items-center justify-between mb-1">
-                  <label className="text-xs font-bold text-slate-300">
+                  <label className="text-[11px] font-bold text-slate-300">
                     TMDB ID / URL <span className="text-red-400 font-extrabold">*</span>
                   </label>
                   {formErrors.tmdb_id && (
                     <span className="text-[10px] font-bold text-red-400 flex items-center gap-1">
-                      <AlertCircle size={11} /> {formErrors.tmdb_id}
+                      <AlertCircle size={10} /> {formErrors.tmdb_id}
                     </span>
                   )}
                 </div>
-                <div className="flex flex-col sm:flex-row gap-2 w-full">
+                <div className="flex flex-col sm:flex-row gap-1.5 w-full">
                   <input
                     type="text"
                     value={formTmdbId}
                     onChange={(e) => handleTmdbIdInputChange(e.target.value)}
-                    placeholder="Contoh: 1084244 atau paste URL TMDB"
-                    className={`w-full flex-1 min-w-0 px-3 py-2 bg-black/40 rounded-lg text-xs text-white transition-all focus:outline-none ${
+                    placeholder="Contoh: 1084244 atau URL TMDB"
+                    className={`w-full flex-1 min-w-0 px-2.5 py-1.5 bg-black/40 rounded-lg text-xs text-white transition-all focus:outline-none ${
                       formErrors.tmdb_id
                         ? 'border border-red-500 ring-1 ring-red-500/20 bg-red-950/20'
                         : 'border border-white/10 focus:border-cyan-400'
@@ -2233,9 +2274,9 @@ export default function AdminPage() {
                     type="button"
                     onClick={() => handleFetchTmdbPreview(formTmdbId, contentType === 'movie' ? 'movie' : 'tv')}
                     disabled={fetchingTmdb || !formTmdbId}
-                    className="w-full sm:w-auto px-3 py-2 bg-cyan-500/20 text-cyan-300 border border-cyan-500/40 rounded-lg text-xs font-bold hover:bg-cyan-500/30 transition-all flex items-center justify-center gap-1.5 disabled:opacity-50 flex-shrink-0"
+                    className="w-full sm:w-auto px-3 py-1.5 bg-cyan-500/20 text-cyan-300 border border-cyan-500/40 rounded-lg text-[11px] font-bold hover:bg-cyan-500/30 transition-all flex items-center justify-center gap-1 disabled:opacity-50 flex-shrink-0"
                   >
-                    <Sparkles size={13} className={fetchingTmdb ? 'animate-spin' : ''} />
+                    <Sparkles size={12} className={fetchingTmdb ? 'animate-spin' : ''} />
                     <span>{fetchingTmdb ? 'Mengambil...' : 'Auto-Fetch TMDB'}</span>
                   </button>
                 </div>
@@ -2243,28 +2284,22 @@ export default function AdminPage() {
 
               {/* TMDB Live Preview Card */}
               {tmdbPreview && (
-                <div className="p-3 rounded-xl bg-cyan-950/40 border border-cyan-500/30 flex items-center gap-3 animate-slide-up">
-                  {tmdbPreview.posterUrl ? (
-                    <div className="relative w-12 h-16 rounded-lg overflow-hidden flex-shrink-0 border border-white/10 shadow-sm">
-                      <Image src={tmdbPreview.posterUrl} alt="Preview" fill className="object-cover" sizes="48px" />
-                    </div>
-                  ) : (
-                    <div className="w-12 h-16 rounded-lg bg-slate-800 flex items-center justify-center text-slate-500">
-                      <ImageIcon size={18} />
-                    </div>
-                  )}
+                <div className="p-2.5 rounded-lg bg-cyan-950/40 border border-cyan-500/30 flex items-center gap-2.5 animate-slide-up">
+                  <div className="relative w-10 h-14 rounded overflow-hidden flex-shrink-0 border border-white/10 shadow-sm bg-slate-900">
+                    <SafeAdminImage src={tmdbPreview.posterUrl} alt="Preview" sizes="40px" />
+                  </div>
                   <div className="flex-1 min-w-0">
                     <div className="flex items-center gap-1.5 mb-0.5">
-                      <span className="px-1.5 py-0.2 rounded text-[10px] font-bold bg-cyan-500/20 text-cyan-300">
+                      <span className="px-1.5 py-0.2 rounded text-[9px] font-bold bg-cyan-500/20 text-cyan-300">
                         TMDB {tmdbPreview.id}
                       </span>
                       {tmdbPreview.rating ? (
-                        <span className="px-1.5 py-0.2 rounded text-[10px] font-bold bg-emerald-500/20 text-emerald-300 flex items-center gap-0.5">
-                          <Star size={9} fill="currentColor" /> {tmdbPreview.rating}
+                        <span className="px-1.5 py-0.2 rounded text-[9px] font-bold bg-emerald-500/20 text-emerald-300 flex items-center gap-0.5">
+                          <Star size={8} fill="currentColor" /> {tmdbPreview.rating}
                         </span>
                       ) : null}
                       {tmdbPreview.numberOfSeasons ? (
-                        <span className="px-1.5 py-0.2 rounded text-[10px] font-bold bg-purple-500/20 text-purple-300">
+                        <span className="px-1.5 py-0.2 rounded text-[9px] font-bold bg-purple-500/20 text-purple-300">
                           {tmdbPreview.numberOfSeasons} Seasons
                         </span>
                       ) : null}
@@ -2272,21 +2307,21 @@ export default function AdminPage() {
                     <p className="text-xs font-extrabold text-white truncate">
                       {tmdbPreview.title} {tmdbPreview.year ? `(${tmdbPreview.year})` : ''}
                     </p>
-                    <p className="text-[11px] text-slate-300 line-clamp-1 mt-0.5">{tmdbPreview.overview}</p>
+                    <p className="text-[10px] text-slate-300 line-clamp-1 mt-0.5">{tmdbPreview.overview}</p>
                   </div>
                 </div>
               )}
 
-              {/* Duplicate Post Notice */}
+              {/* Duplicate Notice */}
               {existingDuplicate && (
-                <div className="p-3 bg-amber-500/10 border border-amber-500/30 rounded-xl flex items-start gap-2.5 animate-fade-in">
-                  <AlertCircle size={16} className="text-amber-400 mt-0.5 flex-shrink-0" />
+                <div className="p-2.5 bg-amber-500/10 border border-amber-500/30 rounded-lg flex items-start gap-2 animate-fade-in">
+                  <AlertCircle size={14} className="text-amber-400 mt-0.5 flex-shrink-0" />
                   <div className="text-xs space-y-0.5">
-                    <p className="font-bold text-amber-300">
+                    <p className="font-bold text-amber-300 text-[11px]">
                       Konten sudah ada: {existingDuplicate.displayTitle || existingDuplicate.relativePath}
                     </p>
-                    <p className="text-slate-300 text-[11px] leading-snug">
-                      Menyimpan form ini akan otomatis mengupdate file target (<code className="text-cyan-300 font-mono">{existingDuplicate.relativePath}</code>).
+                    <p className="text-slate-300 text-[10px] leading-snug">
+                      Menyimpan form ini akan otomatis mengedit file target (<code className="text-cyan-300 font-mono">{existingDuplicate.relativePath}</code>).
                     </p>
                   </div>
                 </div>
@@ -2296,12 +2331,12 @@ export default function AdminPage() {
               {contentType === 'movie' && (
                 <div>
                   <div className="flex items-center justify-between mb-1">
-                    <label className="text-xs font-bold text-slate-300">
+                    <label className="text-[11px] font-bold text-slate-300">
                       URL Video Movie <span className="text-red-400 font-extrabold">*</span>
                     </label>
                     {formErrors.videourl && (
                       <span className="text-[10px] font-bold text-red-400 flex items-center gap-1">
-                        <AlertCircle size={11} /> {formErrors.videourl}
+                        <AlertCircle size={10} /> {formErrors.videourl}
                       </span>
                     )}
                   </div>
@@ -2319,7 +2354,7 @@ export default function AdminPage() {
                       }
                     }}
                     placeholder="https://.../video.mp4 atau link .mkv / .m3u8"
-                    className={`w-full px-3 py-2 bg-black/40 rounded-lg text-xs text-white font-mono transition-all focus:outline-none ${
+                    className={`w-full px-2.5 py-1.5 bg-black/40 rounded-lg text-xs text-white font-mono transition-all focus:outline-none ${
                       formErrors.videourl
                         ? 'border border-red-500 ring-1 ring-red-500/20 bg-red-950/20'
                         : 'border border-white/10 focus:border-cyan-400'
@@ -2330,7 +2365,7 @@ export default function AdminPage() {
 
               {/* Title Override */}
               <div>
-                <label className="block text-xs font-medium text-slate-400 mb-1">
+                <label className="block text-[11px] font-medium text-slate-400 mb-1">
                   Judul Custom (Opsional)
                 </label>
                 <input
@@ -2338,14 +2373,14 @@ export default function AdminPage() {
                   value={formTitle}
                   onChange={(e) => setFormTitle(e.target.value)}
                   placeholder="Opsional, biarkan kosong untuk data TMDB"
-                  className="w-full px-3 py-2 bg-black/40 border border-white/10 rounded-lg text-xs text-white focus:outline-none focus:border-cyan-400"
+                  className="w-full px-2.5 py-1.5 bg-black/40 border border-white/10 rounded-lg text-xs text-white focus:outline-none focus:border-cyan-400"
                 />
               </div>
 
               {/* Poster / Backdrop Image URL */}
               <div>
                 <div className="flex items-center justify-between mb-1">
-                  <label className="text-xs font-medium text-slate-400">
+                  <label className="text-[11px] font-medium text-slate-400">
                     Poster / Backdrop URL (Opsional)
                   </label>
                   {formTmdbId && (
@@ -2358,12 +2393,12 @@ export default function AdminPage() {
                         setActiveEpisodePickerDraftId(null);
                         setShowBackdropPicker(!showBackdropPicker);
                       }}
-                      className="text-[11px] font-bold text-cyan-400 hover:text-cyan-300 flex items-center gap-1 transition-all"
+                      className="text-[10px] font-bold text-cyan-400 hover:text-cyan-300 flex items-center gap-1 transition-all"
                     >
-                      <ImageIcon size={12} />
+                      <ImageIcon size={11} />
                       <span>
                         {tmdbPreview?.backdrops && tmdbPreview.backdrops.length > 0
-                          ? `${showBackdropPicker && !activeEpisodePickerDraftId ? 'Tutup Galeri' : 'Pilih Backdrop'} (${tmdbPreview.backdrops.length})`
+                          ? `${showBackdropPicker && !activeEpisodePickerDraftId ? 'Tutup' : 'Pilih Backdrop'} (${tmdbPreview.backdrops.length})`
                           : fetchingTmdb
                           ? 'Mengambil...'
                           : 'Cari Backdrop'}
@@ -2376,15 +2411,15 @@ export default function AdminPage() {
                   value={formPoster}
                   onChange={(e) => setFormPoster(e.target.value)}
                   placeholder="https://image.tmdb.org/... atau pilih dari galeri"
-                  className="w-full px-3 py-2 bg-black/40 border border-white/10 rounded-lg text-xs text-white focus:outline-none focus:border-cyan-400"
+                  className="w-full px-2.5 py-1.5 bg-black/40 border border-white/10 rounded-lg text-xs text-white focus:outline-none focus:border-cyan-400"
                 />
 
-                {/* Live Backdrop Picker */}
+                {/* Backdrop Gallery Picker */}
                 {tmdbPreview?.backdrops && tmdbPreview.backdrops.length > 0 && showBackdropPicker && (
-                  <div className="mt-2.5 p-3 bg-[#090e1f] border border-cyan-500/30 rounded-xl space-y-2.5 animate-fade-in shadow-xl">
+                  <div className="mt-2 p-2.5 bg-[#090e1f] border border-cyan-500/30 rounded-lg space-y-2 animate-fade-in shadow-lg">
                     <div className="flex items-center justify-between">
-                      <span className="text-xs font-bold text-cyan-300 flex items-center gap-1">
-                        <ImageIcon size={13} />
+                      <span className="text-[11px] font-bold text-cyan-300 flex items-center gap-1">
+                        <ImageIcon size={12} />
                         {activeEpisodePickerDraftId
                           ? 'Pilih Backdrop Episode'
                           : `Pilih Backdrop Utama (${tmdbPreview.backdrops.length})`}
@@ -2392,13 +2427,13 @@ export default function AdminPage() {
                       <button
                         type="button"
                         onClick={() => setShowBackdropPicker(false)}
-                        className="text-xs text-slate-400 hover:text-white"
+                        className="text-[10px] text-slate-400 hover:text-white"
                       >
                         Tutup
                       </button>
                     </div>
 
-                    <div className="flex items-center gap-1.5 flex-wrap">
+                    <div className="flex items-center gap-1 flex-wrap">
                       {(() => {
                         const availableLangs = Array.from(new Set(tmdbPreview.backdrops!.map((b) => b.language)));
                         return [
@@ -2420,7 +2455,7 @@ export default function AdminPage() {
                             key={tab.code}
                             type="button"
                             onClick={() => setSelectedBackdropLang(tab.code)}
-                            className={`px-2 py-0.5 rounded text-[10px] font-bold transition-all ${
+                            className={`px-1.5 py-0.2 rounded text-[9px] font-bold transition-all ${
                               selectedBackdropLang === tab.code
                                 ? 'bg-cyan-500 text-black'
                                 : 'bg-white/5 text-slate-300 hover:bg-white/10 border border-white/10'
@@ -2432,7 +2467,7 @@ export default function AdminPage() {
                       })()}
                     </div>
 
-                    <div className="grid grid-cols-2 sm:grid-cols-4 gap-2 max-h-56 overflow-y-auto pr-1">
+                    <div className="grid grid-cols-2 sm:grid-cols-4 gap-1.5 max-h-48 overflow-y-auto pr-1">
                       {tmdbPreview.backdrops!
                         .filter((b) => selectedBackdropLang === 'all' || b.language === selectedBackdropLang)
                         .map((b, idx) => {
@@ -2451,28 +2486,22 @@ export default function AdminPage() {
                                     }))
                                   );
                                   setActiveEpisodePickerDraftId(null);
-                                  showToast('Backdrop episode berhasil diterapkan!');
+                                  showToast('Backdrop episode diterapkan!');
                                 } else {
                                   setFormPoster(b.url);
-                                  showToast('Backdrop series berhasil dipilih!');
+                                  showToast('Backdrop series dipilih!');
                                 }
                                 setShowBackdropPicker(false);
                               }}
-                              className={`group relative rounded-lg overflow-hidden border cursor-pointer transition-all aspect-video ${
+                              className={`group relative rounded overflow-hidden border cursor-pointer transition-all aspect-video ${
                                 isSelected
-                                  ? 'ring-2 ring-cyan-400 border-cyan-400'
+                                  ? 'ring-1 ring-cyan-400 border-cyan-400'
                                   : 'border-white/10 hover:border-cyan-500/50 bg-black/40'
                               }`}
                             >
-                              <Image
-                                src={b.thumbUrl}
-                                alt="Backdrop"
-                                fill
-                                className="object-cover group-hover:scale-105 transition-transform"
-                                sizes="(max-width: 640px) 50vw, 25vw"
-                              />
-                              <div className="absolute top-1 left-1">
-                                <span className="px-1 py-0.2 rounded text-[8px] font-bold bg-black/80 text-cyan-300">
+                              <SafeAdminImage src={b.thumbUrl} alt="Backdrop" sizes="(max-width: 640px) 50vw, 25vw" />
+                              <div className="absolute top-0.5 left-0.5">
+                                <span className="px-1 py-0.2 rounded text-[7px] font-bold bg-black/80 text-cyan-300">
                                   {b.language === 'xx' || b.language === 'null' ? 'No Text' : b.language.toUpperCase()}
                                 </span>
                               </div>
@@ -2485,14 +2514,14 @@ export default function AdminPage() {
               </div>
 
               {/* ════════════════════════════════════════════════════ */}
-              {/* COMPACT TV SERIES: MULTI-SEASON & MULTI-EPISODE BUILDER */}
+              {/* ULTRA-COMPACT TV SERIES SEASON & EPISODE BUILDER */}
               {/* ════════════════════════════════════════════════════ */}
               {contentType === 'tv_show' && (
-                <div className="space-y-3 p-3 sm:p-3.5 bg-[#090e1f] border border-purple-500/30 rounded-xl">
-                  <div className="flex items-center justify-between gap-2 pb-1.5 border-b border-white/10">
+                <div className="space-y-2 p-2 sm:p-2.5 bg-[#090e1f] border border-purple-500/30 rounded-lg">
+                  <div className="flex items-center justify-between gap-1.5 pb-1 border-b border-white/10">
                     <div className="flex items-center gap-1.5">
-                      <Layers size={14} className="text-purple-400" />
-                      <h4 className="text-xs font-bold text-purple-300">
+                      <Layers size={13} className="text-purple-400" />
+                      <h4 className="text-[11px] font-bold text-purple-300">
                         Season & Episode
                       </h4>
                     </div>
@@ -2500,22 +2529,22 @@ export default function AdminPage() {
                     <button
                       type="button"
                       onClick={addSeason}
-                      className="px-2.5 py-1 rounded-md text-[11px] font-bold bg-purple-500/20 hover:bg-purple-500/30 text-purple-300 border border-purple-500/40 flex items-center gap-1 transition-all"
+                      className="px-2 py-0.5 rounded text-[10px] font-bold bg-purple-500/20 hover:bg-purple-500/30 text-purple-300 border border-purple-500/40 flex items-center gap-1 transition-all"
                     >
-                      <FolderPlus size={12} />
+                      <FolderPlus size={11} />
                       <span>Tambah Season</span>
                     </button>
                   </div>
 
                   {formErrors.episodes && (
-                    <div className="p-2 bg-red-950/40 border border-red-500/40 rounded-lg text-xs font-bold text-red-400 flex items-center gap-1.5">
-                      <AlertCircle size={13} />
+                    <div className="p-1.5 bg-red-950/40 border border-red-500/40 rounded text-[10px] font-bold text-red-400 flex items-center gap-1">
+                      <AlertCircle size={11} />
                       <span>{formErrors.episodes}</span>
                     </div>
                   )}
 
-                  {/* Compact Season Tabs with Slim Stacked Badges */}
-                  <div className="flex items-center gap-2 overflow-x-auto pb-1.5">
+                  {/* Ultra-Compact Season Tabs */}
+                  <div className="flex items-center gap-1.5 overflow-x-auto pb-1">
                     {formSeasons.map((s) => {
                       const isActive = activeSeasonTab === s.season;
                       return (
@@ -2523,17 +2552,17 @@ export default function AdminPage() {
                           <button
                             type="button"
                             onClick={() => setActiveSeasonTab(s.season)}
-                            className={`px-3 py-1.5 rounded-lg text-left transition-all flex flex-col items-start min-w-[80px] sm:min-w-[90px] ${
+                            className={`px-2 py-1 rounded text-left transition-all flex flex-col items-start min-w-[65px] sm:min-w-[72px] ${
                               isActive
-                                ? 'bg-gradient-to-b from-purple-600 to-purple-800 text-white shadow-md shadow-purple-500/20 ring-1 ring-purple-400 border border-purple-400/50'
+                                ? 'bg-purple-700 text-white shadow-sm ring-1 ring-purple-400'
                                 : 'bg-black/40 text-slate-400 hover:text-white hover:bg-white/5 border border-white/10'
                             }`}
                           >
-                            <span className="text-[11px] font-bold tracking-tight">{s.name}</span>
-                            <span className={`text-[9px] font-semibold px-1.5 py-0.2 mt-0.5 rounded ${
+                            <span className="text-[10px] font-bold tracking-tight">{s.name}</span>
+                            <span className={`text-[8px] font-semibold px-1 py-0.2 mt-0.5 rounded ${
                               isActive ? 'bg-black/40 text-purple-200' : 'bg-white/5 text-slate-400'
                             }`}>
-                              {s.episodes.length} Episode
+                              {s.episodes.length} Ep
                             </span>
                           </button>
 
@@ -2544,10 +2573,10 @@ export default function AdminPage() {
                                 e.stopPropagation();
                                 removeSeason(s.season);
                               }}
-                              className="absolute -top-1 -right-1 w-4 h-4 rounded-full bg-red-500 text-white flex items-center justify-center opacity-0 group-hover:opacity-100 transition-opacity shadow-sm"
+                              className="absolute -top-1 -right-1 w-3.5 h-3.5 rounded-full bg-red-500 text-white flex items-center justify-center opacity-0 group-hover:opacity-100 transition-opacity shadow-sm"
                               title={`Hapus ${s.name}`}
                             >
-                              <X size={9} />
+                              <X size={8} />
                             </button>
                           )}
                         </div>
@@ -2565,19 +2594,19 @@ export default function AdminPage() {
                     const selectedCount = currentSeason.episodes.filter((ep) => selectedDraftEpIds.includes(ep.id)).length;
 
                     return (
-                      <div className="space-y-2.5">
-                        {/* Compact Action Bar */}
-                        <div className="flex flex-wrap items-center justify-between gap-1.5 p-2 bg-black/50 rounded-lg border border-white/10">
-                          <div className="flex items-center gap-2.5">
+                      <div className="space-y-1.5">
+                        {/* Compact Toolbar */}
+                        <div className="flex flex-wrap items-center justify-between gap-1 p-1.5 bg-black/50 rounded border border-white/10">
+                          <div className="flex items-center gap-2">
                             <button
                               type="button"
                               onClick={() => toggleSelectAllDraftEps(currentSeason.season)}
-                              className="flex items-center gap-1 text-[11px] font-semibold text-slate-300 hover:text-white select-none"
+                              className="flex items-center gap-1 text-[10px] font-semibold text-slate-300 hover:text-white select-none"
                             >
                               {isAllSelected ? (
-                                <CheckSquare size={14} className="text-purple-400" />
+                                <CheckSquare size={13} className="text-purple-400" />
                               ) : (
-                                <Square size={14} className="text-slate-500" />
+                                <Square size={13} className="text-slate-500" />
                               )}
                               <span>Pilih Semua</span>
                             </button>
@@ -2586,9 +2615,9 @@ export default function AdminPage() {
                               <button
                                 type="button"
                                 onClick={() => deleteSelectedDraftEps(currentSeason.season)}
-                                className="px-2 py-0.5 rounded text-[10px] font-bold bg-red-500/20 text-red-300 border border-red-500/40 hover:bg-red-500/30 flex items-center gap-1 transition-all"
+                                className="px-1.5 py-0.2 rounded text-[9px] font-bold bg-red-500/20 text-red-300 border border-red-500/40 hover:bg-red-500/30 flex items-center gap-0.5 transition-all"
                               >
-                                <Trash2 size={11} />
+                                <Trash2 size={10} />
                                 <span>Hapus ({selectedCount})</span>
                               </button>
                             )}
@@ -2596,46 +2625,46 @@ export default function AdminPage() {
                             <button
                               type="button"
                               onClick={() => deleteAllDraftEps(currentSeason.season)}
-                              className="text-[10px] text-slate-500 hover:text-red-400 transition-colors"
+                              className="text-[9px] text-slate-500 hover:text-red-400 transition-colors"
                             >
-                              Delete All
+                              Reset All
                             </button>
                           </div>
 
-                          <div className="flex items-center gap-1.5 flex-wrap">
+                          <div className="flex items-center gap-1 flex-wrap">
                             <button
                               type="button"
                               onClick={() => addEpisodeToSeason(currentSeason.season)}
-                              className="px-2 py-1 rounded text-[11px] font-bold bg-white/10 hover:bg-white/20 text-slate-200 flex items-center gap-1 transition-all"
+                              className="px-2 py-0.5 rounded text-[10px] font-bold bg-white/10 hover:bg-white/20 text-slate-200 flex items-center gap-0.5 transition-all"
                             >
-                              <Plus size={11} />
+                              <Plus size={10} />
                               <span>Tambah Ep</span>
                             </button>
 
                             <button
                               type="button"
                               onClick={() => handleQuickGenerateEpisodes(currentSeason.season, 8)}
-                              className="px-2 py-1 rounded text-[11px] font-bold bg-purple-500/20 hover:bg-purple-500/30 text-purple-300 border border-purple-500/30 flex items-center gap-1 transition-all"
+                              className="px-2 py-0.5 rounded text-[10px] font-bold bg-purple-500/20 hover:bg-purple-500/30 text-purple-300 border border-purple-500/30 flex items-center gap-0.5 transition-all"
                             >
-                              <Sparkles size={11} />
-                              <span>8 Episode</span>
+                              <Sparkles size={10} />
+                              <span>8 Ep</span>
                             </button>
 
                             <button
                               type="button"
                               onClick={() => setShowBatchUrlInput(!showBatchUrlInput)}
-                              className="px-2 py-1 rounded text-[11px] font-bold bg-cyan-500/20 hover:bg-cyan-500/30 text-cyan-300 border border-cyan-500/30 flex items-center gap-1 transition-all"
+                              className="px-2 py-0.5 rounded text-[10px] font-bold bg-cyan-500/20 hover:bg-cyan-500/30 text-cyan-300 border border-cyan-500/30 flex items-center gap-0.5 transition-all"
                             >
-                              <Copy size={11} />
+                              <Copy size={10} />
                               <span>Paste URLs</span>
                             </button>
                           </div>
                         </div>
 
-                        {/* Batch Paste URLs Box */}
+                        {/* Batch Paste Box */}
                         {showBatchUrlInput && (
-                          <div className="p-3 bg-cyan-950/30 border border-cyan-500/30 rounded-lg space-y-2 animate-fade-in">
-                            <label className="block text-[11px] font-bold text-cyan-300">
+                          <div className="p-2 bg-cyan-950/30 border border-cyan-500/30 rounded space-y-1.5 animate-fade-in">
+                            <label className="block text-[10px] font-bold text-cyan-300">
                               Tempelkan URL Video (1 baris per episode):
                             </label>
                             <textarea
@@ -2643,59 +2672,59 @@ export default function AdminPage() {
                               value={batchUrlsInput}
                               onChange={(e) => setBatchUrlsInput(e.target.value)}
                               placeholder={`https://example.com/s1e1.mp4\nhttps://example.com/s1e2.mp4`}
-                              className="w-full p-2 bg-black/60 border border-white/10 rounded-lg text-xs font-mono text-white focus:outline-none focus:border-cyan-400"
+                              className="w-full p-1.5 bg-black/60 border border-white/10 rounded text-xs font-mono text-white focus:outline-none focus:border-cyan-400"
                             />
-                            <div className="flex items-center justify-end gap-1.5">
+                            <div className="flex items-center justify-end gap-1">
                               <button
                                 type="button"
                                 onClick={() => setShowBatchUrlInput(false)}
-                                className="px-2.5 py-1 text-xs text-slate-400 hover:text-white"
+                                className="px-2 py-0.5 text-[11px] text-slate-400 hover:text-white"
                               >
                                 Batal
                               </button>
                               <button
                                 type="button"
                                 onClick={() => handleBatchPasteUrls(currentSeason.season)}
-                                className="px-3 py-1 bg-cyan-500 text-black font-bold rounded text-xs hover:bg-cyan-400"
+                                className="px-2.5 py-0.5 bg-cyan-500 text-black font-bold rounded text-[11px] hover:bg-cyan-400"
                               >
-                                Simpan ke {currentSeason.name}
+                                Masukkan ke {currentSeason.name}
                               </button>
                             </div>
                           </div>
                         )}
 
                         {/* Episodes List in Active Season */}
-                        <div className="space-y-2 max-h-72 overflow-y-auto pr-1">
+                        <div className="space-y-1.5 max-h-64 overflow-y-auto pr-1">
                           {currentSeason.episodes.map((ep) => {
                             const isSelected = selectedDraftEpIds.includes(ep.id);
                             return (
                               <div
                                 key={ep.id}
-                                className={`p-2 rounded-lg flex flex-col sm:flex-row items-start sm:items-center gap-2.5 transition-all border ${
+                                className={`p-1.5 rounded flex flex-col sm:flex-row items-start sm:items-center gap-2 transition-all border ${
                                   isSelected
                                     ? 'bg-purple-950/30 border-purple-500/50'
                                     : 'bg-black/40 border-white/10 hover:border-white/20'
                                 }`}
                               >
-                                <div className="flex items-center gap-2 flex-shrink-0">
+                                <div className="flex items-center gap-1.5 flex-shrink-0">
                                   <button
                                     type="button"
                                     onClick={() => toggleSelectDraftEp(ep.id)}
                                     className="text-slate-400 hover:text-purple-300"
                                   >
                                     {isSelected ? (
-                                      <CheckSquare size={14} className="text-purple-400" />
+                                      <CheckSquare size={13} className="text-purple-400" />
                                     ) : (
-                                      <Square size={14} className="text-slate-500" />
+                                      <Square size={13} className="text-slate-500" />
                                     )}
                                   </button>
 
-                                  <span className="w-10 text-center py-0.5 rounded text-[10px] font-extrabold bg-purple-500/20 text-purple-300 border border-purple-500/30">
+                                  <span className="w-9 text-center py-0.2 rounded text-[9px] font-extrabold bg-purple-500/20 text-purple-300 border border-purple-500/30">
                                     EP {ep.episode}
                                   </span>
                                 </div>
 
-                                {/* Thumbnail Preview */}
+                                {/* Thumbnail Preview with Safe Admin Image */}
                                 <div
                                   onClick={() => {
                                     if (tmdbPreview?.backdrops && tmdbPreview.backdrops.length > 0) {
@@ -2703,18 +2732,12 @@ export default function AdminPage() {
                                       setShowBackdropPicker(true);
                                     }
                                   }}
-                                  className="relative w-14 h-8 rounded overflow-hidden bg-slate-900 border border-white/10 flex-shrink-0 cursor-pointer group shadow-sm"
+                                  className="relative w-12 h-7 rounded overflow-hidden bg-slate-900 border border-white/10 flex-shrink-0 cursor-pointer group shadow-sm"
                                   title="Ganti backdrop"
                                 >
-                                  {ep.image_url ? (
-                                    <Image src={ep.image_url} alt="Thumbnail" fill className="object-cover" sizes="56px" />
-                                  ) : (
-                                    <div className="w-full h-full flex items-center justify-center text-slate-600 group-hover:text-cyan-400">
-                                      <ImageIcon size={12} />
-                                    </div>
-                                  )}
+                                  <SafeAdminImage src={ep.image_url} fallbackSrc={formPoster} alt="Ep Backdrop" sizes="48px" />
                                   <div className="absolute inset-0 bg-black/40 opacity-0 group-hover:opacity-100 flex items-center justify-center transition-opacity">
-                                    <Edit2 size={10} className="text-white" />
+                                    <Edit2 size={9} className="text-white" />
                                   </div>
                                 </div>
 
@@ -2725,12 +2748,12 @@ export default function AdminPage() {
                                     onChange={(e) =>
                                       updateEpisodeInSeason(currentSeason.season, ep.id, 'videourl', e.target.value)
                                     }
-                                    placeholder="URL Video (Wajib: https://...)"
-                                    className="w-full px-2.5 py-1 bg-black/50 border border-white/10 rounded text-xs font-mono text-white focus:outline-none focus:border-purple-400"
+                                    placeholder="URL Video (https://...)"
+                                    className="w-full px-2 py-0.5 bg-black/50 border border-white/10 rounded text-[11px] font-mono text-white focus:outline-none focus:border-purple-400"
                                   />
                                 </div>
 
-                                <div className="w-full sm:w-36 flex-shrink-0">
+                                <div className="w-full sm:w-32 flex-shrink-0">
                                   <input
                                     type="text"
                                     value={ep.title || ''}
@@ -2738,7 +2761,7 @@ export default function AdminPage() {
                                       updateEpisodeInSeason(currentSeason.season, ep.id, 'title', e.target.value)
                                     }
                                     placeholder="Judul (Opsional)"
-                                    className="w-full px-2.5 py-1 bg-black/50 border border-white/10 rounded text-xs text-white focus:outline-none focus:border-purple-400"
+                                    className="w-full px-2 py-0.5 bg-black/50 border border-white/10 rounded text-[11px] text-white focus:outline-none focus:border-purple-400"
                                   />
                                 </div>
 
@@ -2749,7 +2772,7 @@ export default function AdminPage() {
                                     className="p-1 rounded bg-red-500/10 hover:bg-red-500/20 text-red-400 hover:text-red-300"
                                     title="Hapus Baris"
                                   >
-                                    <Trash2 size={13} />
+                                    <Trash2 size={12} />
                                   </button>
                                 </div>
                               </div>
@@ -2763,9 +2786,9 @@ export default function AdminPage() {
               )}
 
               {/* Rating and Featured in Homepage */}
-              <div className="grid grid-cols-1 sm:grid-cols-2 gap-3 pt-1">
+              <div className="grid grid-cols-1 sm:grid-cols-2 gap-2.5 pt-1">
                 <div>
-                  <label className="block text-xs font-medium text-slate-400 mb-1">
+                  <label className="block text-[11px] font-medium text-slate-400 mb-1">
                     Rating (Opsional)
                   </label>
                   <input
@@ -2776,21 +2799,21 @@ export default function AdminPage() {
                     value={formRating}
                     onChange={(e) => setFormRating(e.target.value)}
                     placeholder="Contoh: 8.5"
-                    className="w-full px-3 py-2 bg-black/40 border border-white/10 rounded-lg text-xs text-white focus:outline-none focus:border-cyan-400"
+                    className="w-full px-2.5 py-1.5 bg-black/40 border border-white/10 rounded-lg text-xs text-white focus:outline-none focus:border-cyan-400"
                   />
                 </div>
 
                 <div
                   onClick={() => setFormFeatured(!formFeatured)}
-                  className="flex items-center justify-between p-2.5 rounded-lg bg-white/5 border border-white/10 hover:border-cyan-500/40 transition-all cursor-pointer select-none"
+                  className="flex items-center justify-between p-2 rounded-lg bg-white/5 border border-white/10 hover:border-cyan-500/40 transition-all cursor-pointer select-none"
                 >
-                  <div className="flex items-center gap-2">
-                    <div className="p-1.5 rounded bg-cyan-500/10 text-cyan-400">
-                      <Star size={14} fill={formFeatured ? 'currentColor' : 'none'} />
+                  <div className="flex items-center gap-1.5">
+                    <div className="p-1 rounded bg-cyan-500/10 text-cyan-400">
+                      <Star size={13} fill={formFeatured ? 'currentColor' : 'none'} />
                     </div>
                     <div>
-                      <p className="text-xs font-bold text-white select-none">Featured Homepage</p>
-                      <p className="text-[10px] text-slate-400 select-none">Tampilkan di hero slider utama</p>
+                      <p className="text-[11px] font-bold text-white select-none">Featured Homepage</p>
+                      <p className="text-[9px] text-slate-400 select-none">Hero banner utama</p>
                     </div>
                   </div>
                   <input
@@ -2798,23 +2821,23 @@ export default function AdminPage() {
                     checked={formFeatured}
                     onChange={(e) => setFormFeatured(e.target.checked)}
                     onClick={(e) => e.stopPropagation()}
-                    className="w-4 h-4 rounded bg-black/40 border-white/20 text-cyan-500 focus:ring-cyan-400 cursor-pointer"
+                    className="w-3.5 h-3.5 rounded bg-black/40 border-white/20 text-cyan-500 focus:ring-cyan-400 cursor-pointer"
                   />
                 </div>
               </div>
 
-              {/* Submit Buttons: Compact & Ergonomic */}
-              <div className="flex items-center justify-end gap-2 pt-3 border-t border-white/10">
+              {/* Submit Buttons */}
+              <div className="flex items-center justify-end gap-1.5 pt-2.5 border-t border-white/10">
                 <button
                   type="button"
                   onClick={() => setIsCreateModalOpen(false)}
-                  className="px-3.5 py-1.5 rounded-lg text-xs font-semibold bg-white/5 hover:bg-white/10 text-slate-300 transition-all"
+                  className="px-3 py-1 rounded-md text-xs font-semibold bg-white/5 hover:bg-white/10 text-slate-300 transition-all"
                 >
                   Batal
                 </button>
                 <button
                   type="submit"
-                  className="px-4 py-1.5 rounded-lg text-xs font-bold bg-gradient-to-r from-cyan-500 to-blue-600 hover:from-cyan-400 hover:to-blue-500 text-white shadow-md shadow-cyan-500/20 transition-all"
+                  className="px-3.5 py-1 rounded-md text-xs font-bold bg-gradient-to-r from-cyan-500 to-blue-600 hover:from-cyan-400 hover:to-blue-500 text-white shadow-sm transition-all"
                 >
                   {existingDuplicate ? 'Update Konten' : contentType === 'tv_show' ? 'Simpan TV Series' : 'Simpan Post'}
                 </button>
@@ -2829,79 +2852,79 @@ export default function AdminPage() {
       {/* ────────────────────────────────────────── */}
       {isEditModalOpen && editingItem && (
         <div className="fixed inset-0 z-50 bg-black/80 backdrop-blur-sm flex items-center justify-center p-3 sm:p-4 overflow-y-auto">
-          <div className="w-full max-w-2xl bg-[#0c1224] border border-white/15 rounded-2xl shadow-2xl overflow-hidden my-6">
-            <div className="flex items-center justify-between p-4 border-b border-white/10 bg-white/5">
-              <div className="flex items-center gap-2">
-                <Edit2 size={16} className="text-cyan-400" />
-                <h3 className="text-sm sm:text-base font-bold text-white tracking-tight">
+          <div className="w-full max-w-2xl bg-[#0c1224] border border-white/15 rounded-2xl shadow-2xl overflow-hidden my-4">
+            <div className="flex items-center justify-between p-3.5 border-b border-white/10 bg-white/5">
+              <div className="flex items-center gap-1.5">
+                <Edit2 size={15} className="text-cyan-400" />
+                <h3 className="text-xs sm:text-sm font-bold text-white tracking-tight">
                   Edit {editingItem.type === 'movie' ? 'Movie' : editingItem.type === 'tv_show' ? 'TV Series' : 'Episode'} ({editingItem.relativePath})
                 </h3>
               </div>
               <button onClick={() => setIsEditModalOpen(false)} className="text-slate-400 hover:text-white">
-                <X size={18} />
+                <X size={16} />
               </button>
             </div>
 
             {/* Navigation Tabs if editing a TV Show */}
             {editingItem.type === 'tv_show' && (
-              <div className="flex items-center gap-2 px-4 sm:px-5 pt-3 border-b border-white/10">
+              <div className="flex items-center gap-1.5 px-3.5 sm:px-4 pt-2.5 border-b border-white/10">
                 <button
                   type="button"
                   onClick={() => setEditShowTab('info')}
-                  className={`py-1.5 px-3 rounded-t-lg text-xs font-bold transition-all flex items-center gap-1.5 ${
+                  className={`py-1 px-2.5 rounded-t-md text-[11px] font-bold transition-all flex items-center gap-1 ${
                     editShowTab === 'info'
                       ? 'bg-white/10 text-white border-b-2 border-cyan-400'
                       : 'text-slate-400 hover:text-white'
                   }`}
                 >
-                  <FileText size={13} />
-                  <span>Informasi TV Series</span>
+                  <FileText size={12} />
+                  <span>Informasi Series</span>
                 </button>
 
                 <button
                   type="button"
                   onClick={() => setEditShowTab('episodes')}
-                  className={`py-1.5 px-3 rounded-t-lg text-xs font-bold transition-all flex items-center gap-1.5 ${
+                  className={`py-1 px-2.5 rounded-t-md text-[11px] font-bold transition-all flex items-center gap-1 ${
                     editShowTab === 'episodes'
                       ? 'bg-purple-950/40 text-purple-300 border-b-2 border-purple-400'
                       : 'text-slate-400 hover:text-white'
                   }`}
                 >
-                  <Layers size={13} />
+                  <Layers size={12} />
                   <span>Kelola Episode ({currentEditingShow?.episodes.length || 0})</span>
                 </button>
               </div>
             )}
 
-            {/* TV Show Episodes Manager Tab (with Multi-Select & Backdrop Support) */}
+            {/* TV Show Episodes Manager Tab */}
             {editingItem.type === 'tv_show' && editShowTab === 'episodes' && currentEditingShow && (
-              <div className="p-4 sm:p-5 space-y-3 max-h-[75vh] overflow-y-auto">
+              <div className="p-3.5 sm:p-4 space-y-2.5 max-h-[75vh] overflow-y-auto">
                 <div className="flex items-center justify-between gap-2 flex-wrap pb-1">
                   <div>
                     <h4 className="text-xs font-bold text-white tracking-tight">
-                      Daftar Episode {currentEditingShow.displayTitle}
+                      Episode {currentEditingShow.displayTitle}
                     </h4>
-                    <p className="text-[11px] text-slate-400">
+                    <p className="text-[10px] text-slate-400">
                       Kelola episode series ini secara langsung.
                     </p>
                   </div>
 
-                  <div className="flex items-center gap-1.5">
+                  <div className="flex items-center gap-1">
                     <button
                       type="button"
                       onClick={() => handleQuickAddEpisodeToEditShow(currentEditingShow, editActiveSeasonTab)}
-                      className="px-2.5 py-1 rounded-md text-xs font-bold bg-purple-500 hover:bg-purple-400 text-white flex items-center gap-1 shadow-sm transition-all"
+                      className="px-2 py-0.5 rounded text-[11px] font-bold bg-purple-500 hover:bg-purple-400 text-white flex items-center gap-1 shadow-sm transition-all"
                     >
-                      <Plus size={12} />
+                      <Plus size={11} />
                       <span>Tambah Episode</span>
                     </button>
 
                     <button
                       type="button"
                       onClick={() => setShowEditBatchUrlInput(!showEditBatchUrlInput)}
-                      className="px-2.5 py-1 rounded-md text-xs font-bold bg-cyan-500/20 text-cyan-300 border border-cyan-500/30 flex items-center gap-1 hover:bg-cyan-500/30 transition-all"
+                      className="px-2 py-0.5 rounded text-[11px] font-bold bg-cyan-500/20 text-cyan-300 border border-cyan-500/30 flex items-center gap-1 hover:bg-cyan-500/30 transition-all"
                     >
-                      <Copy size={12} />
+                      <Copy size={11} />
                       <span>Batch URLs</span>
                     </button>
                   </div>
@@ -2909,29 +2932,29 @@ export default function AdminPage() {
 
                 {/* Batch URL Box for Existing Show */}
                 {showEditBatchUrlInput && (
-                  <div className="p-3 bg-cyan-950/30 border border-cyan-500/30 rounded-lg space-y-2 animate-fade-in">
-                    <label className="block text-[11px] font-bold text-cyan-300">
-                      Tempelkan URL Video ke {formatSeasonLabel(editActiveSeasonTab)} (1 URL per baris):
+                  <div className="p-2.5 bg-cyan-950/30 border border-cyan-500/30 rounded space-y-1.5 animate-fade-in">
+                    <label className="block text-[10px] font-bold text-cyan-300">
+                      Tempelkan URL Video ke {formatSeasonLabel(editActiveSeasonTab)} (1 baris per episode):
                     </label>
                     <textarea
                       rows={3}
                       value={editBatchUrlsInput}
                       onChange={(e) => setEditBatchUrlsInput(e.target.value)}
                       placeholder={`https://example.com/ep1.mp4\nhttps://example.com/ep2.mp4`}
-                      className="w-full p-2 bg-black/60 border border-white/10 rounded-lg text-xs font-mono text-white focus:outline-none focus:border-cyan-400"
+                      className="w-full p-1.5 bg-black/60 border border-white/10 rounded text-xs font-mono text-white focus:outline-none focus:border-cyan-400"
                     />
-                    <div className="flex items-center justify-end gap-1.5">
+                    <div className="flex items-center justify-end gap-1">
                       <button
                         type="button"
                         onClick={() => setShowEditBatchUrlInput(false)}
-                        className="px-2.5 py-1 text-xs text-slate-400 hover:text-white"
+                        className="px-2 py-0.5 text-[11px] text-slate-400 hover:text-white"
                       >
                         Batal
                       </button>
                       <button
                         type="button"
                         onClick={() => handleEditShowBatchPasteUrls(currentEditingShow, editActiveSeasonTab)}
-                        className="px-3 py-1 bg-cyan-500 text-black font-bold rounded text-xs hover:bg-cyan-400"
+                        className="px-2.5 py-0.5 bg-cyan-500 text-black font-bold rounded text-[11px] hover:bg-cyan-400"
                       >
                         Simpan Episode Baru
                       </button>
@@ -2939,11 +2962,11 @@ export default function AdminPage() {
                   </div>
                 )}
 
-                {/* Compact Season Navigation Tabs in Edit Modal */}
+                {/* Ultra-Compact Season Tabs in Edit Modal */}
                 {(() => {
                   const seasons = getShowSeasons(currentEditingShow);
                   return (
-                    <div className="flex items-center gap-2 overflow-x-auto pb-1">
+                    <div className="flex items-center gap-1.5 overflow-x-auto pb-1">
                       {seasons.map((s) => {
                         const count = currentEditingShow.episodes.filter(
                           (ep) => (ep.seasonFolder || 's1').toLowerCase() === s.toLowerCase()
@@ -2957,17 +2980,17 @@ export default function AdminPage() {
                               setEditActiveSeasonTab(s);
                               setSelectedEditEpPaths([]);
                             }}
-                            className={`px-3 py-1.5 rounded-lg text-left transition-all flex flex-col items-start min-w-[80px] sm:min-w-[90px] ${
+                            className={`px-2 py-1 rounded text-left transition-all flex flex-col items-start min-w-[65px] sm:min-w-[72px] ${
                               isActive
-                                ? 'bg-gradient-to-b from-purple-600 to-purple-800 text-white shadow-sm ring-1 ring-purple-400 border border-purple-400/50'
+                                ? 'bg-purple-700 text-white shadow-sm ring-1 ring-purple-400'
                                 : 'bg-black/40 text-slate-400 hover:text-white hover:bg-white/5 border border-white/10'
                             }`}
                           >
-                            <span className="text-[11px] font-bold tracking-tight">{formatSeasonLabel(s)}</span>
-                            <span className={`text-[9px] font-semibold px-1.5 py-0.2 mt-0.5 rounded ${
+                            <span className="text-[10px] font-bold tracking-tight">{formatSeasonLabel(s)}</span>
+                            <span className={`text-[8px] font-semibold px-1 py-0.2 mt-0.5 rounded ${
                               isActive ? 'bg-black/40 text-purple-200' : 'bg-white/5 text-slate-400'
                             }`}>
-                              {count} Episode
+                              {count} Ep
                             </span>
                           </button>
                         );
@@ -2986,18 +3009,18 @@ export default function AdminPage() {
                   const selectedCount = seasonEps.filter((ep) => selectedEditEpPaths.includes(ep.relativePath)).length;
 
                   return (
-                    <div className="space-y-2.5">
-                      <div className="flex flex-wrap items-center justify-between gap-1.5 p-2 bg-black/50 rounded-lg border border-white/10">
-                        <div className="flex items-center gap-2.5">
+                    <div className="space-y-1.5">
+                      <div className="flex flex-wrap items-center justify-between gap-1 p-1.5 bg-black/50 rounded border border-white/10">
+                        <div className="flex items-center gap-2">
                           <button
                             type="button"
                             onClick={() => toggleSelectAllEditEps(currentEditingShow, editActiveSeasonTab)}
-                            className="flex items-center gap-1 text-[11px] font-semibold text-slate-300 hover:text-white select-none"
+                            className="flex items-center gap-1 text-[10px] font-semibold text-slate-300 hover:text-white select-none"
                           >
                             {isAllSelected ? (
-                              <CheckSquare size={14} className="text-purple-400" />
+                              <CheckSquare size={13} className="text-purple-400" />
                             ) : (
-                              <Square size={14} className="text-slate-500" />
+                              <Square size={13} className="text-slate-500" />
                             )}
                             <span>Pilih Semua</span>
                           </button>
@@ -3006,9 +3029,9 @@ export default function AdminPage() {
                             <button
                               type="button"
                               onClick={() => deleteSelectedEditEps(currentEditingShow, editActiveSeasonTab)}
-                              className="px-2 py-0.5 rounded text-[10px] font-bold bg-red-500/20 text-red-300 border border-red-500/40 hover:bg-red-500/30 flex items-center gap-1 transition-all"
+                              className="px-1.5 py-0.2 rounded text-[9px] font-bold bg-red-500/20 text-red-300 border border-red-500/40 hover:bg-red-500/30 flex items-center gap-0.5 transition-all"
                             >
-                              <Trash2 size={11} />
+                              <Trash2 size={10} />
                               <span>Hapus ({selectedCount})</span>
                             </button>
                           )}
@@ -3017,7 +3040,7 @@ export default function AdminPage() {
                             <button
                               type="button"
                               onClick={() => deleteAllEditEpsInSeason(currentEditingShow, editActiveSeasonTab)}
-                              className="text-[10px] text-slate-500 hover:text-red-400 transition-colors"
+                              className="text-[9px] text-slate-500 hover:text-red-400 transition-colors"
                             >
                               Delete All Season Ini
                             </button>
@@ -3026,10 +3049,10 @@ export default function AdminPage() {
                       </div>
 
                       {/* Episodes List in Season */}
-                      <div className="space-y-2 max-h-80 overflow-y-auto pr-1">
+                      <div className="space-y-1.5 max-h-72 overflow-y-auto pr-1">
                         {seasonEps.length === 0 ? (
-                          <div className="p-4 text-center bg-black/20 rounded-lg border border-white/5">
-                            <p className="text-xs text-slate-400">Belum ada episode di {formatSeasonLabel(editActiveSeasonTab)}.</p>
+                          <div className="p-3 text-center bg-black/20 rounded border border-white/5">
+                            <p className="text-[11px] text-slate-400">Belum ada episode di {formatSeasonLabel(editActiveSeasonTab)}.</p>
                           </div>
                         ) : (
                           seasonEps.map((ep) => {
@@ -3039,45 +3062,39 @@ export default function AdminPage() {
                             return (
                               <div
                                 key={ep.relativePath}
-                                className={`p-2 rounded-lg flex items-center justify-between gap-2.5 transition-all border ${
+                                className={`p-1.5 rounded flex items-center justify-between gap-2 transition-all border ${
                                   isSelected
                                     ? 'bg-purple-950/30 border-purple-500/50'
                                     : 'bg-black/30 border-white/10 hover:border-white/20'
                                 }`}
                               >
-                                <div className="flex items-center gap-2 flex-1 min-w-0">
+                                <div className="flex items-center gap-1.5 flex-1 min-w-0">
                                   <button
                                     type="button"
                                     onClick={() => toggleSelectEditEp(ep.relativePath)}
                                     className="text-slate-400 hover:text-purple-300 flex-shrink-0"
                                   >
                                     {isSelected ? (
-                                      <CheckSquare size={14} className="text-purple-400" />
+                                      <CheckSquare size={13} className="text-purple-400" />
                                     ) : (
-                                      <Square size={14} className="text-slate-500" />
+                                      <Square size={13} className="text-slate-500" />
                                     )}
                                   </button>
 
-                                  <div className="relative w-12 h-8 rounded overflow-hidden bg-slate-900 border border-white/10 flex-shrink-0 shadow-sm">
-                                    {epPoster ? (
-                                      <Image src={epPoster} alt="Thumbnail" fill className="object-cover" sizes="48px" />
-                                    ) : (
-                                      <div className="w-full h-full flex items-center justify-center text-slate-600">
-                                        <ImageIcon size={12} />
-                                      </div>
-                                    )}
+                                  <div className="relative w-11 h-7 rounded overflow-hidden bg-slate-900 border border-white/10 flex-shrink-0 shadow-sm">
+                                    <SafeAdminImage src={epPoster} fallbackSrc={currentEditingShow.posterUrl} alt="Thumbnail" sizes="44px" />
                                   </div>
 
                                   <div className="flex-1 min-w-0">
-                                    <div className="flex items-center gap-1.5 mb-0.5">
-                                      <span className="px-1 py-0.2 rounded text-[9px] font-extrabold bg-purple-500/20 text-purple-300">
+                                    <div className="flex items-center gap-1 mb-0.5">
+                                      <span className="px-1 py-0.2 rounded text-[8px] font-extrabold bg-purple-500/20 text-purple-300">
                                         {ep.slug.toUpperCase()}
                                       </span>
-                                      <h5 className="font-bold text-xs text-white truncate">
+                                      <h5 className="font-bold text-[11px] text-white truncate">
                                         {ep.displayTitle || ep.frontmatter.title || ep.slug}
                                       </h5>
                                     </div>
-                                    <p className="text-[10px] font-mono text-slate-400 truncate">
+                                    <p className="text-[9px] font-mono text-slate-400 truncate">
                                       {ep.frontmatter.videourl || ep.frontmatter.video_url || 'Belum ada link video'}
                                     </p>
                                   </div>
@@ -3094,19 +3111,19 @@ export default function AdminPage() {
                                         content: ep.content,
                                       })
                                     }
-                                    className="p-1.5 rounded bg-white/5 hover:bg-white/10 text-slate-300 hover:text-white transition-all"
-                                    title="Edit Episode Details"
+                                    className="p-1 rounded bg-white/5 hover:bg-white/10 text-slate-300 hover:text-white transition-all"
+                                    title="Edit Episode"
                                   >
-                                    <Edit2 size={12} />
+                                    <Edit2 size={11} />
                                   </button>
 
                                   <button
                                     type="button"
                                     onClick={() => handleDelete(ep.relativePath, ep.displayTitle)}
-                                    className="p-1.5 rounded bg-red-500/10 hover:bg-red-500/20 text-red-400 transition-all"
+                                    className="p-1 rounded bg-red-500/10 hover:bg-red-500/20 text-red-400 transition-all"
                                     title="Hapus Episode"
                                   >
-                                    <Trash2 size={12} />
+                                    <Trash2 size={11} />
                                   </button>
                                 </div>
                               </div>
@@ -3122,17 +3139,17 @@ export default function AdminPage() {
 
             {/* Standard Edit Form (Movie, TV Series Info, TV Episode) */}
             {!(editingItem.type === 'tv_show' && editShowTab === 'episodes') && (
-              <form onSubmit={handleEditSubmit} className="p-4 sm:p-5 space-y-3.5 max-h-[75vh] overflow-y-auto">
-                {/* TMDB ID (if movie or show) */}
+              <form onSubmit={handleEditSubmit} className="p-3.5 sm:p-4 space-y-3 max-h-[75vh] overflow-y-auto">
+                {/* TMDB ID */}
                 {editingItem.type !== 'tv_episode' && (
                   <div>
                     <div className="flex items-center justify-between mb-1">
-                      <label className="text-xs font-bold text-slate-300">
+                      <label className="text-[11px] font-bold text-slate-300">
                         TMDB ID / URL <span className="text-red-400 font-extrabold">*</span>
                       </label>
                       {editErrors.tmdb_id && (
                         <span className="text-[10px] font-bold text-red-400 flex items-center gap-1">
-                          <AlertCircle size={11} /> {editErrors.tmdb_id}
+                          <AlertCircle size={10} /> {editErrors.tmdb_id}
                         </span>
                       )}
                     </div>
@@ -3155,8 +3172,8 @@ export default function AdminPage() {
                           });
                         }
                       }}
-                      placeholder="Contoh: 1084244 atau paste URL TMDB"
-                      className={`w-full px-3 py-2 bg-black/40 rounded-lg text-xs text-white transition-all focus:outline-none ${
+                      placeholder="Contoh: 1084244 atau URL TMDB"
+                      className={`w-full px-2.5 py-1.5 bg-black/40 rounded-lg text-xs text-white transition-all focus:outline-none ${
                         editErrors.tmdb_id
                           ? 'border border-red-500 ring-1 ring-red-500/20 bg-red-950/20'
                           : 'border border-white/10 focus:border-cyan-400'
@@ -3165,16 +3182,16 @@ export default function AdminPage() {
                   </div>
                 )}
 
-                {/* Video URL (if movie or episode) */}
+                {/* Video URL */}
                 {editingItem.type !== 'tv_show' && (
                   <div>
                     <div className="flex items-center justify-between mb-1">
-                      <label className="text-xs font-bold text-slate-300">
+                      <label className="text-[11px] font-bold text-slate-300">
                         URL Video (videourl) <span className="text-red-400 font-extrabold">*</span>
                       </label>
                       {editErrors.videourl && (
                         <span className="text-[10px] font-bold text-red-400 flex items-center gap-1">
-                          <AlertCircle size={11} /> {editErrors.videourl}
+                          <AlertCircle size={10} /> {editErrors.videourl}
                         </span>
                       )}
                     </div>
@@ -3194,7 +3211,7 @@ export default function AdminPage() {
                           });
                         }
                       }}
-                      className={`w-full px-3 py-2 bg-black/40 rounded-lg text-xs text-white font-mono transition-all focus:outline-none ${
+                      className={`w-full px-2.5 py-1.5 bg-black/40 rounded-lg text-xs text-white font-mono transition-all focus:outline-none ${
                         editErrors.videourl
                           ? 'border border-red-500 ring-1 ring-red-500/20 bg-red-950/20'
                           : 'border border-white/10 focus:border-cyan-400'
@@ -3205,7 +3222,7 @@ export default function AdminPage() {
 
                 {/* Title */}
                 <div>
-                  <label className="block text-xs font-medium text-slate-400 mb-1">Judul (Title)</label>
+                  <label className="block text-[11px] font-medium text-slate-400 mb-1">Judul (Title)</label>
                   <input
                     type="text"
                     value={editingItem.frontmatter.title || ''}
@@ -3215,15 +3232,15 @@ export default function AdminPage() {
                         frontmatter: { ...editingItem.frontmatter, title: e.target.value },
                       })
                     }
-                    className="w-full px-3 py-2 bg-black/40 border border-white/10 rounded-lg text-xs text-white focus:outline-none focus:border-cyan-400"
+                    className="w-full px-2.5 py-1.5 bg-black/40 border border-white/10 rounded-lg text-xs text-white focus:outline-none focus:border-cyan-400"
                   />
                 </div>
 
                 {/* Deskripsi */}
                 <div>
-                  <label className="block text-xs font-medium text-slate-400 mb-1">Deskripsi</label>
+                  <label className="block text-[11px] font-medium text-slate-400 mb-1">Deskripsi</label>
                   <textarea
-                    rows={2.5}
+                    rows={2}
                     value={editingItem.frontmatter.deskripsi || editingItem.frontmatter.description || ''}
                     onChange={(e) =>
                       setEditingItem({
@@ -3231,14 +3248,14 @@ export default function AdminPage() {
                         frontmatter: { ...editingItem.frontmatter, deskripsi: e.target.value },
                       })
                     }
-                    className="w-full px-3 py-2 bg-black/40 border border-white/10 rounded-lg text-xs text-white focus:outline-none focus:border-cyan-400"
+                    className="w-full px-2.5 py-1.5 bg-black/40 border border-white/10 rounded-lg text-xs text-white focus:outline-none focus:border-cyan-400"
                   />
                 </div>
 
                 {/* Image URL with Backdrop Picker */}
                 <div>
                   <div className="flex items-center justify-between mb-1">
-                    <label className="text-xs font-medium text-slate-400">Poster / Image URL</label>
+                    <label className="text-[11px] font-medium text-slate-400">Poster / Image URL</label>
                     {(() => {
                       let tmdbIdNum = editingItem.frontmatter.tmdb_id;
                       if (!tmdbIdNum && editingItem.type === 'tv_episode') {
@@ -3259,12 +3276,12 @@ export default function AdminPage() {
                             }
                             setShowEditBackdropPicker(!showEditBackdropPicker);
                           }}
-                          className="text-[11px] font-bold text-cyan-400 hover:text-cyan-300 flex items-center gap-1 transition-all"
+                          className="text-[10px] font-bold text-cyan-400 hover:text-cyan-300 flex items-center gap-1 transition-all"
                         >
-                          <ImageIcon size={12} />
+                          <ImageIcon size={11} />
                           <span>
                             {editTmdbPreview?.backdrops && editTmdbPreview.backdrops.length > 0
-                              ? `${showEditBackdropPicker ? 'Tutup Galeri' : 'Pilih Backdrop'} (${editTmdbPreview.backdrops.length})`
+                              ? `${showEditBackdropPicker ? 'Tutup' : 'Pilih Backdrop'} (${editTmdbPreview.backdrops.length})`
                               : fetchingEditTmdb
                               ? 'Mengambil...'
                               : 'Cari Backdrop'}
@@ -3283,26 +3300,26 @@ export default function AdminPage() {
                       })
                     }
                     placeholder="https://image.tmdb.org/... atau pilih dari galeri"
-                    className="w-full px-3 py-2 bg-black/40 border border-white/10 rounded-lg text-xs text-white focus:outline-none focus:border-cyan-400"
+                    className="w-full px-2.5 py-1.5 bg-black/40 border border-white/10 rounded-lg text-xs text-white focus:outline-none focus:border-cyan-400"
                   />
 
                   {/* Backdrop Gallery Picker in Edit Modal */}
                   {editTmdbPreview?.backdrops && editTmdbPreview.backdrops.length > 0 && showEditBackdropPicker && (
-                    <div className="mt-2.5 p-3 bg-[#090e1f] border border-cyan-500/30 rounded-xl space-y-2.5 animate-fade-in shadow-xl">
+                    <div className="mt-2 p-2.5 bg-[#090e1f] border border-cyan-500/30 rounded-lg space-y-2 animate-fade-in shadow-lg">
                       <div className="flex items-center justify-between">
-                        <span className="text-xs font-bold text-cyan-300 flex items-center gap-1">
-                          <ImageIcon size={13} /> Pilih Gambar Backdrop ({editTmdbPreview.backdrops.length})
+                        <span className="text-[11px] font-bold text-cyan-300 flex items-center gap-1">
+                          <ImageIcon size={12} /> Pilih Gambar Backdrop ({editTmdbPreview.backdrops.length})
                         </span>
                         <button
                           type="button"
                           onClick={() => setShowEditBackdropPicker(false)}
-                          className="text-xs text-slate-400 hover:text-white"
+                          className="text-[10px] text-slate-400 hover:text-white"
                         >
                           Tutup
                         </button>
                       </div>
 
-                      <div className="flex items-center gap-1.5 flex-wrap">
+                      <div className="flex items-center gap-1 flex-wrap">
                         {(() => {
                           const availableLangs = Array.from(new Set(editTmdbPreview.backdrops!.map((b) => b.language)));
                           return [
@@ -3324,7 +3341,7 @@ export default function AdminPage() {
                               key={tab.code}
                               type="button"
                               onClick={() => setEditSelectedBackdropLang(tab.code)}
-                              className={`px-2 py-0.5 rounded text-[10px] font-bold transition-all ${
+                              className={`px-1.5 py-0.2 rounded text-[9px] font-bold transition-all ${
                                 editSelectedBackdropLang === tab.code
                                   ? 'bg-cyan-500 text-black'
                                   : 'bg-white/5 text-slate-300 hover:bg-white/10 border border-white/10'
@@ -3336,7 +3353,7 @@ export default function AdminPage() {
                         })()}
                       </div>
 
-                      <div className="grid grid-cols-2 sm:grid-cols-4 gap-2 max-h-56 overflow-y-auto pr-1">
+                      <div className="grid grid-cols-2 sm:grid-cols-4 gap-1.5 max-h-48 overflow-y-auto pr-1">
                         {editTmdbPreview.backdrops!
                           .filter((b) => editSelectedBackdropLang === 'all' || b.language === editSelectedBackdropLang)
                           .map((b, idx) => {
@@ -3354,21 +3371,15 @@ export default function AdminPage() {
                                   setShowEditBackdropPicker(false);
                                   showToast('Backdrop berhasil dipilih!');
                                 }}
-                                className={`group relative rounded-lg overflow-hidden border cursor-pointer transition-all aspect-video ${
+                                className={`group relative rounded overflow-hidden border cursor-pointer transition-all aspect-video ${
                                   isSelected
-                                    ? 'ring-2 ring-cyan-400 border-cyan-400'
+                                    ? 'ring-1 ring-cyan-400 border-cyan-400'
                                     : 'border-white/10 hover:border-cyan-500/50 bg-black/40'
                                 }`}
                               >
-                                <Image
-                                  src={b.thumbUrl}
-                                  alt="Backdrop"
-                                  fill
-                                  className="object-cover group-hover:scale-105 transition-transform"
-                                  sizes="(max-width: 640px) 50vw, 25vw"
-                                />
-                                <div className="absolute top-1 left-1">
-                                  <span className="px-1 py-0.2 rounded text-[8px] font-bold bg-black/80 text-cyan-300">
+                                <SafeAdminImage src={b.thumbUrl} alt="Backdrop" sizes="(max-width: 640px) 50vw, 25vw" />
+                                <div className="absolute top-0.5 left-0.5">
+                                  <span className="px-1 py-0.2 rounded text-[7px] font-bold bg-black/80 text-cyan-300">
                                     {b.language === 'xx' || b.language === 'null' ? 'No Text' : b.language.toUpperCase()}
                                   </span>
                                 </div>
@@ -3380,11 +3391,11 @@ export default function AdminPage() {
                   )}
                 </div>
 
-                {/* Rating & Featured (if movie or show) */}
+                {/* Rating & Featured */}
                 {editingItem.type !== 'tv_episode' && (
-                  <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
+                  <div className="grid grid-cols-1 sm:grid-cols-2 gap-2.5">
                     <div>
-                      <label className="block text-xs font-medium text-slate-400 mb-1">Rating</label>
+                      <label className="block text-[11px] font-medium text-slate-400 mb-1">Rating</label>
                       <input
                         type="number"
                         step="0.1"
@@ -3397,7 +3408,7 @@ export default function AdminPage() {
                             frontmatter: { ...editingItem.frontmatter, rating: e.target.value },
                           })
                         }
-                        className="w-full px-3 py-2 bg-black/40 border border-white/10 rounded-lg text-xs text-white focus:outline-none focus:border-cyan-400"
+                        className="w-full px-2.5 py-1.5 bg-black/40 border border-white/10 rounded-lg text-xs text-white focus:outline-none focus:border-cyan-400"
                       />
                     </div>
 
@@ -3408,15 +3419,15 @@ export default function AdminPage() {
                           frontmatter: { ...editingItem.frontmatter, featured: !editingItem.frontmatter.featured },
                         })
                       }
-                      className="flex items-center justify-between p-2.5 rounded-lg bg-white/5 border border-white/10 hover:border-cyan-500/40 transition-all cursor-pointer select-none"
+                      className="flex items-center justify-between p-2 rounded-lg bg-white/5 border border-white/10 hover:border-cyan-500/40 transition-all cursor-pointer select-none"
                     >
-                      <div className="flex items-center gap-2">
-                        <div className="p-1.5 rounded bg-cyan-500/10 text-cyan-400">
-                          <Star size={14} fill={editingItem.frontmatter.featured ? 'currentColor' : 'none'} />
+                      <div className="flex items-center gap-1.5">
+                        <div className="p-1 rounded bg-cyan-500/10 text-cyan-400">
+                          <Star size={13} fill={editingItem.frontmatter.featured ? 'currentColor' : 'none'} />
                         </div>
                         <div>
-                          <p className="text-xs font-bold text-white select-none">Jadikan Featured</p>
-                          <p className="text-[10px] text-slate-400 select-none">Tampilkan di hero banner</p>
+                          <p className="text-[11px] font-bold text-white select-none">Jadikan Featured</p>
+                          <p className="text-[9px] text-slate-400 select-none">Hero banner</p>
                         </div>
                       </div>
                       <input
@@ -3429,17 +3440,17 @@ export default function AdminPage() {
                           })
                         }
                         onClick={(e) => e.stopPropagation()}
-                        className="w-4 h-4 rounded bg-black/40 border-white/20 text-cyan-500 focus:ring-cyan-400 cursor-pointer"
+                        className="w-3.5 h-3.5 rounded bg-black/40 border-white/20 text-cyan-500 focus:ring-cyan-400 cursor-pointer"
                       />
                     </div>
                   </div>
                 )}
 
-                {/* Subtitles & Duration (if episode or movie) */}
+                {/* Subtitles & Duration */}
                 {editingItem.type !== 'tv_show' && (
-                  <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
+                  <div className="grid grid-cols-1 sm:grid-cols-2 gap-2.5">
                     <div>
-                      <label className="block text-xs font-medium text-slate-400 mb-1">Durasi</label>
+                      <label className="block text-[11px] font-medium text-slate-400 mb-1">Durasi</label>
                       <input
                         type="text"
                         value={editingItem.frontmatter.duration || ''}
@@ -3450,12 +3461,12 @@ export default function AdminPage() {
                           })
                         }
                         placeholder="Contoh: 45m"
-                        className="w-full px-3 py-2 bg-black/40 border border-white/10 rounded-lg text-xs text-white focus:outline-none focus:border-cyan-400"
+                        className="w-full px-2.5 py-1.5 bg-black/40 border border-white/10 rounded-lg text-xs text-white focus:outline-none focus:border-cyan-400"
                       />
                     </div>
 
                     <div>
-                      <label className="block text-xs font-medium text-slate-400 mb-1">Subtitles URL</label>
+                      <label className="block text-[11px] font-medium text-slate-400 mb-1">Subtitles URL</label>
                       <input
                         type="text"
                         value={editingItem.frontmatter.subtitles || ''}
@@ -3466,24 +3477,24 @@ export default function AdminPage() {
                           })
                         }
                         placeholder="https://.../sub.vtt"
-                        className="w-full px-3 py-2 bg-black/40 border border-white/10 rounded-lg text-xs text-white focus:outline-none focus:border-cyan-400 font-mono"
+                        className="w-full px-2.5 py-1.5 bg-black/40 border border-white/10 rounded-lg text-xs text-white focus:outline-none focus:border-cyan-400 font-mono"
                       />
                     </div>
                   </div>
                 )}
 
-                {/* Submit Buttons: Compact & Ergonomic */}
-                <div className="flex items-center justify-end gap-2 pt-3 border-t border-white/10">
+                {/* Submit Buttons */}
+                <div className="flex items-center justify-end gap-1.5 pt-2.5 border-t border-white/10">
                   <button
                     type="button"
                     onClick={() => setIsEditModalOpen(false)}
-                    className="px-3.5 py-1.5 rounded-lg text-xs font-semibold bg-white/5 hover:bg-white/10 text-slate-300 transition-all"
+                    className="px-3 py-1 rounded-md text-xs font-semibold bg-white/5 hover:bg-white/10 text-slate-300 transition-all"
                   >
                     Batal
                   </button>
                   <button
                     type="submit"
-                    className="px-4 py-1.5 rounded-lg text-xs font-bold bg-cyan-500 hover:bg-cyan-400 text-white shadow-md shadow-cyan-500/20 transition-all"
+                    className="px-3.5 py-1 rounded-md text-xs font-bold bg-cyan-500 hover:bg-cyan-400 text-white shadow-sm transition-all"
                   >
                     Simpan Perubahan
                   </button>
