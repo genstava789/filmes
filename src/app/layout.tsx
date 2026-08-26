@@ -18,11 +18,23 @@ export const metadata: Metadata = {
   title: `${siteConfig.name} - ${siteConfig.tagline}`,
   description: siteConfig.description,
   keywords: siteConfig.keywords.join(', '),
+  applicationName: siteConfig.name,
+  authors: [{ name: siteConfig.name, url: siteConfig.url }],
+  creator: siteConfig.name,
+  publisher: siteConfig.name,
   openGraph: {
+    siteName: siteConfig.name,
     title: `${siteConfig.name} - ${siteConfig.tagline}`,
     description: siteConfig.description,
     type: 'website',
     url: siteConfig.url,
+  },
+  other: {
+    'og:site_name': siteConfig.name,
+    'application-name': siteConfig.name,
+    'apple-mobile-web-app-title': siteConfig.name,
+    'twitter:site': `@${siteConfig.name}`,
+    'twitter:creator': `@${siteConfig.name}`,
   },
 };
 

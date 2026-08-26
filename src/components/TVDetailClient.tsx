@@ -18,6 +18,7 @@ import VideoPlayer from '@/components/VideoPlayer';
 import ShareButton from '@/components/ShareButton';
 import MarkdownRenderer from '@/components/MarkdownRenderer';
 import { CustomSeason, CustomEpisode } from '@/lib/markdownTV';
+import siteConfig from '@/config';
 
 interface TVDetailHeaderActionsProps {
   activeEpisodeLabel?: string;
@@ -206,6 +207,9 @@ export default function TVDetailClient({
       {/* Dynamic Video Meta & Schema for Third-Party Players */}
       {activeEpisode?.videoUrl && (
         <>
+          <meta property="og:site_name" content={siteConfig.name} />
+          <meta name="application-name" content={siteConfig.name} />
+          <meta name="apple-mobile-web-app-title" content={siteConfig.name} />
           <link rel="video_src" href={embedUrl} />
           <meta property="og:video" content={embedUrl} />
           <meta property="og:video:url" content={embedUrl} />
@@ -225,6 +229,24 @@ export default function TVDetailClient({
                 contentUrl: pageUrl,
                 embedUrl: embedUrl,
                 uploadDate: '2026-08-24T00:00:00+07:00',
+                publisher: {
+                  '@type': 'Organization',
+                  name: siteConfig.name,
+                  url: siteUrl,
+                  logo: {
+                    '@type': 'ImageObject',
+                    url: `${siteUrl}/logo.png`,
+                  },
+                },
+                provider: {
+                  '@type': 'Organization',
+                  name: siteConfig.name,
+                  url: siteUrl,
+                },
+                author: {
+                  '@type': 'Organization',
+                  name: siteConfig.name,
+                },
               }),
             }}
           />

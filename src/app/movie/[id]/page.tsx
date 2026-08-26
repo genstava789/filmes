@@ -64,6 +64,7 @@ export async function generateMetadata({ params }: PageProps): Promise<Metadata>
     title,
     description,
     openGraph: {
+      siteName: siteConfig.name,
       title,
       description,
       type: 'video.movie',
@@ -89,6 +90,9 @@ export async function generateMetadata({ params }: PageProps): Promise<Metadata>
     },
     other: videoUrl
       ? {
+          'og:site_name': siteConfig.name,
+          'application-name': siteConfig.name,
+          'apple-mobile-web-app-title': siteConfig.name,
           'og:type': 'video.other',
           'og:video': embedUrl,
           'og:video:url': embedUrl,
@@ -97,6 +101,8 @@ export async function generateMetadata({ params }: PageProps): Promise<Metadata>
           'og:video:width': '1920',
           'og:video:height': '1080',
           'twitter:card': 'player',
+          'twitter:site': `@${siteConfig.name}`,
+          'twitter:creator': `@${siteConfig.name}`,
           'twitter:player': embedUrl,
           'twitter:player:width': '1920',
           'twitter:player:height': '1080',
@@ -104,7 +110,10 @@ export async function generateMetadata({ params }: PageProps): Promise<Metadata>
           'twitter:player:stream:content_type': videoType,
           'video_src': embedUrl,
         }
-      : {},
+      : {
+          'og:site_name': siteConfig.name,
+          'application-name': siteConfig.name,
+        },
   };
 }
 
@@ -194,10 +203,20 @@ export default async function MovieDetailPage({ params }: PageProps) {
         publisher: {
           '@type': 'Organization',
           name: siteConfig.name,
+          url: siteConfig.url,
           logo: {
             '@type': 'ImageObject',
             url: siteConfig.logoUrl,
           },
+        },
+        provider: {
+          '@type': 'Organization',
+          name: siteConfig.name,
+          url: siteConfig.url,
+        },
+        author: {
+          '@type': 'Organization',
+          name: siteConfig.name,
         },
       }
     : null;
@@ -207,6 +226,9 @@ export default async function MovieDetailPage({ params }: PageProps) {
       {/* OpenGraph Video & Schema.org VideoObject */}
       {videoUrl && (
         <>
+          <meta property="og:site_name" content={siteConfig.name} />
+          <meta name="application-name" content={siteConfig.name} />
+          <meta name="apple-mobile-web-app-title" content={siteConfig.name} />
           <link rel="video_src" href={embedUrl} />
           <meta property="og:video" content={embedUrl} />
           <meta property="og:video:url" content={embedUrl} />
