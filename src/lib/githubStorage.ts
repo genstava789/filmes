@@ -165,3 +165,82 @@ export async function deleteGitHubFile(
 
   return await res.json();
 }
+
+/**
+ * Reads a raw text/markdown file from GitHub directly with live cache busting.
+ * Works seamlessly on Vercel runtime to load latest CMS edits immediately.
+ */
+export async function getGitHubRawFile(filePath: string, options: GitHubOptions = {}): Promise<string | null> {
+  const cleanPath = filePath.replace(/^\/+/, '');
+  const owner = options.owner || DEFAULT_OWNER;
+  const repo = options.repo || DEFAULT_REPO;
+  const branch = options.branch || DEFAULT_BRANCH;
+  const token = getEffectiveToken(options.token);
+
+  // If token is available, use GitHub API with Accept: application/vnd.github.v3.raw for instant live data
+  if (token) {
+    try {
+      const apiUrl = `https://api.github.com/repos/${owner}/${repo}/contents/${cleanPath}?ref=${branch}&_t=${Date.now()}`;
+      const res = await fetch(apiUrl, {
+        headers: {
+          Authorization: `Bearer ${token}`,
+          Accept: 'application/vnd.github.v3.raw',
+          'User-Agent': 'LeviStream-CMS',
+        },
+        cache: 'no-store',
+      });
+      if (res.ok) {
+        return await res.text();
+      }
+    } catch {}
+  }
+
+  // Fallback to public GitHub raw URL with timestamp cache buster
+  try {
+    const rawUrl = `https://raw.githubusercontent.com/${owner}/${repo}/${branch}/${cleanPath}?_t=${Date.now()}`;
+    const res = await fetch(rawUrl, {
+      cache: 'no-store',
+    });
+    if (res.ok) {
+      const text = await res.text();
+      if (text && text.includes('---')) {
+        return text;
+      }
+    }
+  } catch {}
+
+  return null;
+}
+
+/**
+ * Lists all files in a directory on GitHub repository
+ */
+export async function listGitHubDir(dirPath: string, options: GitHubOptions = {}): Promise<string[]> {
+  const cleanPath = dirPath.replace(/^\/+/, '');
+  const owner = options.owner || DEFAULT_OWNER;
+  const repo = options.repo || DEFAULT_REPO;
+  const branch = options.branch || DEFAULT_BRANCH;
+  const token = getEffectiveToken(options.token);
+
+  const headers: Record<string, string> = {
+    Accept: 'application/vnd.github.v3+json',
+    'User-Agent': 'LeviStream-CMS',
+  };
+  if (token) {
+    headers['Authorization'] = `Bearer ${token}`;
+  }
+
+  try {
+    const url = `https://api.github.com/repos/${owner}/${repo}/contents/${cleanPath}?ref=${branch}&_t=${Date.now()}`;
+    const res = await fetch(url, { headers, cache: 'no-store' });
+    if (res.ok) {
+      const items = await res.json();
+      if (Array.isArray(items)) {
+        return items.map((item: any) => item.name);
+      }
+    }
+  } catch {}
+
+  return [];
+}
+

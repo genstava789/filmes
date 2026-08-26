@@ -32,11 +32,20 @@ function getHeaderToken(req: NextRequest): string | null {
   return req.headers.get('x-github-token') || process.env.GITHUB_TOKEN || process.env.GH_TOKEN || null;
 }
 
+export const dynamic = 'force-dynamic';
+export const revalidate = 0;
+
 function revalidateAll() {
   try {
     revalidatePath('/', 'layout');
+    revalidatePath('/', 'page');
+    revalidatePath('/movie', 'page');
     revalidatePath('/movie/[id]', 'page');
+    revalidatePath('/tv', 'page');
+    revalidatePath('/tv/browse', 'page');
     revalidatePath('/tv/[...slug]', 'page');
+    revalidatePath('/embed/movie/[id]', 'page');
+    revalidatePath('/embed/tv/[...slug]', 'page');
     revalidatePath('/admin', 'page');
   } catch (err) {
     console.warn('Revalidation notice:', err);

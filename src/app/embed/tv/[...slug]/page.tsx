@@ -9,8 +9,9 @@ import VideoPlayer from '@/components/VideoPlayer';
 import { getImageUrl } from '@/lib/tmdb';
 import siteConfig from '@/config';
 
+export const dynamic = 'force-dynamic';
 export const dynamicParams = true;
-export const revalidate = 3600;
+export const revalidate = 0;
 
 interface PageProps {
   params: {

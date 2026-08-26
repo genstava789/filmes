@@ -6,6 +6,7 @@ import { MovieDetail } from '@/types/tmdb';
 import { getMovieDetails, getImageUrl, searchMovies } from '@/lib/tmdb';
 import siteConfig, { FeaturedItem } from '@/config';
 import { cleanVideoUrl } from '@/lib/urls';
+import { getGitHubRawFile } from '@/lib/githubStorage';
 
 export interface CustomMovieFrontmatter {
   title?: string;
@@ -269,19 +270,27 @@ export async function getCustomMovieBySlug(slugOrId: string | number): Promise<C
 
     for (const cand of candidates) {
       try {
-        const ghUrl = `https://raw.githubusercontent.com/genstava789/filmes/main/video/${cand}`;
-        const res = await fetch(ghUrl, { next: { revalidate: 60 } });
-        if (res.ok) {
-          const text = await res.text();
-          if (text && text.includes('---')) {
-            matchedFile = cand;
-            fileContent = text;
-            break;
-          }
+        const liveText = await getGitHubRawFile(`video/${cand}`);
+        if (liveText && liveText.includes('---')) {
+          matchedFile = cand;
+          fileContent = liveText;
+          break;
         }
       } catch {
         // ignore network error
       }
+    }
+  }
+
+  // 5. If running on Vercel / serverless runtime, fetch live raw markdown from GitHub to always get the latest edits live without waiting for rebuild!
+  if (matchedFile && (process.env.VERCEL || process.env.NODE_ENV === 'production')) {
+    try {
+      const liveText = await getGitHubRawFile(`video/${matchedFile}`);
+      if (liveText && liveText.includes('---')) {
+        fileContent = liveText;
+      }
+    } catch {
+      // ignore network error and use local fileContent fallback
     }
   }
 
