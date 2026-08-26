@@ -194,9 +194,10 @@ export default function TVDetailClient({
     }
   };
 
+  const creditSuffix = siteConfig.useCreditTitleForRave && siteConfig.name ? ` | ${siteConfig.name}` : '';
   const currentVideoTitle = activeEpisode
-    ? `${showTitle} - ${activeEpisode.episodeLabel}: ${activeEpisode.title}`
-    : showTitle;
+    ? `${showTitle} - ${activeEpisode.episodeLabel}: ${activeEpisode.title}${creditSuffix}`
+    : `${showTitle}${creditSuffix}`;
 
   const siteUrl = typeof window !== 'undefined' ? window.location.origin : 'https://filmes-xi-seven.vercel.app';
   const pageUrl = activeEpisode?.urlPath ? `${siteUrl}${activeEpisode.urlPath}` : siteUrl;

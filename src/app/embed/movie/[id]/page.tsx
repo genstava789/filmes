@@ -35,7 +35,11 @@ export async function generateMetadata({ params }: PageProps): Promise<Metadata>
   }
 
   const siteUrl = process.env.NEXT_PUBLIC_SITE_URL || siteConfig.url;
-  const title = `${movie.title} ${movie.release_date ? `(${new Date(movie.release_date).getFullYear()})` : ''} - ${siteConfig.name}`;
+  const year = movie.release_date ? new Date(movie.release_date).getFullYear() : '';
+  const yearStr = year ? ` (${year})` : '';
+  const creditSuffix = siteConfig.useCreditTitleForRave && siteConfig.name ? ` | ${siteConfig.name}` : '';
+  const videoTitle = `${movie.title}${yearStr}${creditSuffix}`;
+  const title = `${movie.title}${yearStr} - ${siteConfig.name}`;
   const description = movie.overview ? movie.overview.slice(0, 160) : `Watch movies on ${siteConfig.name}.`;
   const videoUrl = movie.customVideoUrl || null;
   const pageUrl = `${siteUrl}/movie/${params.id}`;
@@ -52,7 +56,7 @@ export async function generateMetadata({ params }: PageProps): Promise<Metadata>
     description,
     openGraph: {
       siteName: siteConfig.name,
-      title,
+      title: videoTitle,
       description,
       type: 'video.movie',
       images: image ? [image] : [],
@@ -117,7 +121,10 @@ export default async function MovieEmbedPage({ params }: PageProps) {
     ? getImageUrl(movie.backdrop_path, 'original')
     : undefined;
   const thumbnailImage = defaultBackdrop || (movie.poster_path ? getImageUrl(movie.poster_path, 'w500') : '');
-  const videoTitle = `${movie.title} ${movie.release_date ? `(${new Date(movie.release_date).getFullYear()})` : ''}`;
+  const year = movie.release_date ? new Date(movie.release_date).getFullYear() : '';
+  const yearStr = year ? ` (${year})` : '';
+  const creditSuffix = siteConfig.useCreditTitleForRave && siteConfig.name ? ` | ${siteConfig.name}` : '';
+  const videoTitle = `${movie.title}${yearStr}${creditSuffix}`;
   const videoDescription = movie.overview || `Streaming film ${movie.title} sub indo kualitas HD.`;
   const uploadDate = movie.release_date ? `${movie.release_date}T00:00:00+07:00` : '2026-08-24T00:00:00+07:00';
 

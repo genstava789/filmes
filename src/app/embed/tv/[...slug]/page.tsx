@@ -38,6 +38,10 @@ export async function generateMetadata({ params }: PageProps): Promise<Metadata>
   const epTitle = isEpisodePage && activeEpisode
     ? ` - ${activeEpisode.episodeLabel}: ${activeEpisode.title}`
     : '';
+  const creditSuffix = siteConfig.useCreditTitleForRave && siteConfig.name ? ` | ${siteConfig.name}` : '';
+  const videoTitle = isEpisodePage && activeEpisode
+    ? `${data.name} - ${activeEpisode.episodeLabel}: ${activeEpisode.title}${creditSuffix}`
+    : `${data.name}${creditSuffix}`;
   const title = `${data.name}${epTitle} - ${siteConfig.name}`;
   const description = isEpisodePage && activeEpisode?.overview
     ? activeEpisode.overview
@@ -57,7 +61,7 @@ export async function generateMetadata({ params }: PageProps): Promise<Metadata>
     description: description.slice(0, 160),
     openGraph: {
       siteName: siteConfig.name,
-      title,
+      title: videoTitle,
       description: description.slice(0, 160),
       type: isEpisodePage ? 'video.episode' : 'video.tv_show',
       images: image ? [image] : [],
@@ -126,7 +130,8 @@ export default async function TVEpisodeEmbedPage({ params }: PageProps) {
   const defaultBackdrop = data.customImageUrl || (data.backdrop_path ? getImageUrl(data.backdrop_path, 'original') : undefined);
   const thumbnailImage = activeEpisode.imageUrl || defaultBackdrop || (data.poster_path ? getImageUrl(data.poster_path, 'w500') : '');
 
-  const videoTitle = `${data.name} - ${activeEpisode.episodeLabel}: ${activeEpisode.title}`;
+  const creditSuffix = siteConfig.useCreditTitleForRave && siteConfig.name ? ` | ${siteConfig.name}` : '';
+  const videoTitle = `${data.name} - ${activeEpisode.episodeLabel}: ${activeEpisode.title}${creditSuffix}`;
   const videoDescription = activeEpisode.overview || data.overview || `Streaming ${data.name} full episode sub indo.`;
   const uploadDate = data.first_air_date ? `${data.first_air_date}T00:00:00+07:00` : '2026-08-24T00:00:00+07:00';
 

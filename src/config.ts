@@ -45,6 +45,10 @@ export const siteConfig = {
   copyright: 'LeviStream',
   footerText: 'All rights reserved.',
 
+  // When enabled (true), video titles for generic scrapers & Rave.io use the format: "Judul (Tahun) | LeviStream"
+  // When disabled (false), video titles will be: "Judul (Tahun)"
+  useCreditTitleForRave: true,
+
   // Auto-slide interval for Featured Hero (in seconds)
   heroIntervalSeconds: 6,
 
