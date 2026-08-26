@@ -84,26 +84,50 @@ export async function getTopRatedMovies(page: number = 1): Promise<TMDBResponse<
   return fetchTMDB<TMDBResponse<Movie>>('/movie/top_rated', { page: String(page) });
 }
 
-export async function getMovieDetails(id: number): Promise<MovieDetail> {
-  return fetchTMDB<MovieDetail>(`/movie/${id}`, {
-    append_to_response: 'videos,credits,similar',
-  });
+export async function getMovieDetails(id: number): Promise<MovieDetail | null> {
+  try {
+    return await fetchTMDB<MovieDetail>(`/movie/${id}`, {
+      append_to_response: 'videos,credits,similar',
+    });
+  } catch (e) {
+    console.warn(`TMDB getMovieDetails error for ${id}:`, e);
+    return null;
+  }
+}
+
+export async function getTVShowDetails(id: number): Promise<TVShowDetail | null> {
+  try {
+    return await fetchTMDB<TVShowDetail>(`/tv/${id}`, {
+      append_to_response: 'videos,credits,similar',
+    });
+  } catch (e) {
+    console.warn(`TMDB getTVShowDetails error for ${id}:`, e);
+    return null;
+  }
 }
 
 export async function searchMovies(query: string, page: number = 1): Promise<TMDBResponse<Movie>> {
-  return fetchTMDB<TMDBResponse<Movie>>('/search/movie', {
-    query: encodeURIComponent(query),
-    page: String(page),
-    include_adult: 'false',
-  });
+  try {
+    return await fetchTMDB<TMDBResponse<Movie>>('/search/movie', {
+      query,
+      page: String(page),
+      include_adult: 'false',
+    });
+  } catch {
+    return { page: 1, results: [], total_pages: 0, total_results: 0 };
+  }
 }
 
 export async function searchTVShows(query: string, page: number = 1): Promise<TMDBResponse<TVShow>> {
-  return fetchTMDB<TMDBResponse<TVShow>>('/search/tv', {
-    query: encodeURIComponent(query),
-    page: String(page),
-    include_adult: 'false',
-  });
+  try {
+    return await fetchTMDB<TMDBResponse<TVShow>>('/search/tv', {
+      query,
+      page: String(page),
+      include_adult: 'false',
+    });
+  } catch {
+    return { page: 1, results: [], total_pages: 0, total_results: 0 };
+  }
 }
 
 export async function discoverMovies(
@@ -186,11 +210,5 @@ export async function discoverTVShows(
     params.with_genres = String(genreId);
   }
   return fetchTMDB<TMDBResponse<TVShow>>('/discover/tv', params);
-}
-
-export async function getTVShowDetails(id: number): Promise<TVShowDetail> {
-  return fetchTMDB<TVShowDetail>(`/tv/${id}`, {
-    append_to_response: 'videos,credits,similar',
-  });
 }
 

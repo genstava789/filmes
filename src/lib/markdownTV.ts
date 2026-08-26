@@ -524,7 +524,7 @@ export async function getTVShowDetailsWithCustomOverride(
   if (customTV) {
     tmdbId = Number(customTV.frontmatter.tmdb_id);
     if (!tmdbId || isNaN(tmdbId)) {
-      throw new Error(`Custom TV show '${customTV.showSlug}' missing valid tmdb_id in _index.md`);
+      tmdbId = 0;
     }
   } else {
     const str = String(showSlugOrId).trim();
@@ -547,21 +547,22 @@ export async function getTVShowDetailsWithCustomOverride(
             tmdbId = matched ? matched.id : null;
           }
         } catch (e) {
-          console.error(`Error searching TMDB for TV slug ${str}:`, e);
+          console.warn(`Error searching TMDB for TV slug ${str}:`, e);
         }
       }
     }
   }
 
-  if (!tmdbId || isNaN(tmdbId)) {
+  if (tmdbId === null || isNaN(tmdbId)) {
     return null;
   }
 
   // Fetch baseline TMDB details
-  const tmdbShow = await getTVShowDetails(tmdbId);
-  if (!tmdbShow) return null;
+  const tmdbShow = tmdbId > 0 ? await getTVShowDetails(tmdbId) : null;
+  if (!tmdbShow && !customTV) return null;
 
   if (!customTV) {
+    if (!tmdbShow) return null;
     return {
       ...tmdbShow,
       isCustomTV: false,
@@ -577,14 +578,14 @@ export async function getTVShowDetailsWithCustomOverride(
   // Overrides from frontmatter
   const overriddenName = frontmatter.title && frontmatter.title.trim() !== ''
     ? frontmatter.title
-    : tmdbShow.name;
+    : (tmdbShow?.name || customTV.showSlug);
 
   const overriddenRating = frontmatter.rating !== undefined && frontmatter.rating !== null && frontmatter.rating !== ''
     ? Number(frontmatter.rating)
-    : tmdbShow.vote_average;
+    : (tmdbShow?.vote_average || 0);
 
-  const overriddenOverview = (frontmatter.deskripsi || frontmatter.description)?.trim() || tmdbShow.overview;
-  const overriddenTagline = frontmatter.tagline?.trim() || tmdbShow.tagline;
+  const overriddenOverview = (frontmatter.deskripsi || frontmatter.description)?.trim() || tmdbShow?.overview || '';
+  const overriddenTagline = frontmatter.tagline?.trim() || tmdbShow?.tagline || '';
   const customImageUrl = frontmatter.image_url || null;
 
   // Determine active episode
@@ -609,13 +610,19 @@ export async function getTVShowDetailsWithCustomOverride(
   }
 
   return {
-    ...tmdbShow,
+    ...(tmdbShow || {}),
+    id: tmdbShow?.id || tmdbId || 0,
     name: overriddenName,
     vote_average: overriddenRating,
+    vote_count: tmdbShow?.vote_count || 0,
     overview: overriddenOverview,
     tagline: overriddenTagline,
-    number_of_seasons: hasSeasons ? seasons.length : (tmdbShow.number_of_seasons || 1),
-    number_of_episodes: allEpisodes.length > 0 ? allEpisodes.length : (tmdbShow.number_of_episodes || 0),
+    first_air_date: tmdbShow?.first_air_date || (frontmatter.year ? `${frontmatter.year}-01-01` : '2026-01-01'),
+    poster_path: customImageUrl || tmdbShow?.poster_path || null,
+    backdrop_path: tmdbShow?.backdrop_path || customImageUrl || null,
+    genres: tmdbShow?.genres || [],
+    number_of_seasons: hasSeasons ? seasons.length : (tmdbShow?.number_of_seasons || 1),
+    number_of_episodes: allEpisodes.length > 0 ? allEpisodes.length : (tmdbShow?.number_of_episodes || 0),
     isCustomTV: true,
     customSlug: customTV.showSlug,
     customImageUrl,
@@ -624,7 +631,7 @@ export async function getTVShowDetailsWithCustomOverride(
     seasonsList: seasons,
     allEpisodes,
     activeEpisode,
-  };
+  } as any;
 }
 
 /**

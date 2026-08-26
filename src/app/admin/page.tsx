@@ -758,12 +758,12 @@ export default function AdminPage() {
         </div>
 
         {/* Controls Bar - 100% Full Width */}
-        <div className="flex flex-col lg:flex-row items-stretch lg:items-center justify-between gap-4 mt-6 p-4 rounded-2xl bg-[#0c1224]/80 border border-white/10 backdrop-blur-md w-full">
+        <div className="flex flex-col md:flex-row items-stretch md:items-center justify-between gap-3 sm:gap-4 mt-6 p-3 sm:p-4 rounded-2xl bg-[#0c1224]/80 border border-white/10 backdrop-blur-md w-full">
           {/* Tabs */}
-          <div className="flex items-center gap-2 p-1 rounded-xl bg-white/5 border border-white/10">
+          <div className="flex items-center gap-1.5 p-1 rounded-xl bg-white/5 border border-white/10 w-full md:w-auto">
             <button
               onClick={() => setActiveTab('movies')}
-              className={`flex items-center gap-2 px-5 py-2 rounded-lg text-sm font-bold transition-all ${
+              className={`flex-1 md:flex-none flex items-center justify-center gap-2 px-4 sm:px-5 py-2 rounded-lg text-xs sm:text-sm font-bold transition-all ${
                 activeTab === 'movies'
                   ? 'bg-cyan-500 text-white shadow-md shadow-cyan-500/20'
                   : 'text-slate-400 hover:text-white'
@@ -775,7 +775,7 @@ export default function AdminPage() {
 
             <button
               onClick={() => setActiveTab('tv')}
-              className={`flex items-center gap-2 px-5 py-2 rounded-lg text-sm font-bold transition-all ${
+              className={`flex-1 md:flex-none flex items-center justify-center gap-2 px-4 sm:px-5 py-2 rounded-lg text-xs sm:text-sm font-bold transition-all ${
                 activeTab === 'tv'
                   ? 'bg-pink-500 text-white shadow-md shadow-pink-500/20'
                   : 'text-slate-400 hover:text-white'
@@ -786,48 +786,49 @@ export default function AdminPage() {
             </button>
           </div>
 
-          {/* Search, Sort, Filter */}
-          <div className="flex items-center gap-2.5 flex-wrap sm:flex-nowrap flex-1 justify-end">
-            {/* Search */}
-            <div className="relative w-full sm:w-64">
+          {/* Search, Sort, Filter - Responsive full width on mobile */}
+          <div className="flex flex-col sm:flex-row items-stretch sm:items-center gap-2.5 w-full md:w-auto flex-1 md:justify-end">
+            {/* Search Input */}
+            <div className="relative w-full sm:w-60 md:w-64">
               <Search size={16} className="absolute left-3.5 top-1/2 -translate-y-1/2 text-slate-400" />
               <input
                 type="text"
                 value={searchQuery}
                 onChange={(e) => setSearchQuery(e.target.value)}
-                placeholder="Cari judul, file, atau TMDB ID..."
-                className="w-full pl-10 pr-4 py-2 bg-black/40 border border-white/10 rounded-xl text-sm text-white placeholder-slate-500 focus:outline-none focus:border-cyan-400"
+                placeholder="Cari judul, file, atau TMDB..."
+                className="w-full pl-10 pr-4 py-2 bg-black/40 border border-white/10 rounded-xl text-xs sm:text-sm text-white placeholder-slate-500 focus:outline-none focus:border-cyan-400"
               />
             </div>
 
-            {/* Sort Dropdown */}
-            <div className="relative flex items-center gap-1.5 px-3 py-2 bg-black/40 border border-white/10 rounded-xl text-xs font-semibold text-slate-300">
-              <ArrowUpDown size={14} className="text-cyan-400" />
-              <select
-                value={sortBy}
-                onChange={(e) => setSortBy(e.target.value as SortOption)}
-                className="bg-transparent text-white focus:outline-none cursor-pointer"
-              >
-                <option value="newest" className="bg-slate-900 text-white">⏱️ Terbaru</option>
-                <option value="oldest" className="bg-slate-900 text-white">⏳ Terlama</option>
-                <option value="title_asc" className="bg-slate-900 text-white">🔤 Judul (A-Z)</option>
-                <option value="title_desc" className="bg-slate-900 text-white">🔡 Judul (Z-A)</option>
-                <option value="rating_desc" className="bg-slate-900 text-white">⭐ Rating Tertinggi</option>
-              </select>
-            </div>
+            {/* Sort & Filter in 2-Column Grid on Mobile (Zero Empty Gaps) */}
+            <div className="grid grid-cols-2 gap-2 w-full sm:w-auto">
+              <div className="relative flex items-center gap-1.5 px-3 py-2 bg-black/40 border border-white/10 rounded-xl text-xs font-semibold text-slate-300 w-full sm:w-auto">
+                <ArrowUpDown size={14} className="text-cyan-400 flex-shrink-0" />
+                <select
+                  value={sortBy}
+                  onChange={(e) => setSortBy(e.target.value as SortOption)}
+                  className="bg-transparent text-white focus:outline-none cursor-pointer w-full text-xs"
+                >
+                  <option value="newest" className="bg-slate-900 text-white">⏱️ Terbaru</option>
+                  <option value="oldest" className="bg-slate-900 text-white">⏳ Terlama</option>
+                  <option value="title_asc" className="bg-slate-900 text-white">🔤 Judul (A-Z)</option>
+                  <option value="title_desc" className="bg-slate-900 text-white">🔡 Judul (Z-A)</option>
+                  <option value="rating_desc" className="bg-slate-900 text-white">⭐ Rating</option>
+                </select>
+              </div>
 
-            {/* Filter Dropdown */}
-            <div className="relative flex items-center gap-1.5 px-3 py-2 bg-black/40 border border-white/10 rounded-xl text-xs font-semibold text-slate-300">
-              <Filter size={14} className="text-pink-400" />
-              <select
-                value={filterBy}
-                onChange={(e) => setFilterBy(e.target.value as FilterOption)}
-                className="bg-transparent text-white focus:outline-none cursor-pointer"
-              >
-                <option value="all" className="bg-slate-900 text-white">Semua Status</option>
-                <option value="featured" className="bg-slate-900 text-white">✨ Featured Saja</option>
-                <option value="non_featured" className="bg-slate-900 text-white">Standard (Non-Featured)</option>
-              </select>
+              <div className="relative flex items-center gap-1.5 px-3 py-2 bg-black/40 border border-white/10 rounded-xl text-xs font-semibold text-slate-300 w-full sm:w-auto">
+                <Filter size={14} className="text-pink-400 flex-shrink-0" />
+                <select
+                  value={filterBy}
+                  onChange={(e) => setFilterBy(e.target.value as FilterOption)}
+                  className="bg-transparent text-white focus:outline-none cursor-pointer w-full text-xs"
+                >
+                  <option value="all" className="bg-slate-900 text-white">Semua Status</option>
+                  <option value="featured" className="bg-slate-900 text-white">✨ Featured</option>
+                  <option value="non_featured" className="bg-slate-900 text-white">Non-Featured</option>
+                </select>
+              </div>
             </div>
           </div>
         </div>

@@ -276,9 +276,29 @@ export async function getMovieDetailsWithCustomOverride(
   if (customMovie) {
     tmdbId = Number(customMovie.frontmatter.tmdb_id);
     if (!tmdbId || isNaN(tmdbId)) {
-      throw new Error(
-        `Custom markdown file '${customMovie.filename}' missing valid tmdb_id in frontmatter.`
-      );
+      const { frontmatter, contentHtml } = customMovie;
+      return {
+        id: 0,
+        title: frontmatter.title || customMovie.slug,
+        tagline: frontmatter.tagline || '',
+        overview: (frontmatter.deskripsi || frontmatter.description || '').trim(),
+        poster_path: frontmatter.image_url || frontmatter.poster_path || null,
+        backdrop_path: frontmatter.backdrop_url || frontmatter.image_url || null,
+        release_date: frontmatter.year ? `${frontmatter.year}-01-01` : '2026-01-01',
+        vote_average: frontmatter.rating ? Number(frontmatter.rating) : 0,
+        vote_count: 0,
+        genres: [],
+        runtime: 120,
+        credits: { cast: [], crew: [] },
+        videos: { results: [] },
+        similar: { page: 1, results: [], total_pages: 0, total_results: 0 },
+        isCustomMarkdown: true,
+        customSlug: customMovie.slug,
+        customVideoUrl: frontmatter.videourl || frontmatter.video_url || null,
+        customImageUrl: frontmatter.image_url || null,
+        customSubtitles: frontmatter.subtitles || null,
+        customContentHtml: contentHtml && contentHtml.trim().length > 0 ? contentHtml : null,
+      } as any;
     }
   } else {
     const str = String(slugOrId).trim();
@@ -302,7 +322,7 @@ export async function getMovieDetailsWithCustomOverride(
             tmdbId = matched ? matched.id : null;
           }
         } catch (e) {
-          console.error(`Error searching TMDB for movie slug ${str}:`, e);
+          console.warn(`Error searching TMDB for movie slug ${str}:`, e);
         }
       }
     }
@@ -314,7 +334,34 @@ export async function getMovieDetailsWithCustomOverride(
 
   // Fetch full data from TMDB API
   const tmdbMovie = await getMovieDetails(tmdbId);
-  if (!tmdbMovie) return null;
+  if (!tmdbMovie) {
+    if (customMovie) {
+      const { frontmatter, contentHtml } = customMovie;
+      return {
+        id: tmdbId,
+        title: frontmatter.title || customMovie.slug,
+        tagline: frontmatter.tagline || '',
+        overview: (frontmatter.deskripsi || frontmatter.description || '').trim(),
+        poster_path: frontmatter.image_url || frontmatter.poster_path || null,
+        backdrop_path: frontmatter.backdrop_url || frontmatter.image_url || null,
+        release_date: frontmatter.year ? `${frontmatter.year}-01-01` : '2026-01-01',
+        vote_average: frontmatter.rating ? Number(frontmatter.rating) : 0,
+        vote_count: 0,
+        genres: [],
+        runtime: 120,
+        credits: { cast: [], crew: [] },
+        videos: { results: [] },
+        similar: { page: 1, results: [], total_pages: 0, total_results: 0 },
+        isCustomMarkdown: true,
+        customSlug: customMovie.slug,
+        customVideoUrl: frontmatter.videourl || frontmatter.video_url || null,
+        customImageUrl: frontmatter.image_url || null,
+        customSubtitles: frontmatter.subtitles || null,
+        customContentHtml: contentHtml && contentHtml.trim().length > 0 ? contentHtml : null,
+      } as any;
+    }
+    return null;
+  }
 
   // If no custom markdown file is associated, return baseline TMDB details
   if (!customMovie) {
