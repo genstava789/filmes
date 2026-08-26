@@ -743,61 +743,79 @@ export async function PUT(request: NextRequest) {
 }
 
 // ──────────────────────────────────────────
-// DELETE: Delete a markdown file or TV folder
+// DELETE: Delete markdown file(s) or TV folder(s) (supports single & batch)
 // ──────────────────────────────────────────
 export async function DELETE(request: NextRequest) {
   const token = getHeaderToken(request);
 
   try {
     const { searchParams } = new URL(request.url);
-    const relativePath = searchParams.get('path');
+    const pathParam = searchParams.get('path');
+    let pathsToDelete: string[] = [];
 
-    if (!relativePath) {
-      return NextResponse.json({ error: 'Path parameter is required' }, { status: 400 });
-    }
-
-    const isMovie = relativePath.startsWith('video/');
-    const isTV = relativePath.startsWith('tv/');
-
-    if (!isMovie && !isTV) {
-      return NextResponse.json({ error: 'Access denied outside content directories' }, { status: 403 });
-    }
-
-    let deletedLocal = false;
-    try {
-      const fullPath = path.join(process.cwd(), relativePath);
-      if (fs.existsSync(fullPath)) {
-        const stat = fs.statSync(fullPath);
-        if (stat.isDirectory()) {
-          fs.rmSync(fullPath, { recursive: true, force: true });
-        } else {
-          fs.unlinkSync(fullPath);
+    if (pathParam) {
+      pathsToDelete = [pathParam];
+    } else {
+      try {
+        const body = await request.json().catch(() => ({}));
+        if (Array.isArray(body.paths)) {
+          pathsToDelete = body.paths;
+        } else if (body.path) {
+          pathsToDelete = [body.path];
         }
-        deletedLocal = true;
-      }
-    } catch (fsErr: any) {
-      if (fsErr.code !== 'EROFS' && !fsErr.message?.includes('read-only')) {
-        throw fsErr;
-      }
+      } catch {}
     }
 
-    if (!deletedLocal || token) {
-      if (!token) {
-        return NextResponse.json(
-          {
-            error:
-              'Sistem hosting Vercel bersifat Read-Only. Masukkan GitHub Personal Access Token di Pengaturan Admin (tombol ⚙️) untuk menghapus langsung di repositori secara live.',
-            requiresToken: true,
-          },
-          { status: 400 }
-        );
+    if (pathsToDelete.length === 0) {
+      return NextResponse.json({ error: 'Path parameter or paths array is required' }, { status: 400 });
+    }
+
+    for (const relativePath of pathsToDelete) {
+      const isMovie = relativePath.startsWith('video/');
+      const isTV = relativePath.startsWith('tv/');
+
+      if (!isMovie && !isTV) {
+        continue;
       }
 
-      await deleteGitHubFile(relativePath, `cms: delete ${relativePath}`, { token });
+      let deletedLocal = false;
+      try {
+        const fullPath = path.join(process.cwd(), relativePath);
+        if (fs.existsSync(fullPath)) {
+          const stat = fs.statSync(fullPath);
+          if (stat.isDirectory()) {
+            fs.rmSync(fullPath, { recursive: true, force: true });
+          } else {
+            fs.unlinkSync(fullPath);
+          }
+          deletedLocal = true;
+        }
+      } catch (fsErr: any) {
+        if (fsErr.code !== 'EROFS' && !fsErr.message?.includes('read-only')) {
+          throw fsErr;
+        }
+      }
+
+      if (!deletedLocal || token) {
+        if (!token && !deletedLocal) {
+          return NextResponse.json(
+            {
+              error:
+                'Sistem hosting Vercel bersifat Read-Only. Masukkan GitHub Personal Access Token di Pengaturan Admin (tombol ⚙️) untuk menghapus langsung di repositori secara live.',
+              requiresToken: true,
+            },
+            { status: 400 }
+          );
+        }
+
+        if (token) {
+          await deleteGitHubFile(relativePath, `cms: delete ${relativePath}`, { token });
+        }
+      }
     }
 
     revalidateAll();
-    return NextResponse.json({ success: true, message: `Successfully deleted ${relativePath}` });
+    return NextResponse.json({ success: true, count: pathsToDelete.length });
   } catch (error: any) {
     console.error('Error deleting content:', error);
     return NextResponse.json({ error: error.message || 'Failed to delete content' }, { status: 500 });

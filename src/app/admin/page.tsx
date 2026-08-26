@@ -31,13 +31,14 @@ import {
   ChevronRight,
   ChevronsLeft,
   ChevronsRight,
-  ChevronUp,
-  ChevronDown,
   FolderPlus,
   ImageIcon,
   ListPlus,
   FileText,
   Copy,
+  CheckSquare,
+  Square,
+  Check,
 } from 'lucide-react';
 
 interface MovieItem {
@@ -236,7 +237,7 @@ export default function AdminPage() {
   const [currentPage, setCurrentPage] = useState(1);
   const itemsPerPage = 9;
 
-  // GitHub Token & Hydration Safety (Fixes Flicker)
+  // GitHub Token & Hydration Safety
   const [githubToken, setGithubToken] = useState<string>('');
   const [tokenChecked, setTokenChecked] = useState(false);
   const [isSettingsOpen, setIsSettingsOpen] = useState(false);
@@ -271,20 +272,22 @@ export default function AdminPage() {
       id: 'season-1',
       season: 's1',
       name: 'Season 1',
-      episodes: [{ id: 'ep-1-1', episode: '1', videourl: '', title: '' }],
+      episodes: [{ id: 'ep-1-1', episode: '1', videourl: '', title: '', image_url: '' }],
     },
   ]);
   const [activeSeasonTab, setActiveSeasonTab] = useState<string>('s1');
   const [batchUrlsInput, setBatchUrlsInput] = useState('');
   const [showBatchUrlInput, setShowBatchUrlInput] = useState(false);
+  const [selectedDraftEpIds, setSelectedDraftEpIds] = useState<string[]>([]);
 
   // Edit Modal State for TV Shows
   const [editShowTab, setEditShowTab] = useState<'info' | 'episodes'>('info');
   const [editActiveSeasonTab, setEditActiveSeasonTab] = useState<string>('s1');
   const [editBatchUrlsInput, setEditBatchUrlsInput] = useState('');
   const [showEditBatchUrlInput, setShowEditBatchUrlInput] = useState(false);
+  const [selectedEditEpPaths, setSelectedEditEpPaths] = useState<string[]>([]);
 
-  // Active episode image picker draft tracker
+  // Active episode image picker draft tracker (for Create / Edit)
   const [activeEpisodePickerDraftId, setActiveEpisodePickerDraftId] = useState<string | null>(null);
 
   // Form Validation Touched & Errors
@@ -439,7 +442,7 @@ export default function AdminPage() {
     }
   };
 
-  // Open Edit Modal with fresh state (with TV show TMDB ID lookup for episodes)
+  // Open Edit Modal with fresh state
   const openEditModal = (item: {
     type: 'movie' | 'tv_show' | 'tv_episode';
     relativePath: string;
@@ -452,6 +455,7 @@ export default function AdminPage() {
     setShowEditBackdropPicker(false);
     setEditSelectedBackdropLang('all');
     setEditShowTab('info');
+    setSelectedEditEpPaths([]);
     setIsEditModalOpen(true);
 
     let tmdbIdToFetch = item.frontmatter.tmdb_id;
@@ -475,7 +479,7 @@ export default function AdminPage() {
     setCurrentPage(1);
   }, [activeTab, searchQuery, sortBy, filterBy]);
 
-  // TMDB Autofetch preview with support for pure IDs and full TMDB URLs
+  // TMDB Autofetch preview with auto backdrop population
   const handleFetchTmdbPreview = async (idOrUrl: string, type: 'movie' | 'tv') => {
     const extracted = extractTmdbIdAndType(idOrUrl);
     if (!extracted.id) {
@@ -494,12 +498,12 @@ export default function AdminPage() {
     setFetchingTmdb(true);
     try {
       const res = await fetch(`/api/admin/tmdb-preview?id=${cleanId}&type=${targetType}`);
-      const data = await res.json();
+      const data: TMDBPreviewData = await res.json();
       if (res.ok) {
         setTmdbPreview(data);
         if (!formTitle || formTitle === formTmdbId) setFormTitle(data.title);
-        if (!formDesc) setFormDesc(data.overview);
-        if (!formPoster) setFormPoster(data.posterUrl);
+        if (!formDesc) setFormDesc(data.overview || '');
+        if (!formPoster) setFormPoster(data.posterUrl || '');
         if (!formRating) setFormRating(String(data.rating || ''));
         if (data.title && !formSlug) {
           const autoSlug = slugify(data.title);
@@ -507,7 +511,9 @@ export default function AdminPage() {
           else setFormSlug(autoSlug);
         }
 
-        // Initialize multiple seasons if TV Show has multiple seasons in TMDB
+        // Auto-assign backdrop from TMDB to episode drafts if available
+        const defaultBackdrop = data.backdrops?.[0]?.url || data.backdropUrl || data.posterUrl || '';
+
         if (targetType === 'tv' && data.numberOfSeasons && data.numberOfSeasons > 0) {
           const newSeasons: SeasonDraft[] = [];
           const seasonCount = Math.min(data.numberOfSeasons, 12);
@@ -522,12 +528,24 @@ export default function AdminPage() {
                   episode: '1',
                   videourl: '',
                   title: '',
+                  image_url: defaultBackdrop,
                 },
               ],
             });
           }
           setFormSeasons(newSeasons);
           setActiveSeasonTab('s1');
+        } else {
+          // If 1 season draft exists, assign default backdrop
+          setFormSeasons((prev) =>
+            prev.map((s) => ({
+              ...s,
+              episodes: s.episodes.map((ep) => ({
+                ...ep,
+                image_url: ep.image_url || defaultBackdrop,
+              })),
+            }))
+          );
         }
 
         setFormErrors((prev) => {
@@ -535,9 +553,9 @@ export default function AdminPage() {
           delete next.tmdb_id;
           return next;
         });
-        showToast('Data TMDB berhasil diambil!', 'success');
+        showToast('Data TMDB berhasil dimuat & backdrop otomatis diterapkan!');
       } else {
-        setFormErrors((prev) => ({ ...prev, tmdb_id: data.error || 'TMDB ID tidak ditemukan' }));
+        setFormErrors((prev) => ({ ...prev, tmdb_id: 'TMDB ID tidak ditemukan' }));
       }
     } catch (e) {
       setFormErrors((prev) => ({ ...prev, tmdb_id: 'Gagal mengambil data dari TMDB API' }));
@@ -586,12 +604,13 @@ export default function AdminPage() {
         id: 'season-1',
         season: 's1',
         name: 'Season 1',
-        episodes: [{ id: 'ep-1-1', episode: '1', videourl: '', title: '' }],
+        episodes: [{ id: 'ep-1-1', episode: '1', videourl: '', title: '', image_url: '' }],
       },
     ]);
     setActiveSeasonTab('s1');
     setBatchUrlsInput('');
     setShowBatchUrlInput(false);
+    setSelectedDraftEpIds([]);
     setActiveEpisodePickerDraftId(null);
   };
 
@@ -605,11 +624,13 @@ export default function AdminPage() {
       });
       const nextNum = maxNum + 1;
       const nextSeasonSlug = `s${nextNum}`;
+      // Inherit image from first season's first episode or TMDB preview
+      const defaultImg = prev[0]?.episodes[0]?.image_url || tmdbPreview?.backdropUrl || formPoster || '';
       const newSeason: SeasonDraft = {
         id: `season-${nextNum}-${Date.now()}`,
         season: nextSeasonSlug,
         name: `Season ${nextNum}`,
-        episodes: [{ id: `ep-${nextNum}-1-${Date.now()}`, episode: '1', videourl: '', title: '' }],
+        episodes: [{ id: `ep-${nextNum}-1-${Date.now()}`, episode: '1', videourl: '', title: '', image_url: defaultImg }],
       };
       setActiveSeasonTab(nextSeasonSlug);
       return [...prev, newSeason];
@@ -630,6 +651,7 @@ export default function AdminPage() {
     });
   };
 
+  // Add new episode to season draft inheriting config from Episode 1
   const addEpisodeToSeason = (seasonSlug: string) => {
     setFormSeasons((prev) =>
       prev.map((s) => {
@@ -640,11 +662,14 @@ export default function AdminPage() {
           if (num > maxEp) maxEp = num;
         });
         const nextEpNum = maxEp + 1;
+        // Inherit image from Episode 1 in this season or default
+        const ep1Image = s.episodes[0]?.image_url || tmdbPreview?.backdropUrl || formPoster || '';
         const newEp: EpisodeDraft = {
           id: `ep-${s.season}-${nextEpNum}-${Date.now()}`,
           episode: String(nextEpNum),
           videourl: '',
           title: '',
+          image_url: ep1Image,
         };
         return {
           ...s,
@@ -668,6 +693,7 @@ export default function AdminPage() {
         };
       })
     );
+    setSelectedDraftEpIds((prev) => prev.filter((id) => id !== epId));
   };
 
   const updateEpisodeInSeason = (
@@ -697,6 +723,7 @@ export default function AdminPage() {
           const num = parseInt(ep.episode.replace(/\D/g, '') || '0', 10);
           if (num > maxEp) maxEp = num;
         });
+        const ep1Image = s.episodes[0]?.image_url || tmdbPreview?.backdropUrl || formPoster || '';
         const newEpisodes: EpisodeDraft[] = [];
         for (let i = 1; i <= count; i++) {
           const epNum = maxEp + i;
@@ -705,6 +732,7 @@ export default function AdminPage() {
             episode: String(epNum),
             videourl: '',
             title: '',
+            image_url: ep1Image,
           });
         }
         return {
@@ -713,7 +741,7 @@ export default function AdminPage() {
         };
       })
     );
-    showToast(`Berhasil menambahkan ${count} episode ke ${formatSeasonLabel(seasonSlug)}!`, 'success');
+    showToast(`Berhasil menambahkan ${count} episode ke ${formatSeasonLabel(seasonSlug)}!`);
   };
 
   const handleBatchPasteUrls = (seasonSlug: string) => {
@@ -738,12 +766,14 @@ export default function AdminPage() {
         const hasSingleEmpty = s.episodes.length === 1 && !s.episodes[0].videourl.trim();
         const baseEpisodes = hasSingleEmpty ? [] : [...s.episodes];
         const startNum = hasSingleEmpty ? 0 : maxEp;
+        const ep1Image = s.episodes[0]?.image_url || tmdbPreview?.backdropUrl || formPoster || '';
 
         const generated: EpisodeDraft[] = lines.map((url, idx) => ({
           id: `ep-${s.season}-${startNum + idx + 1}-${Date.now()}-${idx}`,
           episode: String(startNum + idx + 1),
           videourl: cleanVideoUrl(url) || url,
           title: '',
+          image_url: ep1Image,
         }));
 
         return {
@@ -755,7 +785,65 @@ export default function AdminPage() {
 
     setBatchUrlsInput('');
     setShowBatchUrlInput(false);
-    showToast(`Berhasil menambahkan ${lines.length} episode dari URL yang ditempel!`, 'success');
+    showToast(`Berhasil menambahkan ${lines.length} episode dari URL yang ditempel!`);
+  };
+
+  // Multi-select actions for Create Form Episode Drafts
+  const toggleSelectDraftEp = (epId: string) => {
+    setSelectedDraftEpIds((prev) =>
+      prev.includes(epId) ? prev.filter((id) => id !== epId) : [...prev, epId]
+    );
+  };
+
+  const toggleSelectAllDraftEps = (seasonSlug: string) => {
+    const season = formSeasons.find((s) => s.season === seasonSlug);
+    if (!season) return;
+    const seasonEpIds = season.episodes.map((ep) => ep.id);
+    const allSelected = seasonEpIds.every((id) => selectedDraftEpIds.includes(id));
+    if (allSelected) {
+      setSelectedDraftEpIds((prev) => prev.filter((id) => !seasonEpIds.includes(id)));
+    } else {
+      setSelectedDraftEpIds((prev) => Array.from(new Set([...prev, ...seasonEpIds])));
+    }
+  };
+
+  const deleteSelectedDraftEps = (seasonSlug: string) => {
+    if (selectedDraftEpIds.length === 0) return;
+    setFormSeasons((prev) =>
+      prev.map((s) => {
+        if (s.season !== seasonSlug) return s;
+        const remaining = s.episodes.filter((ep) => !selectedDraftEpIds.includes(ep.id));
+        if (remaining.length === 0) {
+          const ep1Image = tmdbPreview?.backdropUrl || formPoster || '';
+          return {
+            ...s,
+            episodes: [{ id: `ep-${s.season}-1-${Date.now()}`, episode: '1', videourl: '', title: '', image_url: ep1Image }],
+          };
+        }
+        return {
+          ...s,
+          episodes: remaining,
+        };
+      })
+    );
+    setSelectedDraftEpIds([]);
+    showToast('Episode terpilih berhasil dihapus.');
+  };
+
+  const deleteAllDraftEps = (seasonSlug: string) => {
+    if (!confirm('Apakah Anda yakin ingin menghapus semua episode di season ini?')) return;
+    setFormSeasons((prev) =>
+      prev.map((s) => {
+        if (s.season !== seasonSlug) return s;
+        const ep1Image = tmdbPreview?.backdropUrl || formPoster || '';
+        return {
+          ...s,
+          episodes: [{ id: `ep-${s.season}-1-${Date.now()}`, episode: '1', videourl: '', title: '', image_url: ep1Image }],
+        };
+      })
+    );
+    setSelectedDraftEpIds([]);
+    showToast('Semua episode di season ini telah direset.');
   };
 
   // Validate create form
@@ -819,7 +907,7 @@ export default function AdminPage() {
       seasons: formSeasons,
     };
 
-    // 1. Instant update in local state - Place at the very top (index 0)
+    // 1. Instant update in local state
     if (contentType === 'movie') {
       const posterImg = payload.poster || tmdbPreview?.posterUrl || null;
       const formattedPoster = posterImg ? (posterImg.startsWith('http') ? posterImg : `https://image.tmdb.org/t/p/w500${posterImg}`) : null;
@@ -910,7 +998,7 @@ export default function AdminPage() {
 
     setIsCreateModalOpen(false);
     resetCreateForm();
-    showToast('Menyimpan ke GitHub & memperbarui halaman...', 'success');
+    showToast('Menyimpan ke GitHub & memperbarui halaman...');
 
     try {
       const res = await fetch('/api/admin/content', {
@@ -978,7 +1066,7 @@ export default function AdminPage() {
     return Object.keys(errors).length === 0;
   };
 
-  // Submit Edit with instant update and moving the modified post to the top
+  // Submit Edit with instant update
   const handleEditSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
     if (!editingItem) return;
@@ -993,7 +1081,6 @@ export default function AdminPage() {
     const imgVal = editingItem.frontmatter.image_url || editingItem.frontmatter.poster_path || null;
     const formattedPoster = imgVal ? (imgVal.startsWith('http') ? imgVal : `https://image.tmdb.org/t/p/w500${imgVal}`) : null;
 
-    // Instant local state update & move edited post to index 0 (top of list)
     if (editingItem.type === 'movie') {
       setMovies((prev) => {
         const existing = prev.find((m) => m.relativePath === editingItem.relativePath);
@@ -1064,7 +1151,7 @@ export default function AdminPage() {
     setIsEditModalOpen(false);
     setEditTmdbPreview(null);
     setShowEditBackdropPicker(false);
-    showToast('Menyimpan perubahan...', 'success');
+    showToast('Menyimpan perubahan...');
 
     try {
       const res = await fetch('/api/admin/content', {
@@ -1096,7 +1183,7 @@ export default function AdminPage() {
     }
   };
 
-  // Delete Content
+  // Delete Content (Single)
   const handleDelete = async (relativePath: string, label: string) => {
     if (!requireToken('menghapus konten')) return;
 
@@ -1132,11 +1219,124 @@ export default function AdminPage() {
     }
   };
 
-  // Quick Add New Episode to existing show in Edit Modal
+  // Multi-Select for Existing TV Show Episodes
+  const toggleSelectEditEp = (relativePath: string) => {
+    setSelectedEditEpPaths((prev) =>
+      prev.includes(relativePath) ? prev.filter((p) => p !== relativePath) : [...prev, relativePath]
+    );
+  };
+
+  const toggleSelectAllEditEps = (show: TVShowItem, seasonSlug: string) => {
+    const seasonEps = show.episodes.filter(
+      (ep) => (ep.seasonFolder || 's1').toLowerCase() === seasonSlug.toLowerCase()
+    );
+    const seasonPaths = seasonEps.map((ep) => ep.relativePath);
+    const allSelected = seasonPaths.every((p) => selectedEditEpPaths.includes(p));
+
+    if (allSelected) {
+      setSelectedEditEpPaths((prev) => prev.filter((p) => !seasonPaths.includes(p)));
+    } else {
+      setSelectedEditEpPaths((prev) => Array.from(new Set([...prev, ...seasonPaths])));
+    }
+  };
+
+  const deleteSelectedEditEps = async (show: TVShowItem, seasonSlug: string) => {
+    if (selectedEditEpPaths.length === 0) return;
+    if (!requireToken('menghapus episode terpilih')) return;
+
+    if (!confirm(`Hapus ${selectedEditEpPaths.length} episode terpilih secara permanen?`)) return;
+
+    const pathsToDelete = [...selectedEditEpPaths];
+
+    // Optimistic delete
+    setTvShows((prev) =>
+      prev.map((s) =>
+        s.showSlug === show.showSlug
+          ? {
+              ...s,
+              episodes: s.episodes.filter((ep) => !pathsToDelete.includes(ep.relativePath)),
+            }
+          : s
+      )
+    );
+    setSelectedEditEpPaths([]);
+
+    try {
+      const res = await fetch('/api/admin/content', {
+        method: 'DELETE',
+        headers: getHeaders(),
+        body: JSON.stringify({ paths: pathsToDelete }),
+      });
+      const data = await res.json();
+      if (res.ok) {
+        showToast(`Berhasil menghapus ${pathsToDelete.length} episode!`);
+        fetchContent();
+      } else {
+        showToast(data.error || 'Gagal menghapus episode terpilih', 'error');
+        fetchContent();
+      }
+    } catch {
+      showToast('Gagal menghapus episode terpilih', 'error');
+    }
+  };
+
+  const deleteAllEditEpsInSeason = async (show: TVShowItem, seasonSlug: string) => {
+    if (!requireToken('menghapus seluruh episode')) return;
+    const seasonEps = show.episodes.filter(
+      (ep) => (ep.seasonFolder || 's1').toLowerCase() === seasonSlug.toLowerCase()
+    );
+    if (seasonEps.length === 0) return;
+
+    if (!confirm(`Apakah Anda yakin ingin menghapus SEMUA (${seasonEps.length}) episode di ${formatSeasonLabel(seasonSlug)}? Tindakan ini permanen.`)) return;
+
+    const pathsToDelete = seasonEps.map((ep) => ep.relativePath);
+
+    // Optimistic delete
+    setTvShows((prev) =>
+      prev.map((s) =>
+        s.showSlug === show.showSlug
+          ? {
+              ...s,
+              episodes: s.episodes.filter((ep) => !pathsToDelete.includes(ep.relativePath)),
+            }
+          : s
+      )
+    );
+    setSelectedEditEpPaths([]);
+
+    try {
+      const res = await fetch('/api/admin/content', {
+        method: 'DELETE',
+        headers: getHeaders(),
+        body: JSON.stringify({ paths: pathsToDelete }),
+      });
+      const data = await res.json();
+      if (res.ok) {
+        showToast(`Semua episode di ${formatSeasonLabel(seasonSlug)} berhasil dihapus!`);
+        fetchContent();
+      } else {
+        showToast(data.error || 'Gagal menghapus semua episode', 'error');
+        fetchContent();
+      }
+    } catch {
+      showToast('Gagal menghapus episode', 'error');
+    }
+  };
+
+  // Quick Add New Episode to existing show with Episode 1 Configuration Inheritance
   const handleQuickAddEpisodeToEditShow = (show: TVShowItem, seasonSlug: string) => {
     const nextEpNum = getNextEpisodeNumber(show, seasonSlug);
     const cleanSeason = seasonSlug.toLowerCase().startsWith('s') ? seasonSlug.toLowerCase() : `s${seasonSlug.replace(/\D/g, '') || '1'}`;
     const cleanEp = `e${nextEpNum}`;
+
+    // Inherit backdrop image & settings from Episode 1 (or show frontmatter)
+    const ep1 = show.episodes.find(
+      (ep) => (ep.seasonFolder || 's1').toLowerCase() === cleanSeason.toLowerCase() && (ep.slug === 'e1' || ep.filename === 'e1.md')
+    ) || show.episodes[0];
+
+    const inheritedImage = ep1?.frontmatter.image_url || show.posterUrl || show.frontmatter.image_url || '';
+    const inheritedSubtitles = ep1?.frontmatter.subtitles || '';
+    const inheritedDuration = ep1?.frontmatter.duration || '';
 
     openEditModal({
       type: 'tv_episode',
@@ -1144,12 +1344,15 @@ export default function AdminPage() {
       frontmatter: {
         title: `Episode ${nextEpNum}`,
         videourl: '',
+        image_url: inheritedImage,
+        subtitles: inheritedSubtitles,
+        duration: inheritedDuration,
       },
       content: '',
     });
   };
 
-  // Batch paste URLs for existing show in Edit Modal
+  // Batch paste URLs for existing show in Edit Modal inheriting backdrop
   const handleEditShowBatchPasteUrls = async (show: TVShowItem, seasonSlug: string) => {
     const lines = editBatchUrlsInput
       .split('\n')
@@ -1165,12 +1368,18 @@ export default function AdminPage() {
     const cleanSeason = seasonSlug.toLowerCase().startsWith('s') ? seasonSlug.toLowerCase() : `s${seasonSlug.replace(/\D/g, '') || '1'}`;
     const startNum = getNextEpisodeNumber(show, cleanSeason);
 
-    showToast(`Menyimpan ${lines.length} episode baru ke ${formatSeasonLabel(cleanSeason)}...`, 'success');
+    const ep1 = show.episodes.find(
+      (ep) => (ep.seasonFolder || 's1').toLowerCase() === cleanSeason.toLowerCase() && (ep.slug === 'e1' || ep.filename === 'e1.md')
+    ) || show.episodes[0];
+    const inheritedImage = ep1?.frontmatter.image_url || show.posterUrl || show.frontmatter.image_url || '';
+
+    showToast(`Menyimpan ${lines.length} episode baru ke ${formatSeasonLabel(cleanSeason)}...`);
 
     const generatedEpisodes = lines.map((url, idx) => ({
       episode: String(startNum + idx),
       videourl: cleanVideoUrl(url) || url,
       title: `Episode ${startNum + idx}`,
+      image_url: inheritedImage,
     }));
 
     try {
@@ -1192,7 +1401,7 @@ export default function AdminPage() {
 
       const data = await res.json();
       if (res.ok) {
-        showToast(`Berhasil menambahkan ${lines.length} episode baru!`, 'success');
+        showToast(`Berhasil menambahkan ${lines.length} episode baru!`);
         setEditBatchUrlsInput('');
         setShowEditBatchUrlInput(false);
         fetchContent();
@@ -1284,7 +1493,7 @@ export default function AdminPage() {
     return filteredTvShows.slice(start, start + itemsPerPage);
   }, [filteredTvShows, currentPage, itemsPerPage]);
 
-  // Active TV Show being edited (if editing tv_show)
+  // Active TV Show being edited
   const currentEditingShow = useMemo(() => {
     if (!editingItem) return null;
     if (editingItem.type === 'tv_show') {
@@ -1298,7 +1507,7 @@ export default function AdminPage() {
   }, [editingItem, tvShows]);
 
   return (
-    <div className="min-h-screen bg-[#070913] text-slate-100 pb-20 selection:bg-cyan-500 selection:text-black">
+    <div className="min-h-screen bg-[#070913] text-slate-100 pb-20 selection:bg-cyan-500 selection:text-black font-sans">
       {/* Toast Notification */}
       {toastMessage && (
         <div
@@ -1326,13 +1535,13 @@ export default function AdminPage() {
         <div className="max-w-7xl mx-auto flex flex-col sm:flex-row items-center justify-between gap-4">
           <div className="flex items-center gap-3">
             <div className="w-10 h-10 rounded-xl bg-gradient-to-tr from-cyan-500 to-blue-600 flex items-center justify-center shadow-lg shadow-cyan-500/20">
-              <Layers size={22} className="text-white" />
+              <Layers size={20} className="text-white" />
             </div>
             <div>
-              <h1 className="text-xl font-bold bg-gradient-to-r from-white via-slate-200 to-slate-400 bg-clip-text text-transparent">
+              <h1 className="text-xl font-bold tracking-tight bg-gradient-to-r from-white via-slate-200 to-slate-400 bg-clip-text text-transparent">
                 Filmes Admin Panel
               </h1>
-              <p className="text-xs text-slate-400">Content Management & Live Post Publisher</p>
+              <p className="text-xs text-slate-400 font-medium">Content Management & Live Post Publisher</p>
             </div>
           </div>
 
@@ -1643,7 +1852,7 @@ export default function AdminPage() {
                               TMDB {tmdbId}
                             </span>
                             <span className="px-2 py-0.5 rounded text-[10px] font-bold bg-purple-500/10 text-purple-400 border border-purple-500/30">
-                              {show.episodes.length} Episodes
+                              {show.episodes.length} Episode
                             </span>
                           </div>
                           <h3 className="font-bold text-white text-lg leading-snug">
@@ -1679,7 +1888,7 @@ export default function AdminPage() {
                               content: show.content,
                             });
                           }}
-                          className="inline-flex items-center gap-1.5 px-3 py-1.5 rounded-lg text-xs font-bold bg-pink-500/20 hover:bg-pink-500/30 text-pink-300 border border-pink-500/40 transition-all"
+                          className="inline-flex items-center gap-1.5 px-3.5 py-1.5 rounded-lg text-xs font-bold bg-pink-500/20 hover:bg-pink-500/30 text-pink-300 border border-pink-500/40 transition-all shadow-md shadow-pink-500/10"
                         >
                           <Edit2 size={13} />
                           <span>Kelola Series & Episode</span>
@@ -1726,6 +1935,7 @@ export default function AdminPage() {
                             const seasonLabel = formatSeasonLabel(ep.seasonFolder);
                             const epTitle = ep.displayTitle || ep.frontmatter.title || ep.slug;
                             const epVideo = ep.frontmatter.videourl || ep.frontmatter.video_url;
+                            const epPoster = ep.posterUrl || ep.frontmatter.image_url;
                             const baseTVUrl = getTVUrl({
                               id: show.frontmatter.tmdb_id,
                               tmdbId: show.frontmatter.tmdb_id,
@@ -1740,14 +1950,26 @@ export default function AdminPage() {
                             return (
                               <div
                                 key={ep.relativePath}
-                                className="p-3.5 rounded-xl bg-black/40 border border-white/5 flex flex-col justify-between w-full"
+                                className="p-3 rounded-xl bg-black/40 border border-white/5 flex flex-col justify-between w-full hover:border-white/20 transition-all"
                               >
                                 <div>
-                                  <div className="flex items-center justify-between gap-2 mb-1.5">
-                                    <span className="px-1.5 py-0.5 rounded text-[10px] font-bold bg-white/10 text-slate-300">
-                                      {seasonLabel} : {ep.slug.toUpperCase()}
-                                    </span>
-                                    <div className="flex items-center gap-1">
+                                  {/* Episode Thumbnail Backdrop */}
+                                  {epPoster && (
+                                    <div className="relative w-full aspect-video rounded-lg overflow-hidden mb-2 bg-slate-900 border border-white/5">
+                                      <Image src={epPoster} alt={epTitle} fill className="object-cover" sizes="(max-width: 640px) 100vw, 25vw" />
+                                      <span className="absolute top-1 left-1 px-1.5 py-0.5 rounded text-[9px] font-extrabold bg-black/80 text-purple-300 backdrop-blur-sm">
+                                        {seasonLabel} • {ep.slug.toUpperCase()}
+                                      </span>
+                                    </div>
+                                  )}
+
+                                  <div className="flex items-center justify-between gap-2 mb-1">
+                                    {!epPoster && (
+                                      <span className="px-1.5 py-0.5 rounded text-[10px] font-bold bg-white/10 text-slate-300">
+                                        {seasonLabel} : {ep.slug.toUpperCase()}
+                                      </span>
+                                    )}
+                                    <div className="flex items-center gap-1 ml-auto">
                                       <button
                                         onClick={() => {
                                           if (!requireToken('mengedit episode')) return;
@@ -1807,7 +2029,7 @@ export default function AdminPage() {
         {/* Pagination Bar */}
         {totalItems > 0 && (
           <div className="flex flex-col sm:flex-row items-center justify-between gap-4 mt-8 pt-6 border-t border-white/10 w-full">
-            <div className="text-xs text-slate-400">
+            <div className="text-xs text-slate-400 font-medium">
               Menampilkan{' '}
               <span className="font-bold text-white">
                 {Math.min(totalItems, (currentPage - 1) * itemsPerPage + 1)}
@@ -1872,8 +2094,8 @@ export default function AdminPage() {
           <div className="w-full max-w-lg bg-[#0c1224] border border-white/15 rounded-2xl shadow-2xl overflow-hidden animate-slide-up">
             <div className="flex items-center justify-between p-5 border-b border-white/10 bg-white/5">
               <div className="flex items-center gap-2">
-                <Key size={20} className="text-cyan-400" />
-                <h3 className="text-base font-bold text-white">Pengaturan GitHub Token</h3>
+                <Key size={18} className="text-cyan-400" />
+                <h3 className="text-base font-bold text-white tracking-tight">Pengaturan GitHub Token</h3>
               </div>
               <button onClick={() => setIsSettingsOpen(false)} className="text-slate-400 hover:text-white">
                 <X size={20} />
@@ -1944,10 +2166,10 @@ export default function AdminPage() {
         <div className="fixed inset-0 z-50 bg-black/80 backdrop-blur-sm flex items-center justify-center p-4 overflow-y-auto">
           <div className="w-full max-w-3xl bg-[#0c1224] border border-white/15 rounded-2xl shadow-2xl overflow-hidden my-8">
             <div className="flex items-center justify-between p-5 border-b border-white/10 bg-white/5">
-              <div className="flex items-center gap-2">
-                <Plus size={20} className="text-cyan-400" />
-                <h3 className="text-lg font-bold text-white">
-                  Tambah {contentType === 'movie' ? 'Movie' : 'TV Series (Multi-Season)'} Baru
+              <div className="flex items-center gap-2.5">
+                <Plus size={18} className="text-cyan-400" />
+                <h3 className="text-lg font-bold text-white tracking-tight">
+                  Tambah {contentType === 'movie' ? 'Movie' : 'TV Series'} Baru
                 </h3>
               </div>
               <button onClick={() => setIsCreateModalOpen(false)} className="text-slate-400 hover:text-white">
@@ -1956,7 +2178,7 @@ export default function AdminPage() {
             </div>
 
             <form onSubmit={handleCreateSubmit} className="p-6 space-y-5 max-h-[82vh] overflow-y-auto">
-              {/* Content Type Selector: Unified 2 Options (Movie & TV Series) */}
+              {/* Content Type Selector: Refined 2 Clean Options without Emoji Clutter */}
               <div>
                 <label className="block text-xs font-bold text-slate-300 uppercase tracking-wider mb-2">
                   Tipe Konten
@@ -1975,8 +2197,8 @@ export default function AdminPage() {
                         : 'bg-white/5 text-slate-400 hover:text-white hover:bg-white/10'
                     }`}
                   >
-                    <Film size={18} />
-                    <span>🎬 Movie</span>
+                    <Film size={16} />
+                    <span>Movie</span>
                   </button>
 
                   <button
@@ -1992,8 +2214,8 @@ export default function AdminPage() {
                         : 'bg-white/5 text-slate-400 hover:text-white hover:bg-white/10'
                     }`}
                   >
-                    <Tv size={18} />
-                    <span>📺 TV Series (Multi-Season & Multi-Episode)</span>
+                    <Tv size={16} />
+                    <span>TV Series (Multi-Season)</span>
                   </button>
                 </div>
               </div>
@@ -2136,7 +2358,7 @@ export default function AdminPage() {
                 />
               </div>
 
-              {/* Poster / Backdrop Image URL (Optional) */}
+              {/* Poster / Backdrop Image URL */}
               <div>
                 <div className="flex items-center justify-between mb-1">
                   <label className="text-xs font-medium text-slate-400">
@@ -2149,6 +2371,7 @@ export default function AdminPage() {
                         if (!tmdbPreview) {
                           handleFetchTmdbPreview(formTmdbId, contentType === 'movie' ? 'movie' : 'tv');
                         }
+                        setActiveEpisodePickerDraftId(null);
                         setShowBackdropPicker(!showBackdropPicker);
                       }}
                       className="text-[11px] font-bold text-cyan-400 hover:text-cyan-300 flex items-center gap-1 transition-all"
@@ -2156,7 +2379,7 @@ export default function AdminPage() {
                       <ImageIcon size={12} />
                       <span>
                         {tmdbPreview?.backdrops && tmdbPreview.backdrops.length > 0
-                          ? `${showBackdropPicker ? 'Tutup Galeri' : 'Pilih Backdrop TMDB'} (${tmdbPreview.backdrops.length})`
+                          ? `${showBackdropPicker && !activeEpisodePickerDraftId ? 'Tutup Galeri' : 'Pilih Backdrop TMDB'} (${tmdbPreview.backdrops.length})`
                           : fetchingTmdb
                           ? 'Mengambil Galeri...'
                           : 'Cari Backdrop TMDB'}
@@ -2174,18 +2397,27 @@ export default function AdminPage() {
 
                 {/* Live TMDB Backdrop Image Gallery Picker */}
                 {tmdbPreview?.backdrops && tmdbPreview.backdrops.length > 0 && showBackdropPicker && (
-                  <div className="mt-3 p-3 bg-black/50 border border-cyan-500/30 rounded-xl space-y-3 animate-fade-in">
+                  <div className="mt-3 p-3.5 bg-[#090e1f] border border-cyan-500/30 rounded-2xl space-y-3 animate-fade-in shadow-xl">
                     <div className="flex items-center justify-between">
                       <span className="text-xs font-bold text-cyan-300 flex items-center gap-1.5">
-                        <ImageIcon size={14} /> Pilih Gambar Backdrop ({tmdbPreview.backdrops.length} tersedia)
+                        <ImageIcon size={14} />
+                        {activeEpisodePickerDraftId
+                          ? 'Pilih Backdrop untuk Episode Ini'
+                          : `Pilih Gambar Backdrop Utama (${tmdbPreview.backdrops.length} tersedia)`}
                       </span>
-                      <span className="text-[10px] text-slate-400">Klik untuk memilih (single choice)</span>
+                      <button
+                        type="button"
+                        onClick={() => setShowBackdropPicker(false)}
+                        className="text-xs text-slate-400 hover:text-white"
+                      >
+                        Tutup
+                      </button>
                     </div>
 
                     {/* Language Filter Tabs */}
                     <div className="flex items-center gap-1.5 flex-wrap">
                       <span className="text-[10px] font-semibold text-slate-400 mr-1 flex items-center gap-0.5">
-                        <Filter size={10} /> Filter Bahasa:
+                        <Filter size={10} /> Filter:
                       </span>
                       {(() => {
                         const availableLangs = Array.from(new Set(tmdbPreview.backdrops!.map((b) => b.language)));
@@ -2195,11 +2427,11 @@ export default function AdminPage() {
                             const count = tmdbPreview.backdrops!.filter((b) => b.language === lang).length;
                             const langLabel =
                               lang === 'xx' || lang === 'null'
-                                ? `No Language / Tanpa Teks (${count})`
+                                ? `No Text (${count})`
                                 : lang.toUpperCase() === 'ID'
-                                ? `Indonesia (ID) (${count})`
+                                ? `Indonesia (${count})`
                                 : lang.toUpperCase() === 'EN'
-                                ? `English (EN) (${count})`
+                                ? `English (${count})`
                                 : `${lang.toUpperCase()} (${count})`;
                             return { code: lang, label: langLabel };
                           }),
@@ -2241,8 +2473,10 @@ export default function AdminPage() {
                                     }))
                                   );
                                   setActiveEpisodePickerDraftId(null);
+                                  showToast('Backdrop episode berhasil diterapkan!');
                                 } else {
                                   setFormPoster(b.url);
+                                  showToast('Backdrop series berhasil dipilih!');
                                 }
                                 setShowBackdropPicker(false);
                               }}
@@ -2295,11 +2529,11 @@ export default function AdminPage() {
                 <div className="space-y-4 p-4 sm:p-5 bg-[#090e1f] border border-purple-500/30 rounded-2xl">
                   <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-2 pb-2 border-b border-white/10">
                     <div>
-                      <h4 className="text-sm font-extrabold text-purple-300 flex items-center gap-2">
-                        <Tv size={16} /> Kelola Multi-Season & Multi-Episode
+                      <h4 className="text-sm font-bold text-purple-300 flex items-center gap-2">
+                        <Layers size={16} /> Kelola Multi-Season & Multi-Episode
                       </h4>
                       <p className="text-[11px] text-slate-400">
-                        Tambahkan season dan episode sekaligus. Otomatis dibuat saat post disimpan.
+                        Atur season dan episode sekaligus. Otomatis dibuat saat post disimpan.
                       </p>
                     </div>
 
@@ -2322,35 +2556,40 @@ export default function AdminPage() {
                     </div>
                   )}
 
-                  {/* Season Tabs */}
-                  <div className="flex items-center gap-2 overflow-x-auto pb-1">
+                  {/* Refined Season Tabs with Clean Stacked Episode Badges */}
+                  <div className="flex items-center gap-2.5 overflow-x-auto pb-2">
                     {formSeasons.map((s) => {
                       const isActive = activeSeasonTab === s.season;
                       return (
-                        <div key={s.id} className="flex items-center">
+                        <div key={s.id} className="relative group flex-shrink-0">
                           <button
                             type="button"
                             onClick={() => setActiveSeasonTab(s.season)}
-                            className={`px-3.5 py-2 rounded-xl text-xs font-bold transition-all flex items-center gap-2 flex-shrink-0 ${
+                            className={`px-4 py-2.5 rounded-xl text-left transition-all flex flex-col items-start min-w-[110px] ${
                               isActive
-                                ? 'bg-gradient-to-r from-purple-500 to-pink-500 text-white shadow-lg shadow-purple-500/25 ring-2 ring-purple-400'
-                                : 'bg-white/5 text-slate-400 hover:text-white hover:bg-white/10 border border-white/10'
+                                ? 'bg-gradient-to-b from-purple-600/90 to-purple-800/90 text-white shadow-lg shadow-purple-500/25 ring-2 ring-purple-400 border border-purple-400/50'
+                                : 'bg-black/40 text-slate-400 hover:text-white hover:bg-white/5 border border-white/10'
                             }`}
                           >
-                            <span>{s.name}</span>
-                            <span className="px-1.5 py-0.2 rounded-full text-[10px] bg-black/40 text-purple-200">
-                              {s.episodes.length} ep
+                            <span className="text-xs font-extrabold tracking-tight">{s.name}</span>
+                            <span className={`text-[10px] font-bold px-2 py-0.5 mt-1 rounded-md ${
+                              isActive ? 'bg-black/40 text-purple-200' : 'bg-white/5 text-slate-400'
+                            }`}>
+                              {s.episodes.length} Episode
                             </span>
                           </button>
 
                           {formSeasons.length > 1 && (
                             <button
                               type="button"
-                              onClick={() => removeSeason(s.season)}
-                              className="ml-1 p-1 text-slate-500 hover:text-red-400 transition-colors"
+                              onClick={(e) => {
+                                e.stopPropagation();
+                                removeSeason(s.season);
+                              }}
+                              className="absolute -top-1.5 -right-1.5 w-5 h-5 rounded-full bg-red-500 text-white flex items-center justify-center opacity-0 group-hover:opacity-100 transition-opacity shadow-md"
                               title={`Hapus ${s.name}`}
                             >
-                              <X size={13} />
+                              <X size={11} />
                             </button>
                           )}
                         </div>
@@ -2363,14 +2602,48 @@ export default function AdminPage() {
                     const currentSeason = formSeasons.find((s) => s.season === activeSeasonTab) || formSeasons[0];
                     if (!currentSeason) return null;
 
+                    const seasonEpIds = currentSeason.episodes.map((ep) => ep.id);
+                    const isAllSelected = seasonEpIds.length > 0 && seasonEpIds.every((id) => selectedDraftEpIds.includes(id));
+                    const selectedCount = currentSeason.episodes.filter((ep) => selectedDraftEpIds.includes(ep.id)).length;
+
                     return (
-                      <div className="space-y-3 pt-2">
-                        {/* Season Toolbar */}
-                        <div className="flex flex-wrap items-center justify-between gap-2 p-2.5 bg-black/40 rounded-xl border border-white/5">
-                          <span className="text-xs font-bold text-slate-300 flex items-center gap-1.5">
-                            <ListPlus size={14} className="text-purple-400" />
-                            Daftar Episode di {currentSeason.name} ({currentSeason.episodes.length})
-                          </span>
+                      <div className="space-y-3 pt-1">
+                        {/* Season Action Bar: Multi-Select + Add + Batch Tools */}
+                        <div className="flex flex-wrap items-center justify-between gap-2 p-2.5 bg-black/50 rounded-xl border border-white/10">
+                          <div className="flex items-center gap-3">
+                            {/* Select All Checkbox */}
+                            <button
+                              type="button"
+                              onClick={() => toggleSelectAllDraftEps(currentSeason.season)}
+                              className="flex items-center gap-1.5 text-xs font-semibold text-slate-300 hover:text-white select-none"
+                            >
+                              {isAllSelected ? (
+                                <CheckSquare size={16} className="text-purple-400" />
+                              ) : (
+                                <Square size={16} className="text-slate-500" />
+                              )}
+                              <span>Pilih Semua</span>
+                            </button>
+
+                            {selectedCount > 0 && (
+                              <button
+                                type="button"
+                                onClick={() => deleteSelectedDraftEps(currentSeason.season)}
+                                className="px-2.5 py-1 rounded-lg text-xs font-bold bg-red-500/20 text-red-300 border border-red-500/40 hover:bg-red-500/30 flex items-center gap-1 transition-all"
+                              >
+                                <Trash2 size={12} />
+                                <span>Hapus Terpilih ({selectedCount})</span>
+                              </button>
+                            )}
+
+                            <button
+                              type="button"
+                              onClick={() => deleteAllDraftEps(currentSeason.season)}
+                              className="text-[11px] text-slate-500 hover:text-red-400 transition-colors"
+                            >
+                              Delete All
+                            </button>
+                          </div>
 
                           <div className="flex items-center gap-2 flex-wrap">
                             <button
@@ -2379,7 +2652,7 @@ export default function AdminPage() {
                               className="px-2.5 py-1.5 rounded-lg text-xs font-bold bg-white/10 hover:bg-white/20 text-slate-200 flex items-center gap-1 transition-all"
                             >
                               <Plus size={12} />
-                              <span>+ Tambah 1 Ep</span>
+                              <span>+ Tambah Ep</span>
                             </button>
 
                             <button
@@ -2389,7 +2662,7 @@ export default function AdminPage() {
                               title="Buat 8 baris episode sekaligus"
                             >
                               <Sparkles size={12} />
-                              <span>⚡ +8 Episode</span>
+                              <span>+8 Ep</span>
                             </button>
 
                             <button
@@ -2398,7 +2671,7 @@ export default function AdminPage() {
                               className="px-2.5 py-1.5 rounded-lg text-xs font-bold bg-cyan-500/20 hover:bg-cyan-500/30 text-cyan-300 border border-cyan-500/30 flex items-center gap-1 transition-all"
                             >
                               <Copy size={12} />
-                              <span>📋 Paste Banyak URL</span>
+                              <span>Paste URLs</span>
                             </button>
                           </div>
                         </div>
@@ -2435,73 +2708,101 @@ export default function AdminPage() {
                           </div>
                         )}
 
-                        {/* Episodes List in Active Season */}
+                        {/* Episodes List in Active Season with Backdrop Preview Thumbnails */}
                         <div className="space-y-2.5 max-h-80 overflow-y-auto pr-1">
-                          {currentSeason.episodes.map((ep, epIdx) => (
-                            <div
-                              key={ep.id}
-                              className="p-3 bg-black/30 border border-white/10 rounded-xl flex flex-col sm:flex-row items-start sm:items-center gap-3 transition-all hover:border-purple-500/40"
-                            >
-                              {/* Episode Badge */}
-                              <div className="flex items-center gap-2 flex-shrink-0">
-                                <span className="w-12 text-center py-1 rounded-lg text-xs font-extrabold bg-purple-500/20 text-purple-300 border border-purple-500/30">
-                                  EP {ep.episode}
-                                </span>
-                              </div>
-
-                              {/* Video URL Input */}
-                              <div className="flex-1 min-w-0 w-full">
-                                <input
-                                  type="text"
-                                  value={ep.videourl}
-                                  onChange={(e) =>
-                                    updateEpisodeInSeason(currentSeason.season, ep.id, 'videourl', e.target.value)
-                                  }
-                                  placeholder="URL Video (Wajib: https://.../video.mp4)"
-                                  className="w-full px-3 py-1.5 bg-black/50 border border-white/10 rounded-lg text-xs font-mono text-white focus:outline-none focus:border-purple-400"
-                                />
-                              </div>
-
-                              {/* Episode Title Input */}
-                              <div className="w-full sm:w-44 flex-shrink-0">
-                                <input
-                                  type="text"
-                                  value={ep.title || ''}
-                                  onChange={(e) =>
-                                    updateEpisodeInSeason(currentSeason.season, ep.id, 'title', e.target.value)
-                                  }
-                                  placeholder="Judul (Opsional)"
-                                  className="w-full px-3 py-1.5 bg-black/50 border border-white/10 rounded-lg text-xs text-white focus:outline-none focus:border-purple-400"
-                                />
-                              </div>
-
-                              {/* Mini Backdrop Picker & Delete Action */}
-                              <div className="flex items-center gap-1.5 self-end sm:self-center">
-                                {tmdbPreview?.backdrops && tmdbPreview.backdrops.length > 0 && (
+                          {currentSeason.episodes.map((ep) => {
+                            const isSelected = selectedDraftEpIds.includes(ep.id);
+                            return (
+                              <div
+                                key={ep.id}
+                                className={`p-2.5 rounded-xl flex flex-col sm:flex-row items-start sm:items-center gap-3 transition-all border ${
+                                  isSelected
+                                    ? 'bg-purple-950/30 border-purple-500/50'
+                                    : 'bg-black/40 border-white/10 hover:border-white/20'
+                                }`}
+                              >
+                                {/* Checkbox + Episode Badge */}
+                                <div className="flex items-center gap-2 flex-shrink-0">
                                   <button
                                     type="button"
-                                    onClick={() => {
+                                    onClick={() => toggleSelectDraftEp(ep.id)}
+                                    className="text-slate-400 hover:text-purple-300"
+                                  >
+                                    {isSelected ? (
+                                      <CheckSquare size={16} className="text-purple-400" />
+                                    ) : (
+                                      <Square size={16} className="text-slate-500" />
+                                    )}
+                                  </button>
+
+                                  <span className="w-12 text-center py-1 rounded-lg text-xs font-extrabold bg-purple-500/20 text-purple-300 border border-purple-500/30">
+                                    EP {ep.episode}
+                                  </span>
+                                </div>
+
+                                {/* Backdrop Preview Thumbnail */}
+                                <div
+                                  onClick={() => {
+                                    if (tmdbPreview?.backdrops && tmdbPreview.backdrops.length > 0) {
                                       setActiveEpisodePickerDraftId(ep.id);
                                       setShowBackdropPicker(true);
-                                    }}
-                                    className="p-1.5 rounded-lg bg-white/5 hover:bg-cyan-500/20 text-slate-300 hover:text-cyan-300 transition-colors"
-                                    title="Pilih Gambar dari TMDB Backdrop"
-                                  >
-                                    <ImageIcon size={14} />
-                                  </button>
-                                )}
-
-                                <button
-                                  type="button"
-                                  onClick={() => removeEpisodeFromSeason(currentSeason.season, ep.id)}
-                                  className="p-1.5 rounded-lg bg-red-500/10 hover:bg-red-500/20 text-red-400 hover:text-red-300 transition-colors"
-                                  title="Hapus Baris Episode"
+                                    }
+                                  }}
+                                  className="relative w-16 h-10 rounded-lg overflow-hidden bg-slate-900 border border-white/10 flex-shrink-0 cursor-pointer group shadow-sm"
+                                  title="Klik untuk ganti backdrop episode"
                                 >
-                                  <Trash2 size={14} />
-                                </button>
+                                  {ep.image_url ? (
+                                    <Image src={ep.image_url} alt="Ep Backdrop" fill className="object-cover group-hover:scale-105 transition-transform" sizes="64px" />
+                                  ) : (
+                                    <div className="w-full h-full flex items-center justify-center text-slate-600 group-hover:text-cyan-400">
+                                      <ImageIcon size={14} />
+                                    </div>
+                                  )}
+                                  <div className="absolute inset-0 bg-black/40 opacity-0 group-hover:opacity-100 flex items-center justify-center transition-opacity">
+                                    <Edit2 size={11} className="text-white" />
+                                  </div>
+                                </div>
+
+                                {/* Video URL Input */}
+                                <div className="flex-1 min-w-0 w-full">
+                                  <input
+                                    type="text"
+                                    value={ep.videourl}
+                                    onChange={(e) =>
+                                      updateEpisodeInSeason(currentSeason.season, ep.id, 'videourl', e.target.value)
+                                    }
+                                    placeholder="URL Video (Wajib: https://.../video.mp4)"
+                                    className="w-full px-3 py-1.5 bg-black/50 border border-white/10 rounded-lg text-xs font-mono text-white focus:outline-none focus:border-purple-400"
+                                  />
+                                </div>
+
+                                {/* Episode Title Input */}
+                                <div className="w-full sm:w-44 flex-shrink-0">
+                                  <input
+                                    type="text"
+                                    value={ep.title || ''}
+                                    onChange={(e) =>
+                                      updateEpisodeInSeason(currentSeason.season, ep.id, 'title', e.target.value)
+                                    }
+                                    placeholder="Judul (Opsional)"
+                                    className="w-full px-3 py-1.5 bg-black/50 border border-white/10 rounded-lg text-xs text-white focus:outline-none focus:border-purple-400"
+                                  />
+                                </div>
+
+                                {/* Delete Action */}
+                                <div className="flex items-center gap-1.5 self-end sm:self-center">
+                                  <button
+                                    type="button"
+                                    onClick={() => removeEpisodeFromSeason(currentSeason.season, ep.id)}
+                                    className="p-1.5 rounded-lg bg-red-500/10 hover:bg-red-500/20 text-red-400 hover:text-red-300 transition-colors"
+                                    title="Hapus Baris Episode"
+                                  >
+                                    <Trash2 size={14} />
+                                  </button>
+                                </div>
                               </div>
-                            </div>
-                          ))}
+                            );
+                          })}
                         </div>
                       </div>
                     );
@@ -2579,8 +2880,8 @@ export default function AdminPage() {
           <div className="w-full max-w-3xl bg-[#0c1224] border border-white/15 rounded-2xl shadow-2xl overflow-hidden my-8">
             <div className="flex items-center justify-between p-5 border-b border-white/10 bg-white/5">
               <div className="flex items-center gap-2">
-                <Edit2 size={20} className="text-cyan-400" />
-                <h3 className="text-lg font-bold text-white">
+                <Edit2 size={18} className="text-cyan-400" />
+                <h3 className="text-lg font-bold text-white tracking-tight">
                   Edit {editingItem.type === 'movie' ? 'Movie' : editingItem.type === 'tv_show' ? 'TV Series' : 'Episode'} ({editingItem.relativePath})
                 </h3>
               </div>
@@ -2614,18 +2915,18 @@ export default function AdminPage() {
                       : 'text-slate-400 hover:text-white'
                   }`}
                 >
-                  <Tv size={14} />
+                  <Layers size={14} />
                   <span>Kelola Season & Episode ({currentEditingShow?.episodes.length || 0})</span>
                 </button>
               </div>
             )}
 
-            {/* TV Show Episodes Manager Tab */}
+            {/* TV Show Episodes Manager Tab (with Multi-Select & Backdrop Support) */}
             {editingItem.type === 'tv_show' && editShowTab === 'episodes' && currentEditingShow && (
               <div className="p-6 space-y-4 max-h-[75vh] overflow-y-auto">
-                <div className="flex items-center justify-between gap-2 flex-wrap">
+                <div className="flex items-center justify-between gap-2 flex-wrap pb-1">
                   <div>
-                    <h4 className="text-sm font-bold text-white">
+                    <h4 className="text-sm font-bold text-white tracking-tight">
                       Daftar Episode {currentEditingShow.displayTitle}
                     </h4>
                     <p className="text-xs text-slate-400">
@@ -2637,7 +2938,7 @@ export default function AdminPage() {
                     <button
                       type="button"
                       onClick={() => handleQuickAddEpisodeToEditShow(currentEditingShow, editActiveSeasonTab)}
-                      className="px-3 py-1.5 rounded-lg text-xs font-bold bg-purple-500 hover:bg-purple-400 text-white flex items-center gap-1 shadow-md shadow-purple-500/20"
+                      className="px-3 py-1.5 rounded-lg text-xs font-bold bg-purple-500 hover:bg-purple-400 text-white flex items-center gap-1.5 shadow-md shadow-purple-500/20 transition-all"
                     >
                       <Plus size={13} />
                       <span>+ Tambah Episode ke {formatSeasonLabel(editActiveSeasonTab)}</span>
@@ -2646,10 +2947,10 @@ export default function AdminPage() {
                     <button
                       type="button"
                       onClick={() => setShowEditBatchUrlInput(!showEditBatchUrlInput)}
-                      className="px-3 py-1.5 rounded-lg text-xs font-bold bg-cyan-500/20 text-cyan-300 border border-cyan-500/30 flex items-center gap-1 hover:bg-cyan-500/30"
+                      className="px-3 py-1.5 rounded-lg text-xs font-bold bg-cyan-500/20 text-cyan-300 border border-cyan-500/30 flex items-center gap-1.5 hover:bg-cyan-500/30 transition-all"
                     >
                       <Copy size={13} />
-                      <span>📋 Batch URL</span>
+                      <span>Batch URLs</span>
                     </button>
                   </div>
                 </div>
@@ -2686,11 +2987,11 @@ export default function AdminPage() {
                   </div>
                 )}
 
-                {/* Season Navigation Tabs in Edit Modal */}
+                {/* Season Navigation Tabs in Edit Modal with Stacked Badges */}
                 {(() => {
                   const seasons = getShowSeasons(currentEditingShow);
                   return (
-                    <div className="flex items-center gap-2 overflow-x-auto pb-1">
+                    <div className="flex items-center gap-2.5 overflow-x-auto pb-1">
                       {seasons.map((s) => {
                         const count = currentEditingShow.episodes.filter(
                           (ep) => (ep.seasonFolder || 's1').toLowerCase() === s.toLowerCase()
@@ -2700,16 +3001,21 @@ export default function AdminPage() {
                           <button
                             key={s}
                             type="button"
-                            onClick={() => setEditActiveSeasonTab(s)}
-                            className={`px-3.5 py-2 rounded-xl text-xs font-bold transition-all flex items-center gap-2 flex-shrink-0 ${
+                            onClick={() => {
+                              setEditActiveSeasonTab(s);
+                              setSelectedEditEpPaths([]);
+                            }}
+                            className={`px-4 py-2.5 rounded-xl text-left transition-all flex flex-col items-start min-w-[110px] ${
                               isActive
-                                ? 'bg-purple-500 text-white shadow-lg shadow-purple-500/25 ring-2 ring-purple-400'
-                                : 'bg-white/5 text-slate-400 hover:text-white hover:bg-white/10 border border-white/10'
+                                ? 'bg-gradient-to-b from-purple-600 to-purple-800 text-white shadow-lg shadow-purple-500/25 ring-2 ring-purple-400 border border-purple-400/50'
+                                : 'bg-black/40 text-slate-400 hover:text-white hover:bg-white/5 border border-white/10'
                             }`}
                           >
-                            <span>{formatSeasonLabel(s)}</span>
-                            <span className="px-1.5 py-0.2 rounded-full text-[10px] bg-black/40 text-purple-200">
-                              {count} ep
+                            <span className="text-xs font-extrabold tracking-tight">{formatSeasonLabel(s)}</span>
+                            <span className={`text-[10px] font-bold px-2 py-0.5 mt-1 rounded-md ${
+                              isActive ? 'bg-black/40 text-purple-200' : 'bg-white/5 text-slate-400'
+                            }`}>
+                              {count} Episode
                             </span>
                           </button>
                         );
@@ -2718,58 +3024,149 @@ export default function AdminPage() {
                   );
                 })()}
 
-                {/* Episodes in this Season */}
-                <div className="space-y-2.5 max-h-96 overflow-y-auto pr-1">
-                  {currentEditingShow.episodes
-                    .filter((ep) => (ep.seasonFolder || 's1').toLowerCase() === editActiveSeasonTab.toLowerCase())
-                    .map((ep) => (
-                      <div
-                        key={ep.relativePath}
-                        className="p-3 bg-black/30 border border-white/10 rounded-xl flex items-center justify-between gap-3 hover:border-white/20 transition-all"
-                      >
-                        <div className="flex-1 min-w-0">
-                          <div className="flex items-center gap-2 mb-1">
-                            <span className="px-2 py-0.5 rounded text-[10px] font-extrabold bg-purple-500/20 text-purple-300">
-                              {ep.slug.toUpperCase()}
-                            </span>
-                            <h5 className="font-bold text-xs text-white truncate">
-                              {ep.displayTitle || ep.frontmatter.title || ep.slug}
-                            </h5>
-                          </div>
-                          <p className="text-[11px] font-mono text-slate-400 truncate">
-                            {ep.frontmatter.videourl || ep.frontmatter.video_url || 'Belum ada link video'}
-                          </p>
-                        </div>
+                {/* Multi-Select Action Bar in Edit Modal */}
+                {(() => {
+                  const seasonEps = currentEditingShow.episodes.filter(
+                    (ep) => (ep.seasonFolder || 's1').toLowerCase() === editActiveSeasonTab.toLowerCase()
+                  );
+                  const seasonPaths = seasonEps.map((ep) => ep.relativePath);
+                  const isAllSelected = seasonPaths.length > 0 && seasonPaths.every((p) => selectedEditEpPaths.includes(p));
+                  const selectedCount = seasonEps.filter((ep) => selectedEditEpPaths.includes(ep.relativePath)).length;
 
-                        <div className="flex items-center gap-1.5 flex-shrink-0">
+                  return (
+                    <div className="space-y-3">
+                      <div className="flex flex-wrap items-center justify-between gap-2 p-2.5 bg-black/50 rounded-xl border border-white/10">
+                        <div className="flex items-center gap-3">
                           <button
                             type="button"
-                            onClick={() =>
-                              openEditModal({
-                                type: 'tv_episode',
-                                relativePath: ep.relativePath,
-                                frontmatter: { ...ep.frontmatter },
-                                content: ep.content,
-                              })
-                            }
-                            className="p-2 rounded-lg bg-white/5 hover:bg-white/10 text-slate-300 hover:text-white transition-all"
-                            title="Edit Episode Details"
+                            onClick={() => toggleSelectAllEditEps(currentEditingShow, editActiveSeasonTab)}
+                            className="flex items-center gap-1.5 text-xs font-semibold text-slate-300 hover:text-white select-none"
                           >
-                            <Edit2 size={13} />
+                            {isAllSelected ? (
+                              <CheckSquare size={16} className="text-purple-400" />
+                            ) : (
+                              <Square size={16} className="text-slate-500" />
+                            )}
+                            <span>Pilih Semua</span>
                           </button>
 
-                          <button
-                            type="button"
-                            onClick={() => handleDelete(ep.relativePath, ep.displayTitle)}
-                            className="p-2 rounded-lg bg-red-500/10 hover:bg-red-500/20 text-red-400 transition-all"
-                            title="Hapus Episode"
-                          >
-                            <Trash2 size={13} />
-                          </button>
+                          {selectedCount > 0 && (
+                            <button
+                              type="button"
+                              onClick={() => deleteSelectedEditEps(currentEditingShow, editActiveSeasonTab)}
+                              className="px-2.5 py-1 rounded-lg text-xs font-bold bg-red-500/20 text-red-300 border border-red-500/40 hover:bg-red-500/30 flex items-center gap-1 transition-all"
+                            >
+                              <Trash2 size={12} />
+                              <span>Hapus Terpilih ({selectedCount})</span>
+                            </button>
+                          )}
+
+                          {seasonEps.length > 0 && (
+                            <button
+                              type="button"
+                              onClick={() => deleteAllEditEpsInSeason(currentEditingShow, editActiveSeasonTab)}
+                              className="text-[11px] text-slate-500 hover:text-red-400 transition-colors"
+                            >
+                              Delete All Season Ini
+                            </button>
+                          )}
                         </div>
                       </div>
-                    ))}
-                </div>
+
+                      {/* Episodes List in Season */}
+                      <div className="space-y-2.5 max-h-96 overflow-y-auto pr-1">
+                        {seasonEps.length === 0 ? (
+                          <div className="p-6 text-center bg-black/20 rounded-xl border border-white/5">
+                            <p className="text-xs text-slate-400">Belum ada episode di {formatSeasonLabel(editActiveSeasonTab)}.</p>
+                          </div>
+                        ) : (
+                          seasonEps.map((ep) => {
+                            const isSelected = selectedEditEpPaths.includes(ep.relativePath);
+                            const epPoster = ep.posterUrl || ep.frontmatter.image_url;
+
+                            return (
+                              <div
+                                key={ep.relativePath}
+                                className={`p-3 rounded-xl flex items-center justify-between gap-3 transition-all border ${
+                                  isSelected
+                                    ? 'bg-purple-950/30 border-purple-500/50'
+                                    : 'bg-black/30 border-white/10 hover:border-white/20'
+                                }`}
+                              >
+                                <div className="flex items-center gap-2.5 flex-1 min-w-0">
+                                  {/* Multi-select Checkbox */}
+                                  <button
+                                    type="button"
+                                    onClick={() => toggleSelectEditEp(ep.relativePath)}
+                                    className="text-slate-400 hover:text-purple-300 flex-shrink-0"
+                                  >
+                                    {isSelected ? (
+                                      <CheckSquare size={16} className="text-purple-400" />
+                                    ) : (
+                                      <Square size={16} className="text-slate-500" />
+                                    )}
+                                  </button>
+
+                                  {/* Thumbnail Backdrop */}
+                                  <div className="relative w-14 h-9 rounded-lg overflow-hidden bg-slate-900 border border-white/10 flex-shrink-0 shadow-sm">
+                                    {epPoster ? (
+                                      <Image src={epPoster} alt="Thumbnail" fill className="object-cover" sizes="56px" />
+                                    ) : (
+                                      <div className="w-full h-full flex items-center justify-center text-slate-600">
+                                        <ImageIcon size={14} />
+                                      </div>
+                                    )}
+                                  </div>
+
+                                  <div className="flex-1 min-w-0">
+                                    <div className="flex items-center gap-2 mb-0.5">
+                                      <span className="px-1.5 py-0.2 rounded text-[10px] font-extrabold bg-purple-500/20 text-purple-300">
+                                        {ep.slug.toUpperCase()}
+                                      </span>
+                                      <h5 className="font-bold text-xs text-white truncate">
+                                        {ep.displayTitle || ep.frontmatter.title || ep.slug}
+                                      </h5>
+                                    </div>
+                                    <p className="text-[11px] font-mono text-slate-400 truncate">
+                                      {ep.frontmatter.videourl || ep.frontmatter.video_url || 'Belum ada link video'}
+                                    </p>
+                                  </div>
+                                </div>
+
+                                <div className="flex items-center gap-1.5 flex-shrink-0">
+                                  <button
+                                    type="button"
+                                    onClick={() =>
+                                      openEditModal({
+                                        type: 'tv_episode',
+                                        relativePath: ep.relativePath,
+                                        frontmatter: { ...ep.frontmatter },
+                                        content: ep.content,
+                                      })
+                                    }
+                                    className="p-2 rounded-lg bg-white/5 hover:bg-white/10 text-slate-300 hover:text-white transition-all"
+                                    title="Edit Episode Details"
+                                  >
+                                    <Edit2 size={13} />
+                                  </button>
+
+                                  <button
+                                    type="button"
+                                    onClick={() => handleDelete(ep.relativePath, ep.displayTitle)}
+                                    className="p-2 rounded-lg bg-red-500/10 hover:bg-red-500/20 text-red-400 transition-all"
+                                    title="Hapus Episode"
+                                  >
+                                    <Trash2 size={13} />
+                                  </button>
+                                </div>
+                              </div>
+                            );
+                          })
+                        )}
+                      </div>
+                    </div>
+                  );
+                })()}
               </div>
             )}
 
@@ -2941,18 +3338,24 @@ export default function AdminPage() {
 
                   {/* Live TMDB Backdrop Image Gallery Picker in Edit Modal */}
                   {editTmdbPreview?.backdrops && editTmdbPreview.backdrops.length > 0 && showEditBackdropPicker && (
-                    <div className="mt-3 p-3 bg-black/50 border border-cyan-500/30 rounded-xl space-y-3 animate-fade-in">
+                    <div className="mt-3 p-3.5 bg-[#090e1f] border border-cyan-500/30 rounded-2xl space-y-3 animate-fade-in shadow-xl">
                       <div className="flex items-center justify-between">
                         <span className="text-xs font-bold text-cyan-300 flex items-center gap-1.5">
                           <ImageIcon size={14} /> Pilih Gambar Backdrop ({editTmdbPreview.backdrops.length} tersedia)
                         </span>
-                        <span className="text-[10px] text-slate-400">Klik untuk memilih (single choice)</span>
+                        <button
+                          type="button"
+                          onClick={() => setShowEditBackdropPicker(false)}
+                          className="text-xs text-slate-400 hover:text-white"
+                        >
+                          Tutup
+                        </button>
                       </div>
 
                       {/* Language Filter Tabs */}
                       <div className="flex items-center gap-1.5 flex-wrap">
                         <span className="text-[10px] font-semibold text-slate-400 mr-1 flex items-center gap-0.5">
-                          <Filter size={10} /> Filter Bahasa:
+                          <Filter size={10} /> Filter:
                         </span>
                         {(() => {
                           const availableLangs = Array.from(new Set(editTmdbPreview.backdrops!.map((b) => b.language)));
@@ -2962,11 +3365,11 @@ export default function AdminPage() {
                               const count = editTmdbPreview.backdrops!.filter((b) => b.language === lang).length;
                               const langLabel =
                                 lang === 'xx' || lang === 'null'
-                                  ? `No Language / Tanpa Teks (${count})`
+                                  ? `No Text (${count})`
                                   : lang.toUpperCase() === 'ID'
-                                  ? `Indonesia (ID) (${count})`
+                                  ? `Indonesia (${count})`
                                   : lang.toUpperCase() === 'EN'
-                                  ? `English (EN) (${count})`
+                                  ? `English (${count})`
                                   : `${lang.toUpperCase()} (${count})`;
                               return { code: lang, label: langLabel };
                             }),
@@ -3004,6 +3407,7 @@ export default function AdminPage() {
                                     frontmatter: { ...editingItem.frontmatter, image_url: b.url },
                                   });
                                   setShowEditBackdropPicker(false);
+                                  showToast('Backdrop berhasil dipilih!');
                                 }}
                                 className={`group relative rounded-lg overflow-hidden border cursor-pointer transition-all aspect-video ${
                                   isSelected
