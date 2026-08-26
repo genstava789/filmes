@@ -3,7 +3,7 @@ import path from 'path';
 import matter from 'gray-matter';
 import { marked } from 'marked';
 import { TVShowDetail } from '@/types/tmdb';
-import { getTVShowDetails, getImageUrl } from '@/lib/tmdb';
+import { getTVShowDetails, getImageUrl, searchTVShows } from '@/lib/tmdb';
 import { FeaturedItem } from '@/config';
 
 export interface CustomTVFrontmatter {
@@ -152,12 +152,11 @@ function cleanSlug(text?: string | null): string {
  * Returns all possible slug paths for Next.js generateStaticParams().
  * E.g. [
  *   { slug: ['lanterns'] },
+ *   { slug: ['lanterns-2026'] },
+ *   { slug: ['lanterns-2026', 's1', 'e1'] },
  *   { slug: ['lanterns', 's1', 'e1'] },
  *   { slug: ['lanterns', 's1', 'e1.md'] },
- *   { slug: ['lanterns', 'e1'] },
- *   { slug: ['lanterns-95350'] },
  *   { slug: ['lanterns-95350', 's1', 'e1'] },
- *   { slug: ['95350'] },
  *   { slug: ['95350', 's1', 'e1'] }
  * ]
  */
@@ -177,12 +176,16 @@ export async function getAllCustomTVSlugPaths(): Promise<{ slug: string[] }[]> {
     if (!showData) continue;
 
     const possibleShowSlugs = [showSlug];
+    const year = showData.frontmatter.year || showData.frontmatter.first_air_date?.slice(0, 4) || '2026';
+    possibleShowSlugs.push(`${showSlug}-${year}`);
+
     if (showData.frontmatter.tmdb_id) {
       possibleShowSlugs.push(String(showData.frontmatter.tmdb_id));
       if (showData.frontmatter.title) {
         const tSlug = cleanSlug(showData.frontmatter.title);
         if (tSlug) {
           possibleShowSlugs.push(tSlug);
+          possibleShowSlugs.push(`${tSlug}-${year}`);
           possibleShowSlugs.push(`${tSlug}-${showData.frontmatter.tmdb_id}`);
         }
       }
@@ -209,23 +212,25 @@ export async function getAllCustomTVSlugPaths(): Promise<{ slug: string[] }[]> {
 
 /**
  * Reads and parses a custom TV show and all its episodes from `tv/[showSlug]`.
- * Supports directory name, TMDB ID, title slug, and title-id slug.
+ * Supports directory name, title-year (lanterns-2026), TMDB ID, title slug, and title-id slug.
  */
 export async function getCustomTVShowBySlug(showSlugOrTmdbId: string | number): Promise<CustomTVShowData | null> {
   ensureTVDirExists();
   const searchKey = String(showSlugOrTmdbId).trim().toLowerCase();
   const showDirs = getAllCustomTVShowDirs();
 
-  // Extract trailing ID (e.g. "lanterns-95350" -> "95350")
+  // Extract trailing ID (e.g. "lanterns-95350" -> "95350") or strip year/ID
   const idMatch = searchKey.match(/-(\d+)$/);
   const trailingId = idMatch ? idMatch[1] : null;
+  const cleanWithoutSuffix = searchKey.replace(/-(19\d{2}|20\d{2}|\d+)$/, '');
 
   let matchedDir: string | null = null;
   let showDirFullPath = '';
 
-  // 1. Direct directory match
+  // 1. Direct directory match (e.g. "lanterns" or "lanterns-2026" matching "lanterns")
   for (const dir of showDirs) {
-    if (dir.toLowerCase() === searchKey) {
+    const dirLower = dir.toLowerCase();
+    if (dirLower === searchKey || dirLower === cleanWithoutSuffix) {
       matchedDir = dir;
       showDirFullPath = path.join(TV_CONTENT_DIR, dir);
       break;
@@ -257,8 +262,13 @@ export async function getCustomTVShowBySlug(showSlugOrTmdbId: string | number): 
               break;
             }
 
-            // Title slug match
-            if (titleSlug && (titleSlug === searchKey || searchKey.startsWith(titleSlug))) {
+            // Title slug match (e.g. "lanterns" or "lanterns-2026")
+            if (
+              titleSlug &&
+              (titleSlug === searchKey ||
+                titleSlug === cleanWithoutSuffix ||
+                searchKey.startsWith(titleSlug))
+            ) {
               matchedDir = dir;
               showDirFullPath = fullPath;
               break;
@@ -492,7 +502,7 @@ export async function getTVShowDetailsWithCustomOverride(
   const showSlugOrId = slugArray[0];
   const customTV = await getCustomTVShowBySlug(showSlugOrId);
 
-  let tmdbId: number;
+  let tmdbId: number | null = null;
 
   if (customTV) {
     tmdbId = Number(customTV.frontmatter.tmdb_id);
@@ -504,13 +514,30 @@ export async function getTVShowDetailsWithCustomOverride(
     if (/^\d+$/.test(str)) {
       tmdbId = Number(str);
     } else {
-      const idMatch = str.match(/-(\d+)$/);
+      const yearMatch = str.match(/-(19\d{2}|20\d{2})$/);
+      const idMatch = str.match(/-(\d{5,})$/);
       if (idMatch) {
         tmdbId = Number(idMatch[1]);
       } else {
-        return null;
+        const cleanSearch = (yearMatch ? str.slice(0, yearMatch.index) : str).replace(/-/g, ' ');
+        const searchYear = yearMatch ? yearMatch[1] : undefined;
+        try {
+          const searchRes = await searchTVShows(cleanSearch);
+          if (searchRes.results && searchRes.results.length > 0) {
+            const matched = searchYear
+              ? searchRes.results.find((s) => s.first_air_date && s.first_air_date.startsWith(searchYear)) || searchRes.results[0]
+              : searchRes.results[0];
+            tmdbId = matched ? matched.id : null;
+          }
+        } catch (e) {
+          console.error(`Error searching TMDB for TV slug ${str}:`, e);
+        }
       }
     }
+  }
+
+  if (!tmdbId || isNaN(tmdbId)) {
+    return null;
   }
 
   // Fetch baseline TMDB details

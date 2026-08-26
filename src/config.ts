@@ -49,9 +49,9 @@ export const siteConfig = {
   // When disabled (false), video titles will be: "Judul (Tahun)"
   useCreditTitleForRave: false,
 
-  // When enabled (true), URLs for movies and TV shows use clean title slugs (e.g. /movie/mutiny-1288445 or /tv/stranger-things-66732)
+  // When enabled (true), URLs for movies and TV shows use clean title-year slugs (e.g. /movie/mutiny-2026 or /tv/lanterns-2026)
   // When disabled (false), URLs use TMDB IDs (e.g. /movie/1288445 or /tv/95350)
-  // Note: Dual routing is always active, meaning both ID and Title slug URLs will always work for users!
+  // Note: Multi-routing is always active, meaning year slugs, ID slugs, and legacy URLs all continue to work seamlessly!
   useTitleSlug: true,
 
   // Auto-slide interval for Featured Hero (in seconds)

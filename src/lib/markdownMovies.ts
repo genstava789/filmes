@@ -3,7 +3,7 @@ import path from 'path';
 import matter from 'gray-matter';
 import { marked } from 'marked';
 import { MovieDetail } from '@/types/tmdb';
-import { getMovieDetails, getImageUrl } from '@/lib/tmdb';
+import { getMovieDetails, getImageUrl, searchMovies } from '@/lib/tmdb';
 import { FeaturedItem } from '@/config';
 
 export interface CustomMovieFrontmatter {
@@ -86,7 +86,7 @@ function cleanSlug(text?: string | null): string {
 
 /**
  * Returns all possible slugs for static path generation.
- * Generates combinations of: filename, filename.md, tmdb_id, title slug, and title-id slug.
+ * Generates combinations of: filename, filename.md, tmdb_id, title slug, title-year slug, and title-id slug.
  */
 export function getAllCustomMovieSlugs(): string[] {
   const files = getAllCustomMovieFiles();
@@ -111,6 +111,10 @@ export function getAllCustomMovieSlugs(): string[] {
             slugs.push(tSlug);
             if (data.tmdb_id) {
               slugs.push(`${tSlug}-${data.tmdb_id}`);
+            }
+            const year = data.year || data.release_date?.slice(0, 4) || '2026';
+            if (year) {
+              slugs.push(`${tSlug}-${year}`);
             }
           }
         }
@@ -147,16 +151,17 @@ export function getCustomMovieTmdbMapping(): Record<string, string> {
 }
 
 /**
- * Finds and parses a custom markdown movie by its slug, title slug, trailing ID, or tmdb_id.
+ * Finds and parses a custom markdown movie by its slug, title slug, title-year, trailing ID, or tmdb_id.
  */
 export async function getCustomMovieBySlug(slugOrId: string | number): Promise<CustomMovieData | null> {
   ensureContentDirExists();
   const searchKey = String(slugOrId).trim().toLowerCase();
   const cleanKey = searchKey.replace(/\.(md|markdown)$/i, '');
 
-  // Check if searchKey has trailing ID (e.g. "mutiny-1288445" -> "1288445")
+  // Check if searchKey has trailing ID or 4-digit year (e.g. "mutiny-2026" or "mutiny-1288445")
   const idMatch = cleanKey.match(/-(\d+)$/);
   const trailingId = idMatch ? idMatch[1] : null;
+  const cleanWithoutSuffix = cleanKey.replace(/-(19\d{2}|20\d{2}|\d+)$/, '');
 
   const files = getAllCustomMovieFiles();
   let matchedFile: string | null = null;
@@ -167,13 +172,13 @@ export async function getCustomMovieBySlug(slugOrId: string | number): Promise<C
     const fileWithoutExt = file.replace(/\.(md|markdown)$/i, '').toLowerCase();
     const fullFileName = file.toLowerCase();
 
-    if (fullFileName === searchKey || fileWithoutExt === cleanKey) {
+    if (fullFileName === searchKey || fileWithoutExt === cleanKey || fileWithoutExt === cleanWithoutSuffix) {
       matchedFile = file;
       break;
     }
   }
 
-  // 2. Match by frontmatter tmdb_id, title slug, or trailing ID
+  // 2. Match by frontmatter tmdb_id, title slug, title-year slug, or trailing ID
   if (!matchedFile) {
     for (const file of files) {
       try {
@@ -193,8 +198,14 @@ export async function getCustomMovieBySlug(slugOrId: string | number): Promise<C
             break;
           }
 
-          // Title slug match (e.g. "mutiny" === "mutiny")
-          if (titleSlug && (titleSlug === cleanKey || cleanKey.startsWith(titleSlug))) {
+          // Title slug match (e.g. "mutiny" === "mutiny" or "mutiny-2026" starts with "mutiny")
+          if (
+            titleSlug &&
+            (titleSlug === cleanKey ||
+              titleSlug === cleanWithoutSuffix ||
+              cleanKey === `${titleSlug}-${data.year || '2026'}` ||
+              cleanKey.startsWith(titleSlug))
+          ) {
             matchedFile = file;
             fileContent = content;
             break;
@@ -232,7 +243,7 @@ export async function getCustomMovieBySlug(slugOrId: string | number): Promise<C
 
 /**
  * Fetches movie details and merges TMDB API baseline data with custom markdown overrides.
- * Supports dual-routing: ID (1288445), title slug (mutiny), and title-id slug (mutiny-1288445).
+ * Supports dual-routing: ID (1288445), title-year (mutiny-2026), and title-id slug (mutiny-1288445).
  */
 export async function getMovieDetailsWithCustomOverride(
   slugOrId: string | number
@@ -253,9 +264,25 @@ export async function getMovieDetailsWithCustomOverride(
     if (/^\d+$/.test(str)) {
       tmdbId = Number(str);
     } else {
-      const idMatch = str.match(/-(\d+)$/);
+      const yearMatch = str.match(/-(19\d{2}|20\d{2})$/);
+      const idMatch = str.match(/-(\d{5,})$/);
+
       if (idMatch) {
         tmdbId = Number(idMatch[1]);
+      } else {
+        const cleanSearch = (yearMatch ? str.slice(0, yearMatch.index) : str).replace(/-/g, ' ');
+        const searchYear = yearMatch ? yearMatch[1] : undefined;
+        try {
+          const searchRes = await searchMovies(cleanSearch);
+          if (searchRes.results && searchRes.results.length > 0) {
+            const matched = searchYear
+              ? searchRes.results.find((m) => m.release_date && m.release_date.startsWith(searchYear)) || searchRes.results[0]
+              : searchRes.results[0];
+            tmdbId = matched ? matched.id : null;
+          }
+        } catch (e) {
+          console.error(`Error searching TMDB for movie slug ${str}:`, e);
+        }
       }
     }
   }

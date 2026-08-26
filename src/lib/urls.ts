@@ -20,11 +20,14 @@ export function slugify(text?: string | null): string {
 
 /**
  * Returns the proper URL for a movie according to `siteConfig.useTitleSlug`.
+ * Formats as: /movie/mutiny-2026
  */
 export function getMovieUrl(movie: {
   id?: number | string;
   tmdbId?: number | string;
   title?: string;
+  release_date?: string;
+  year?: number | string;
   customSlug?: string;
   link?: string;
 }): string {
@@ -36,16 +39,17 @@ export function getMovieUrl(movie: {
   const id = movie.tmdbId || movie.id;
   const title = movie.title || '';
   const customSlug = movie.customSlug;
+  const rawYear = movie.year || (movie.release_date ? new Date(movie.release_date).getFullYear() : null);
+  const year = rawYear && !isNaN(Number(rawYear)) ? Number(rawYear) : null;
 
   if (siteConfig.useTitleSlug) {
-    // If it has a named custom markdown slug other than generic "movie"
     if (customSlug && customSlug !== 'movie') {
       return `/movie/${customSlug}`;
     }
     if (title) {
       const slug = slugify(title);
       if (slug) {
-        return id ? `/movie/${slug}-${id}` : `/movie/${slug}`;
+        return year ? `/movie/${slug}-${year}` : `/movie/${slug}`;
       }
     }
   }
@@ -59,12 +63,15 @@ export function getMovieUrl(movie: {
 
 /**
  * Returns the proper URL for a TV show according to `siteConfig.useTitleSlug`.
+ * Formats as: /tv/lanterns-2026
  */
 export function getTVUrl(show: {
   id?: number | string;
   tmdbId?: number | string;
   name?: string;
   title?: string;
+  first_air_date?: string;
+  year?: number | string;
   customSlug?: string;
   link?: string;
 }): string {
@@ -75,17 +82,23 @@ export function getTVUrl(show: {
   const id = show.tmdbId || show.id;
   const name = show.name || show.title || '';
   const customSlug = show.customSlug;
+  const rawYear = show.year || (show.first_air_date ? new Date(show.first_air_date).getFullYear() : null);
+  const year = rawYear && !isNaN(Number(rawYear)) ? Number(rawYear) : null;
+
+  if (siteConfig.useTitleSlug) {
+    if (customSlug) {
+      return year ? `/tv/${customSlug}-${year}` : `/tv/${customSlug}`;
+    }
+    if (name) {
+      const slug = slugify(name);
+      if (slug) {
+        return year ? `/tv/${slug}-${year}` : `/tv/${slug}`;
+      }
+    }
+  }
 
   if (customSlug) {
     return `/tv/${customSlug}`;
   }
-
-  if (siteConfig.useTitleSlug && name) {
-    const slug = slugify(name);
-    if (slug) {
-      return id ? `/tv/${slug}-${id}` : `/tv/${slug}`;
-    }
-  }
-
   return id ? `/tv/${id}` : '/tv';
 }
