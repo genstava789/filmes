@@ -349,7 +349,10 @@ export default function AdminPage() {
   const [githubOwner, setGithubOwner] = useState<string>('');
   const [githubRepo, setGithubRepo] = useState<string>('');
   const [githubBranch, setGithubBranch] = useState<string>('');
-  const [isLocalMode, setIsLocalMode] = useState<boolean>(true);
+  const isClientLocal = typeof window !== 'undefined'
+    ? (window.location.hostname === 'localhost' || window.location.hostname === '127.0.0.1')
+    : process.env.NODE_ENV !== 'production';
+  const [isLocalMode, setIsLocalMode] = useState<boolean>(isClientLocal);
   const [tokenChecked, setTokenChecked] = useState(false);
   const [isSettingsOpen, setIsSettingsOpen] = useState(false);
 
@@ -553,10 +556,13 @@ export default function AdminPage() {
 
   const requireToken = (actionName: string): boolean => {
     // In local development server / writable mode, token is NEVER required
-    if (isLocalMode) return true;
-    if (!githubToken) {
+    const isLocal = typeof window !== 'undefined'
+      ? (window.location.hostname === 'localhost' || window.location.hostname === '127.0.0.1')
+      : isLocalMode;
+    if (isLocal) return true;
+    if (!githubToken || !githubToken.trim()) {
       setIsSettingsOpen(true);
-      showToast(`Token GitHub diperlukan untuk ${actionName} pada hosting cloud. Masukkan token di bawah ini.`, 'warning');
+      showToast(`Token GitHub diperlukan untuk ${actionName} pada hosting cloud (Vercel). Masukkan token Anda di Pengaturan.`, 'warning');
       return false;
     }
     return true;
