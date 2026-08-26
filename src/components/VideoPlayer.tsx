@@ -151,6 +151,7 @@ export default function VideoPlayer({
   // Next episode prompt state
   const [showNextPrompt, setShowNextPrompt] = useState(false);
   const [nextCountdown, setNextCountdown] = useState(8);
+  const [isMounted, setIsMounted] = useState(false);
 
   const videoRef = useRef<HTMLVideoElement | null>(null);
   const playerInstanceRef = useRef<any>(null);
@@ -202,6 +203,7 @@ export default function VideoPlayer({
     let isCancelled = false;
     const abortController = new AbortController();
 
+    setIsMounted(true);
     setHasError(false);
     setReported(false);
     setIsPlaying(false);
@@ -900,30 +902,29 @@ export default function VideoPlayer({
               >
                 <video
                   ref={videoRef}
-                  src={videoUrl}
-                  data-src={videoUrl}
+                  src={isMounted ? videoUrl : undefined}
                   className="plyr-react plyr w-full h-full"
                   playsInline
                   crossOrigin="anonymous"
                   poster={poster}
-                  itemProp="contentUrl"
                 >
                   <source
-                    src={videoUrl}
+                    src={isMounted ? videoUrl : ''}
                     type={videoUrl.includes('.m3u8') ? 'application/x-mpegURL' : 'video/mp4'}
                   />
-                  {isMkv && <source src={videoUrl} type="video/x-matroska" />}
+                  {isMounted && isMkv && <source src={videoUrl} type="video/x-matroska" />}
 
-                  {extSubs.map((sub, idx) => (
-                    <track
-                      key={`${sub.src}-${idx}`}
-                      kind="subtitles"
-                      label={sub.label || `Subtitle ${idx + 1}`}
-                      srcLang={sub.srcLang || 'id'}
-                      src={sub.src}
-                      default={sub.default || idx === 0}
-                    />
-                  ))}
+                  {isMounted &&
+                    extSubs.map((sub, idx) => (
+                      <track
+                        key={`${sub.src}-${idx}`}
+                        kind="subtitles"
+                        label={sub.label || `Subtitle ${idx + 1}`}
+                        srcLang={sub.srcLang || 'id'}
+                        src={sub.src}
+                        default={sub.default || idx === 0}
+                      />
+                    ))}
                   Your browser does not support the video tag.
                 </video>
               </div>
