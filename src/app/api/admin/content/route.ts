@@ -2,14 +2,20 @@ import { NextRequest, NextResponse } from 'next/server';
 import fs from 'fs';
 import path from 'path';
 import matter from 'gray-matter';
+import { revalidatePath } from 'next/cache';
 import { slugify } from '@/lib/urls';
+import { saveGitHubFile, deleteGitHubFile } from '@/lib/githubStorage';
 
 const VIDEO_DIR = path.join(process.cwd(), 'video');
 const TV_DIR = path.join(process.cwd(), 'tv');
 
 function ensureDirectories() {
-  if (!fs.existsSync(VIDEO_DIR)) fs.mkdirSync(VIDEO_DIR, { recursive: true });
-  if (!fs.existsSync(TV_DIR)) fs.mkdirSync(TV_DIR, { recursive: true });
+  try {
+    if (!fs.existsSync(VIDEO_DIR)) fs.mkdirSync(VIDEO_DIR, { recursive: true });
+    if (!fs.existsSync(TV_DIR)) fs.mkdirSync(TV_DIR, { recursive: true });
+  } catch {
+    // Read-only filesystem in cloud/vercel
+  }
 }
 
 function sanitizePath(relativePath: string, baseDir: string): string | null {
@@ -21,6 +27,21 @@ function sanitizePath(relativePath: string, baseDir: string): string | null {
   return fullPath;
 }
 
+function getHeaderToken(req: NextRequest): string | null {
+  return req.headers.get('x-github-token') || process.env.GITHUB_TOKEN || process.env.GH_TOKEN || null;
+}
+
+function revalidateAll() {
+  try {
+    revalidatePath('/', 'layout');
+    revalidatePath('/movie/[id]', 'page');
+    revalidatePath('/tv/[...slug]', 'page');
+    revalidatePath('/admin', 'page');
+  } catch (err) {
+    console.warn('Revalidation notice:', err);
+  }
+}
+
 // ──────────────────────────────────────────
 // GET: Fetch all custom movies and TV series
 // ──────────────────────────────────────────
@@ -29,7 +50,15 @@ export async function GET() {
 
   try {
     // 1. Movies in video/
-    const movieFiles = fs.readdirSync(VIDEO_DIR).filter((f) => /\.(md|markdown)$/i.test(f));
+    let movieFiles: string[] = [];
+    try {
+      if (fs.existsSync(VIDEO_DIR)) {
+        movieFiles = fs.readdirSync(VIDEO_DIR).filter((f) => /\.(md|markdown)$/i.test(f));
+      }
+    } catch (e) {
+      console.warn('Read video dir notice:', e);
+    }
+
     const movies = movieFiles.map((file) => {
       const fullPath = path.join(VIDEO_DIR, file);
       const raw = fs.readFileSync(fullPath, 'utf8');
@@ -44,7 +73,15 @@ export async function GET() {
     });
 
     // 2. TV Series in tv/
-    const tvDirs = fs.readdirSync(TV_DIR, { withFileTypes: true }).filter((d) => d.isDirectory()).map((d) => d.name);
+    let tvDirs: string[] = [];
+    try {
+      if (fs.existsSync(TV_DIR)) {
+        tvDirs = fs.readdirSync(TV_DIR, { withFileTypes: true }).filter((d) => d.isDirectory()).map((d) => d.name);
+      }
+    } catch (e) {
+      console.warn('Read tv dir notice:', e);
+    }
+
     const tvShows = tvDirs.map((showDir) => {
       const showPath = path.join(TV_DIR, showDir);
       let indexFrontmatter: any = {};
@@ -71,7 +108,6 @@ export async function GET() {
         if (entry.name === '_index.md' || entry.name === 'index.md') continue;
 
         if (entry.isDirectory()) {
-          // Season folder e.g. s1
           const seasonFolder = entry.name;
           const seasonPath = path.join(showPath, seasonFolder);
           const epFiles = fs.readdirSync(seasonPath).filter((f) => /\.(md|markdown)$/i.test(f));
@@ -90,7 +126,6 @@ export async function GET() {
             });
           }
         } else if (/\.(md|markdown)$/i.test(entry.name)) {
-          // Flat episode file e.g. e1.md
           const raw = fs.readFileSync(path.join(showPath, entry.name), 'utf8');
           const { data, content } = matter(raw);
           episodes.push({
@@ -126,10 +161,14 @@ export async function GET() {
 // ──────────────────────────────────────────
 export async function POST(request: NextRequest) {
   ensureDirectories();
+  const token = getHeaderToken(request);
 
   try {
     const body = await request.json();
-    const { contentType = 'movie' } = body; // 'movie' | 'tv_show' | 'tv_episode'
+    const { contentType = 'movie' } = body;
+
+    let relativePath = '';
+    let fileContent = '';
 
     if (contentType === 'movie') {
       const { tmdb_id, videourl, title, desc, poster, rating, featured, subtitles, content = '', slug } = body;
@@ -143,7 +182,7 @@ export async function POST(request: NextRequest) {
 
       const fileSlug = slug ? slugify(slug) : title ? slugify(title) : `movie-${tmdb_id}`;
       const filename = `${fileSlug}.md`;
-      const fullPath = path.join(VIDEO_DIR, filename);
+      relativePath = `video/${filename}`;
 
       const frontmatterData: Record<string, any> = {
         tmdb_id: Number(tmdb_id),
@@ -157,13 +196,8 @@ export async function POST(request: NextRequest) {
       if (featured) frontmatterData.featured = true;
       if (subtitles && subtitles.trim()) frontmatterData.subtitles = subtitles.trim();
 
-      const fileContent = matter.stringify(content || '', frontmatterData);
-      fs.writeFileSync(fullPath, fileContent, 'utf8');
-
-      return NextResponse.json({ success: true, relativePath: `video/${filename}`, slug: fileSlug });
-    }
-
-    if (contentType === 'tv_show') {
+      fileContent = matter.stringify(content || '', frontmatterData);
+    } else if (contentType === 'tv_show') {
       const { tmdb_id, title, desc, poster, rating, featured, showSlug, content = '' } = body;
 
       if (!tmdb_id) {
@@ -171,12 +205,8 @@ export async function POST(request: NextRequest) {
       }
 
       const cleanShowSlug = showSlug ? slugify(showSlug) : title ? slugify(title) : `tv-${tmdb_id}`;
-      const showPath = path.join(TV_DIR, cleanShowSlug);
-      if (!fs.existsSync(showPath)) {
-        fs.mkdirSync(showPath, { recursive: true });
-      }
+      relativePath = `tv/${cleanShowSlug}/_index.md`;
 
-      const indexPath = path.join(showPath, '_index.md');
       const frontmatterData: Record<string, any> = {
         tmdb_id: Number(tmdb_id),
       };
@@ -187,13 +217,8 @@ export async function POST(request: NextRequest) {
       if (rating !== undefined && rating !== null && rating !== '') frontmatterData.rating = Number(rating);
       if (featured) frontmatterData.featured = true;
 
-      const fileContent = matter.stringify(content || '', frontmatterData);
-      fs.writeFileSync(indexPath, fileContent, 'utf8');
-
-      return NextResponse.json({ success: true, relativePath: `tv/${cleanShowSlug}/_index.md`, showSlug: cleanShowSlug });
-    }
-
-    if (contentType === 'tv_episode') {
+      fileContent = matter.stringify(content || '', frontmatterData);
+    } else if (contentType === 'tv_episode') {
       const { showSlug, season = 's1', episode = 'e1', videourl, title, desc, poster, rating, subtitles, duration, content = '' } = body;
 
       if (!showSlug) {
@@ -208,15 +233,10 @@ export async function POST(request: NextRequest) {
       const cleanEp = episode ? (episode.startsWith('e') || episode.startsWith('ep') ? episode : `e${episode}`) : 'e1';
       const filename = `${slugify(cleanEp)}.md`;
 
-      const targetDir = cleanSeason
-        ? path.join(TV_DIR, cleanShowSlug, cleanSeason)
-        : path.join(TV_DIR, cleanShowSlug);
+      relativePath = cleanSeason
+        ? `tv/${cleanShowSlug}/${cleanSeason}/${filename}`
+        : `tv/${cleanShowSlug}/${filename}`;
 
-      if (!fs.existsSync(targetDir)) {
-        fs.mkdirSync(targetDir, { recursive: true });
-      }
-
-      const fullPath = path.join(targetDir, filename);
       const frontmatterData: Record<string, any> = {
         videourl: videourl.trim(),
       };
@@ -228,17 +248,43 @@ export async function POST(request: NextRequest) {
       if (duration && duration.trim()) frontmatterData.duration = duration.trim();
       if (subtitles && subtitles.trim()) frontmatterData.subtitles = subtitles.trim();
 
-      const fileContent = matter.stringify(content || '', frontmatterData);
-      fs.writeFileSync(fullPath, fileContent, 'utf8');
-
-      const relativePath = cleanSeason
-        ? `tv/${cleanShowSlug}/${cleanSeason}/${filename}`
-        : `tv/${cleanShowSlug}/${filename}`;
-
-      return NextResponse.json({ success: true, relativePath });
+      fileContent = matter.stringify(content || '', frontmatterData);
+    } else {
+      return NextResponse.json({ error: 'Invalid contentType' }, { status: 400 });
     }
 
-    return NextResponse.json({ error: 'Invalid contentType' }, { status: 400 });
+    // Save: try Local Filesystem, fallback to GitHub API on EROFS
+    let wroteLocal = false;
+    try {
+      const fullPath = path.join(process.cwd(), relativePath);
+      const dir = path.dirname(fullPath);
+      if (!fs.existsSync(dir)) fs.mkdirSync(dir, { recursive: true });
+      fs.writeFileSync(fullPath, fileContent, 'utf8');
+      wroteLocal = true;
+    } catch (fsErr: any) {
+      if (fsErr.code !== 'EROFS' && !fsErr.message?.includes('read-only')) {
+        throw fsErr;
+      }
+    }
+
+    // If on serverless/Vercel (or token provided), commit directly to GitHub
+    if (!wroteLocal || token) {
+      if (!token) {
+        return NextResponse.json(
+          {
+            error:
+              'Sistem hosting Vercel bersifat Read-Only. Masukkan GitHub Personal Access Token di Pengaturan Admin (tombol ⚙️) untuk menyimpan langsung ke repositori secara live.',
+            requiresToken: true,
+          },
+          { status: 400 }
+        );
+      }
+
+      await saveGitHubFile(relativePath, fileContent, `cms: create ${relativePath}`, { token });
+    }
+
+    revalidateAll();
+    return NextResponse.json({ success: true, relativePath });
   } catch (error: any) {
     console.error('Error creating content:', error);
     return NextResponse.json({ error: error.message || 'Failed to create content' }, { status: 500 });
@@ -249,6 +295,8 @@ export async function POST(request: NextRequest) {
 // PUT: Update existing markdown file
 // ──────────────────────────────────────────
 export async function PUT(request: NextRequest) {
+  const token = getHeaderToken(request);
+
   try {
     const body = await request.json();
     const { relativePath, frontmatter: newFrontmatter, content = '' } = body;
@@ -264,14 +312,6 @@ export async function PUT(request: NextRequest) {
       return NextResponse.json({ error: 'Access denied outside content directories' }, { status: 403 });
     }
 
-    const baseDir = isMovie ? VIDEO_DIR : TV_DIR;
-    const subPath = isMovie ? relativePath.replace(/^video\//, '') : relativePath.replace(/^tv\//, '');
-    const fullPath = sanitizePath(subPath, baseDir);
-
-    if (!fullPath || !fs.existsSync(fullPath)) {
-      return NextResponse.json({ error: 'Target file not found' }, { status: 404 });
-    }
-
     // Clean empty values from frontmatter
     const cleanFrontmatter: Record<string, any> = {};
     for (const [key, val] of Object.entries(newFrontmatter || {})) {
@@ -285,8 +325,37 @@ export async function PUT(request: NextRequest) {
     }
 
     const fileContent = matter.stringify(content || '', cleanFrontmatter);
-    fs.writeFileSync(fullPath, fileContent, 'utf8');
 
+    // Save: try Local Filesystem, fallback to GitHub API on EROFS
+    let wroteLocal = false;
+    try {
+      const fullPath = path.join(process.cwd(), relativePath);
+      const dir = path.dirname(fullPath);
+      if (!fs.existsSync(dir)) fs.mkdirSync(dir, { recursive: true });
+      fs.writeFileSync(fullPath, fileContent, 'utf8');
+      wroteLocal = true;
+    } catch (fsErr: any) {
+      if (fsErr.code !== 'EROFS' && !fsErr.message?.includes('read-only')) {
+        throw fsErr;
+      }
+    }
+
+    if (!wroteLocal || token) {
+      if (!token) {
+        return NextResponse.json(
+          {
+            error:
+              'Sistem hosting Vercel bersifat Read-Only. Masukkan GitHub Personal Access Token di Pengaturan Admin (tombol ⚙️) untuk menyimpan langsung ke repositori secara live.',
+            requiresToken: true,
+          },
+          { status: 400 }
+        );
+      }
+
+      await saveGitHubFile(relativePath, fileContent, `cms: update ${relativePath}`, { token });
+    }
+
+    revalidateAll();
     return NextResponse.json({ success: true, relativePath });
   } catch (error: any) {
     console.error('Error updating content:', error);
@@ -298,6 +367,8 @@ export async function PUT(request: NextRequest) {
 // DELETE: Delete a markdown file or TV folder
 // ──────────────────────────────────────────
 export async function DELETE(request: NextRequest) {
+  const token = getHeaderToken(request);
+
   try {
     const { searchParams } = new URL(request.url);
     const relativePath = searchParams.get('path');
@@ -313,21 +384,40 @@ export async function DELETE(request: NextRequest) {
       return NextResponse.json({ error: 'Access denied outside content directories' }, { status: 403 });
     }
 
-    const baseDir = isMovie ? VIDEO_DIR : TV_DIR;
-    const subPath = isMovie ? relativePath.replace(/^video\//, '') : relativePath.replace(/^tv\//, '');
-    const fullPath = sanitizePath(subPath, baseDir);
-
-    if (!fullPath || !fs.existsSync(fullPath)) {
-      return NextResponse.json({ error: 'Target file or folder not found' }, { status: 404 });
+    let deletedLocal = false;
+    try {
+      const fullPath = path.join(process.cwd(), relativePath);
+      if (fs.existsSync(fullPath)) {
+        const stat = fs.statSync(fullPath);
+        if (stat.isDirectory()) {
+          fs.rmSync(fullPath, { recursive: true, force: true });
+        } else {
+          fs.unlinkSync(fullPath);
+        }
+        deletedLocal = true;
+      }
+    } catch (fsErr: any) {
+      if (fsErr.code !== 'EROFS' && !fsErr.message?.includes('read-only')) {
+        throw fsErr;
+      }
     }
 
-    const stat = fs.statSync(fullPath);
-    if (stat.isDirectory()) {
-      fs.rmSync(fullPath, { recursive: true, force: true });
-    } else {
-      fs.unlinkSync(fullPath);
+    if (!deletedLocal || token) {
+      if (!token) {
+        return NextResponse.json(
+          {
+            error:
+              'Sistem hosting Vercel bersifat Read-Only. Masukkan GitHub Personal Access Token di Pengaturan Admin (tombol ⚙️) untuk menghapus langsung di repositori secara live.',
+            requiresToken: true,
+          },
+          { status: 400 }
+        );
+      }
+
+      await deleteGitHubFile(relativePath, `cms: delete ${relativePath}`, { token });
     }
 
+    revalidateAll();
     return NextResponse.json({ success: true, message: `Successfully deleted ${relativePath}` });
   } catch (error: any) {
     console.error('Error deleting content:', error);

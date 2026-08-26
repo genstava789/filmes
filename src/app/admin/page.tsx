@@ -18,11 +18,12 @@ import {
   X,
   Play,
   Star,
-  Calendar,
+  Settings,
+  Key,
+  ShieldCheck,
   Layers,
-  FileText,
+  HelpCircle,
 } from 'lucide-react';
-import siteConfig from '@/config';
 
 interface MovieItem {
   filename: string;
@@ -103,6 +104,11 @@ export default function AdminPage() {
   const [searchQuery, setSearchQuery] = useState('');
   const [toastMessage, setToastMessage] = useState<{ text: string; type: 'success' | 'error' } | null>(null);
 
+  // GitHub Token & Settings
+  const [githubToken, setGithubToken] = useState<string>('');
+  const [isSettingsOpen, setIsSettingsOpen] = useState(false);
+  const [tempToken, setTempToken] = useState('');
+
   // Modal States
   const [isCreateModalOpen, setIsCreateModalOpen] = useState(false);
   const [isEditModalOpen, setIsEditModalOpen] = useState(false);
@@ -133,28 +139,52 @@ export default function AdminPage() {
   const [tmdbPreview, setTmdbPreview] = useState<TMDBPreviewData | null>(null);
   const [fetchingTmdb, setFetchingTmdb] = useState(false);
 
+  // Load saved token from localStorage on mount
+  useEffect(() => {
+    const saved = localStorage.getItem('levistream_github_token') || '';
+    setGithubToken(saved);
+    setTempToken(saved);
+  }, []);
+
+  const saveToken = () => {
+    localStorage.setItem('levistream_github_token', tempToken.trim());
+    setGithubToken(tempToken.trim());
+    setIsSettingsOpen(false);
+    showToast('GitHub Token berhasil disimpan!');
+  };
+
   const showToast = (text: string, type: 'success' | 'error' = 'success') => {
     setToastMessage({ text, type });
-    setTimeout(() => setToastMessage(null), 4000);
+    setTimeout(() => setToastMessage(null), 5000);
   };
+
+  const getHeaders = useCallback(() => {
+    const headers: Record<string, string> = { 'Content-Type': 'application/json' };
+    if (githubToken) {
+      headers['x-github-token'] = githubToken;
+    }
+    return headers;
+  }, [githubToken]);
 
   const fetchContent = useCallback(async () => {
     setLoading(true);
     try {
-      const res = await fetch('/api/admin/content');
+      const res = await fetch('/api/admin/content', {
+        headers: getHeaders(),
+      });
       const data = await res.json();
       if (res.ok) {
         setMovies(data.movies || []);
         setTvShows(data.tvShows || []);
       } else {
-        showToast(data.error || 'Failed to load content', 'error');
+        showToast(data.error || 'Gagal memuat konten', 'error');
       }
     } catch (e: any) {
-      showToast('Network error loading content', 'error');
+      showToast('Network error saat memuat konten', 'error');
     } finally {
       setLoading(false);
     }
-  }, []);
+  }, [getHeaders]);
 
   useEffect(() => {
     fetchContent();
@@ -205,18 +235,18 @@ export default function AdminPage() {
     e.preventDefault();
     if (contentType === 'movie' || contentType === 'tv_show') {
       if (!formTmdbId.trim()) {
-        showToast('TMDB ID is required!', 'error');
+        showToast('TMDB ID wajib diisi!', 'error');
         return;
       }
     }
     if (contentType === 'movie' || contentType === 'tv_episode') {
       if (!formVideoUrl.trim()) {
-        showToast('URL Video (videourl) is required!', 'error');
+        showToast('URL Video (videourl) wajib diisi!', 'error');
         return;
       }
     }
     if (contentType === 'tv_episode' && !formShowSlug.trim()) {
-      showToast('Show slug is required for episode!', 'error');
+      showToast('Show slug wajib diisi untuk episode!', 'error');
       return;
     }
 
@@ -240,21 +270,24 @@ export default function AdminPage() {
 
       const res = await fetch('/api/admin/content', {
         method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
+        headers: getHeaders(),
         body: JSON.stringify(payload),
       });
 
       const result = await res.json();
       if (res.ok) {
-        showToast(`Berhasil dibuat: ${result.relativePath}`);
+        showToast(`Berhasil dibuat & live: ${result.relativePath}`);
         setIsCreateModalOpen(false);
         resetCreateForm();
         fetchContent();
       } else {
-        showToast(result.error || 'Failed to create content', 'error');
+        if (result.requiresToken) {
+          setIsSettingsOpen(true);
+        }
+        showToast(result.error || 'Gagal membuat konten', 'error');
       }
     } catch (e: any) {
-      showToast('Error sending request', 'error');
+      showToast('Terjadi kesalahan jaringan', 'error');
     }
   };
 
@@ -266,7 +299,7 @@ export default function AdminPage() {
     try {
       const res = await fetch('/api/admin/content', {
         method: 'PUT',
-        headers: { 'Content-Type': 'application/json' },
+        headers: getHeaders(),
         body: JSON.stringify({
           relativePath: editingItem.relativePath,
           frontmatter: editingItem.frontmatter,
@@ -276,15 +309,18 @@ export default function AdminPage() {
 
       const result = await res.json();
       if (res.ok) {
-        showToast(`Perubahan berhasil disimpan!`);
+        showToast(`Perubahan berhasil disimpan & live!`);
         setIsEditModalOpen(false);
         setEditingItem(null);
         fetchContent();
       } else {
-        showToast(result.error || 'Failed to update content', 'error');
+        if (result.requiresToken) {
+          setIsSettingsOpen(true);
+        }
+        showToast(result.error || 'Gagal menyimpan perubahan', 'error');
       }
     } catch (e) {
-      showToast('Error updating content', 'error');
+      showToast('Gagal menyimpan perubahan', 'error');
     }
   };
 
@@ -295,16 +331,20 @@ export default function AdminPage() {
     try {
       const res = await fetch(`/api/admin/content?path=${encodeURIComponent(relativePath)}`, {
         method: 'DELETE',
+        headers: getHeaders(),
       });
       const data = await res.json();
       if (res.ok) {
         showToast(`Berhasil menghapus: ${label}`);
         fetchContent();
       } else {
-        showToast(data.error || 'Failed to delete', 'error');
+        if (data.requiresToken) {
+          setIsSettingsOpen(true);
+        }
+        showToast(data.error || 'Gagal menghapus', 'error');
       }
     } catch (e) {
-      showToast('Error deleting content', 'error');
+      showToast('Error saat menghapus konten', 'error');
     }
   };
 
@@ -330,15 +370,15 @@ export default function AdminPage() {
       {/* Toast Notification */}
       {toastMessage && (
         <div
-          className="fixed bottom-6 right-6 z-50 flex items-center gap-2.5 px-5 py-3.5 rounded-xl shadow-2xl border transition-all animate-slide-up"
+          className="fixed bottom-6 right-6 z-50 flex items-center gap-2.5 px-5 py-3.5 rounded-xl shadow-2xl border transition-all animate-slide-up max-w-md"
           style={{
             background: toastMessage.type === 'success' ? '#064e3b' : '#7f1d1d',
             borderColor: toastMessage.type === 'success' ? '#10b981' : '#ef4444',
             color: '#ffffff',
           }}
         >
-          {toastMessage.type === 'success' ? <CheckCircle size={18} /> : <AlertCircle size={18} />}
-          <span className="text-sm font-semibold">{toastMessage.text}</span>
+          {toastMessage.type === 'success' ? <CheckCircle size={18} className="flex-shrink-0" /> : <AlertCircle size={18} className="flex-shrink-0" />}
+          <span className="text-sm font-semibold leading-snug">{toastMessage.text}</span>
         </div>
       )}
 
@@ -356,11 +396,25 @@ export default function AdminPage() {
             </div>
             <p className="text-sm text-slate-400">
               Kelola konten custom movie (<code className="text-cyan-400">video/</code>) dan TV series (
-              <code className="text-pink-400">tv/</code>) langsung dari browser.
+              <code className="text-pink-400">tv/</code>) secara live dari browser.
             </p>
           </div>
 
-          <div className="flex items-center gap-3">
+          <div className="flex items-center gap-2.5 flex-wrap">
+            {/* GitHub Sync Indicator / Settings button */}
+            <button
+              onClick={() => setIsSettingsOpen(true)}
+              className={`inline-flex items-center gap-2 px-3.5 py-2.5 rounded-xl text-xs sm:text-sm font-bold border transition-all ${
+                githubToken
+                  ? 'bg-emerald-500/10 border-emerald-500/30 text-emerald-400 hover:bg-emerald-500/20'
+                  : 'bg-amber-500/10 border-amber-500/30 text-amber-300 hover:bg-amber-500/20'
+              }`}
+              title="Pengaturan GitHub Token untuk Live Sync di Vercel"
+            >
+              {githubToken ? <ShieldCheck size={16} /> : <Key size={16} />}
+              <span>{githubToken ? 'GitHub Live Sync Aktif' : 'Atur GitHub Token'}</span>
+            </button>
+
             <button
               onClick={() => fetchContent()}
               className="inline-flex items-center gap-2 px-4 py-2.5 rounded-xl text-sm font-semibold bg-white/5 border border-white/10 hover:bg-white/10 transition-all"
@@ -777,6 +831,70 @@ export default function AdminPage() {
           )
         )}
       </div>
+
+      {/* ────────────────────────────────────────── */}
+      {/* Modal: Pengaturan GitHub Token (Bypass EROFS di Vercel) */}
+      {/* ────────────────────────────────────────── */}
+      {isSettingsOpen && (
+        <div className="fixed inset-0 z-50 bg-black/80 backdrop-blur-sm flex items-center justify-center p-4">
+          <div className="w-full max-w-lg bg-[#0c1224] border border-cyan-500/30 rounded-2xl shadow-2xl overflow-hidden animate-scale-up">
+            <div className="flex items-center justify-between p-5 border-b border-white/10 bg-white/5">
+              <div className="flex items-center gap-2">
+                <Key size={20} className="text-cyan-400" />
+                <h3 className="text-lg font-bold text-white">Pengaturan Live Sync GitHub</h3>
+              </div>
+              <button onClick={() => setIsSettingsOpen(false)} className="text-slate-400 hover:text-white">
+                <X size={20} />
+              </button>
+            </div>
+
+            <div className="p-6 space-y-4">
+              <div className="p-3.5 rounded-xl bg-cyan-950/30 border border-cyan-500/20 text-xs text-slate-300 leading-relaxed">
+                <p className="font-bold text-cyan-300 mb-1 flex items-center gap-1.5">
+                  <HelpCircle size={14} />
+                  Mengapa ini diperlukan di Vercel?
+                </p>
+                Hosting cloud seperti Vercel memiliki sistem berkas <em>Read-Only</em> (tidak bisa menulis file lokal).
+                Dengan memasukkan <strong>GitHub Personal Access Token</strong>, setiap aksi tambah, edit, atau hapus konten akan
+                <strong> langsung di-commit ke repositori GitHub</strong> secara instan dan live!
+              </div>
+
+              <div>
+                <label className="block text-xs font-bold text-slate-300 mb-1">
+                  GitHub Personal Access Token (PAT)
+                </label>
+                <input
+                  type="password"
+                  value={tempToken}
+                  onChange={(e) => setTempToken(e.target.value)}
+                  placeholder="github_pat_... atau ghp_..."
+                  className="w-full px-3.5 py-2.5 bg-black/50 border border-white/10 rounded-xl text-sm text-white focus:outline-none focus:border-cyan-400 font-mono"
+                />
+                <p className="text-[11px] text-slate-400 mt-1">
+                  Buat token di GitHub: <em>Settings &gt; Developer settings &gt; Personal access tokens</em> dengan izin <code className="text-cyan-300">repo</code>.
+                </p>
+              </div>
+
+              <div className="flex items-center justify-end gap-3 pt-3 border-t border-white/10">
+                <button
+                  type="button"
+                  onClick={() => setIsSettingsOpen(false)}
+                  className="px-4 py-2 rounded-xl text-sm font-semibold bg-white/5 hover:bg-white/10 text-slate-300"
+                >
+                  Tutup
+                </button>
+                <button
+                  type="button"
+                  onClick={saveToken}
+                  className="px-5 py-2 rounded-xl text-sm font-bold bg-cyan-500 hover:bg-cyan-400 text-white shadow-lg shadow-cyan-500/25"
+                >
+                  Simpan Token
+                </button>
+              </div>
+            </div>
+          </div>
+        </div>
+      )}
 
       {/* ────────────────────────────────────────── */}
       {/* Modal: Buat Konten Baru */}
