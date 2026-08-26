@@ -264,18 +264,23 @@ export async function getEnrichedFeaturedItems(options: GetFeaturedOptions = {})
   customMovies.forEach(addItem);
   customTV.forEach(addItem);
 
-  // Process configured featured items
+  // Process configured featured items from siteConfig
   enrichedConfigItems.forEach(addItem);
 
-  // 4. If we still have fewer items than maxItems, fill with non-duplicate dynamic TMDB movies/shows
-  if (featuredList.length < maxItems && dynamicFallbackMovies.length > 0) {
+  // If custom featured items exist (from custom pages or config), use ONLY those!
+  // Do NOT mix or pad with TMDB API trending items.
+  if (featuredList.length > 0) {
+    return featuredList.slice(0, maxItems);
+  }
+
+  // 4. FALLBACK ONLY: If no custom featured items exist at all, use dynamic TMDB trending movies/shows
+  if (dynamicFallbackMovies.length > 0) {
     for (const m of dynamicFallbackMovies) {
       if (featuredList.length >= maxItems) break;
 
       const tmdbKey = `movie-${m.id}`;
       const titleKey = `movie:${normalizeTitle(m.title)}`;
 
-      // Strict condition: do NOT duplicate items that are already featured
       if (!seenTmdbIds.has(tmdbKey) && !seenTitles.has(titleKey)) {
         seenTmdbIds.add(tmdbKey);
         seenTitles.add(titleKey);
@@ -309,7 +314,7 @@ export async function getEnrichedFeaturedItems(options: GetFeaturedOptions = {})
     }
   }
 
-      return featuredList.slice(0, maxItems);
+  return featuredList.slice(0, maxItems);
     },
     60_000, // 60s hard TTL
     30_000  // 30s SWR

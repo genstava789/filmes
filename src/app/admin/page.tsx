@@ -230,6 +230,15 @@ function formatSeasonLabel(season?: string | null): string {
 }
 
 /**
+ * Extracts numeric season number (defaults to 1).
+ */
+function getSeasonNumber(season?: string | null): number {
+  if (!season) return 1;
+  const num = season.replace(/\D/g, '');
+  return num ? parseInt(num, 10) : 1;
+}
+
+/**
  * Parses episode number from filename or slug (e.g. "e1.md" -> 1, "e02" -> 2, "episode-3" -> 3).
  */
 function parseEpisodeNumber(slugOrFilename?: string | null): number | null {
@@ -243,12 +252,10 @@ function parseEpisodeNumber(slugOrFilename?: string | null): number | null {
 }
 
 /**
- * Formats clean Episode Badge (e.g. "Season 1 • Ep 1")
+ * Extracts numeric episode number (defaults to 1).
  */
-function formatEpisodeBadge(season?: string | null, slugOrFilename?: string | null): string {
-  const sNum = season ? parseInt(season.replace(/\D/g, '') || '1', 10) : 1;
-  const epNum = parseEpisodeNumber(slugOrFilename) || 1;
-  return `Season ${sNum} • Ep ${epNum}`;
+function getEpisodeNumber(slugOrFilename?: string | null): number {
+  return parseEpisodeNumber(slugOrFilename) || 1;
 }
 
 /**
@@ -317,11 +324,19 @@ export default function AdminPage() {
   // Edit Modal Mini-Pagination State
   const [editModalSeasonPage, setEditModalSeasonPage] = useState<number>(1);
 
-  // GitHub Token & Hydration Safety
+  // GitHub Token & Repository Config State
   const [githubToken, setGithubToken] = useState<string>('');
+  const [githubOwner, setGithubOwner] = useState<string>('');
+  const [githubRepo, setGithubRepo] = useState<string>('');
+  const [githubBranch, setGithubBranch] = useState<string>('');
+  const [isLocalMode, setIsLocalMode] = useState<boolean>(true);
   const [tokenChecked, setTokenChecked] = useState(false);
   const [isSettingsOpen, setIsSettingsOpen] = useState(false);
+
   const [tempToken, setTempToken] = useState('');
+  const [tempOwner, setTempOwner] = useState('');
+  const [tempRepo, setTempRepo] = useState('');
+  const [tempBranch, setTempBranch] = useState('');
 
   // Modal States
   const [isCreateModalOpen, setIsCreateModalOpen] = useState(false);
@@ -447,9 +462,18 @@ export default function AdminPage() {
   // Load saved token & optimistic cache from localStorage on mount
   useEffect(() => {
     try {
-      const saved = localStorage.getItem('levistream_github_token') || '';
-      setGithubToken(saved);
-      setTempToken(saved);
+      const savedToken = localStorage.getItem('levistream_github_token') || '';
+      const savedOwner = localStorage.getItem('levistream_github_owner') || '';
+      const savedRepo = localStorage.getItem('levistream_github_repo') || '';
+      const savedBranch = localStorage.getItem('levistream_github_branch') || '';
+      setGithubToken(savedToken);
+      setTempToken(savedToken);
+      setGithubOwner(savedOwner);
+      setTempOwner(savedOwner);
+      setGithubRepo(savedRepo);
+      setTempRepo(savedRepo);
+      setGithubBranch(savedBranch);
+      setTempBranch(savedBranch);
 
       const cachedMovies = localStorage.getItem('cms_cached_movies');
       const cachedTV = localStorage.getItem('cms_cached_tv');
@@ -462,22 +486,33 @@ export default function AdminPage() {
     }
   }, []);
 
-  const saveToken = () => {
-    if (!tempToken.trim()) {
-      showToast('Token tidak boleh kosong', 'warning');
-      return;
-    }
+  const saveSettings = () => {
     localStorage.setItem('levistream_github_token', tempToken.trim());
+    localStorage.setItem('levistream_github_owner', tempOwner.trim());
+    localStorage.setItem('levistream_github_repo', tempRepo.trim());
+    localStorage.setItem('levistream_github_branch', tempBranch.trim());
     setGithubToken(tempToken.trim());
+    setGithubOwner(tempOwner.trim());
+    setGithubRepo(tempRepo.trim());
+    setGithubBranch(tempBranch.trim());
     setIsSettingsOpen(false);
-    showToast('GitHub Token berhasil disimpan & aktif!');
+    showToast('Pengaturan GitHub & Repositori berhasil disimpan!');
   };
 
   const removeToken = () => {
     localStorage.removeItem('levistream_github_token');
+    localStorage.removeItem('levistream_github_owner');
+    localStorage.removeItem('levistream_github_repo');
+    localStorage.removeItem('levistream_github_branch');
     setGithubToken('');
     setTempToken('');
-    showToast('GitHub Token telah dihapus', 'warning');
+    setGithubOwner('');
+    setTempOwner('');
+    setGithubRepo('');
+    setTempRepo('');
+    setGithubBranch('');
+    setTempBranch('');
+    showToast('Pengaturan GitHub telah direset ke default', 'warning');
   };
 
   const showToast = (text: string, type: 'success' | 'error' | 'warning' = 'success') => {
@@ -489,16 +524,19 @@ export default function AdminPage() {
     const headers: Record<string, string> = {
       'Content-Type': 'application/json',
     };
-    if (githubToken) {
-      headers['x-github-token'] = githubToken;
-    }
+    if (githubToken) headers['x-github-token'] = githubToken;
+    if (githubOwner) headers['x-github-owner'] = githubOwner;
+    if (githubRepo) headers['x-github-repo'] = githubRepo;
+    if (githubBranch) headers['x-github-branch'] = githubBranch;
     return headers;
-  }, [githubToken]);
+  }, [githubToken, githubOwner, githubRepo, githubBranch]);
 
   const requireToken = (actionName: string): boolean => {
+    // In local development server / writable mode, token is NEVER required
+    if (isLocalMode) return true;
     if (!githubToken) {
       setIsSettingsOpen(true);
-      showToast(`Token GitHub diperlukan untuk ${actionName}. Masukkan token di bawah ini.`, 'warning');
+      showToast(`Token GitHub diperlukan untuk ${actionName} pada hosting cloud. Masukkan token di bawah ini.`, 'warning');
       return false;
     }
     return true;
@@ -512,6 +550,18 @@ export default function AdminPage() {
         headers: getHeaders(),
       });
       const data = await res.json();
+      if (typeof data.isLocal === 'boolean') {
+        setIsLocalMode(data.isLocal);
+      }
+      if (data.defaultOwner && !githubOwner && !tempOwner) {
+        setTempOwner(data.defaultOwner);
+      }
+      if (data.defaultRepo && !githubRepo && !tempRepo) {
+        setTempRepo(data.defaultRepo);
+      }
+      if (data.defaultBranch && !githubBranch && !tempBranch) {
+        setTempBranch(data.defaultBranch);
+      }
       if (data.movies) {
         setMovies(data.movies);
         try {
@@ -529,7 +579,7 @@ export default function AdminPage() {
     } finally {
       setLoading(false);
     }
-  }, [getHeaders]);
+  }, [getHeaders, githubOwner, tempOwner, githubRepo, tempRepo, githubBranch, tempBranch]);
 
   // TMDB Autofetch for Edit Modal
   const handleFetchEditTmdbPreview = async (idOrUrl: string, type: 'movie' | 'tv') => {
@@ -1648,18 +1698,34 @@ export default function AdminPage() {
 
           <div className="flex items-center gap-2 flex-wrap">
             {tokenChecked && (
-              <button
-                onClick={() => setIsSettingsOpen(true)}
-                className={`px-2.5 py-1 rounded-md text-[11px] font-semibold flex items-center gap-1.5 border transition-all ${
-                  githubToken
-                    ? 'bg-emerald-950/40 text-emerald-300 border-emerald-500/30 hover:border-emerald-400'
-                    : 'bg-amber-950/40 text-amber-300 border-amber-500/30 hover:border-amber-400 animate-pulse'
-                }`}
-                title="Klik untuk konfigurasi GitHub Token"
-              >
-                {githubToken ? <ShieldCheck size={13} /> : <ShieldAlert size={13} />}
-                <span>{githubToken ? 'PAT Aktif' : 'Pasang Token'}</span>
-              </button>
+              <>
+                {isLocalMode ? (
+                  <span className="px-2.5 py-1 rounded-md text-[11px] font-bold bg-emerald-500/10 text-emerald-300 border border-emerald-500/30 flex items-center gap-1.5 shadow-sm">
+                    <span className="w-2 h-2 rounded-full bg-emerald-400 animate-pulse" />
+                    <span>Local Dev (FS Write)</span>
+                  </span>
+                ) : (
+                  <span className="px-2.5 py-1 rounded-md text-[11px] font-bold bg-blue-500/10 text-cyan-300 border border-cyan-500/30 flex items-center gap-1.5 shadow-sm">
+                    <span className="w-2 h-2 rounded-full bg-cyan-400" />
+                    <span>Cloud Mode</span>
+                  </span>
+                )}
+
+                <button
+                  onClick={() => setIsSettingsOpen(true)}
+                  className={`px-2.5 py-1 rounded-md text-[11px] font-semibold flex items-center gap-1.5 border transition-all ${
+                    githubToken
+                      ? 'bg-emerald-950/40 text-emerald-300 border-emerald-500/30 hover:border-emerald-400'
+                      : isLocalMode
+                      ? 'bg-white/5 text-slate-300 border-white/10 hover:border-white/20'
+                      : 'bg-amber-950/40 text-amber-300 border-amber-500/30 hover:border-amber-400 animate-pulse'
+                  }`}
+                  title="Klik untuk konfigurasi GitHub & Repositori"
+                >
+                  <Key size={13} className={githubToken ? 'text-emerald-400' : 'text-slate-400'} />
+                  <span>{githubToken ? 'GitHub Token' : 'Pengaturan Token'}</span>
+                </button>
+              </>
             )}
 
             <button
@@ -2038,43 +2104,45 @@ export default function AdminPage() {
                               {/* Season Dropdown Menu Header */}
                               <div
                                 onClick={() => toggleSeasonAccordion(show.showSlug, seasonSlug)}
-                                className="p-2 sm:p-2.5 flex items-center justify-between gap-2 cursor-pointer hover:bg-white/5 transition-all select-none"
+                                className="p-3 sm:p-3.5 flex items-center justify-between gap-3 cursor-pointer hover:bg-white/10 active:bg-white/15 transition-all select-none min-h-[48px]"
                               >
-                                <div className="flex items-center gap-2">
-                                  {isExpanded ? (
-                                    <ChevronDown size={14} className="text-pink-400 transition-transform" />
-                                  ) : (
-                                    <ChevronRight size={14} className="text-slate-400 transition-transform" />
-                                  )}
-                                  <span className="text-xs font-bold text-white tracking-tight">
+                                <div className="flex items-center gap-2.5 min-w-0">
+                                  <div className="w-6 h-6 rounded-md bg-white/5 flex items-center justify-center flex-shrink-0 text-slate-300">
+                                    {isExpanded ? (
+                                      <ChevronDown size={18} className="text-pink-400 transition-transform" />
+                                    ) : (
+                                      <ChevronRight size={18} className="text-slate-400 transition-transform" />
+                                    )}
+                                  </div>
+                                  <span className="text-xs sm:text-sm font-extrabold text-white tracking-tight truncate">
                                     {formatSeasonLabel(seasonSlug)}
                                   </span>
-                                  <span className="px-1.5 py-0.2 rounded text-[9px] font-bold bg-purple-500/20 text-purple-300 border border-purple-500/30">
+                                  <span className="px-2 py-0.5 rounded-md text-[10px] sm:text-[11px] font-bold bg-purple-500/20 text-purple-300 border border-purple-500/30 whitespace-nowrap">
                                     {seasonEps.length} Episode
                                   </span>
                                 </div>
 
-                                <div className="flex items-center gap-1.5" onClick={(e) => e.stopPropagation()}>
+                                <div className="flex items-center gap-2 flex-shrink-0" onClick={(e) => e.stopPropagation()}>
                                   <button
                                     onClick={() => handleQuickAddEpisodeToEditShow(show, seasonSlug)}
-                                    className="px-2 py-0.5 rounded text-[10px] font-bold bg-purple-500/20 hover:bg-purple-500/30 text-purple-300 border border-purple-500/30 flex items-center gap-1 transition-all"
+                                    className="px-2.5 sm:px-3 py-1.5 rounded-lg text-xs font-bold bg-purple-500/20 hover:bg-purple-500/30 text-purple-200 border border-purple-500/40 flex items-center gap-1.5 transition-all shadow-sm active:scale-95"
                                   >
-                                    <Plus size={10} />
-                                    <span>Tambah Ep</span>
+                                    <Plus size={13} className="text-purple-300" />
+                                    <span className="text-xs font-bold">Tambah Ep</span>
                                   </button>
                                 </div>
                               </div>
 
                               {/* Dropdown Content with Mini-Pagination */}
                               {isExpanded && (
-                                <div className="p-2.5 pt-1.5 border-t border-white/5 space-y-2 bg-black/40">
+                                <div className="p-3 pt-2 border-t border-white/5 space-y-2.5 bg-black/40">
                                   {seasonEps.length === 0 ? (
                                     <div className="p-3 text-center text-slate-500 text-[11px]">
                                       Belum ada episode di {formatSeasonLabel(seasonSlug)}.
                                     </div>
                                   ) : (
                                     <>
-                                      <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-2">
+                                      <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-2.5">
                                         {pagedEpisodes.map((ep) => {
                                           const epTitle = ep.displayTitle || ep.frontmatter.title || ep.slug;
                                           const epVideo = ep.frontmatter.videourl || ep.frontmatter.video_url;
@@ -2090,40 +2158,51 @@ export default function AdminPage() {
                                             ? `${baseTVUrl}/${ep.seasonFolder}/${ep.slug}`
                                             : `${baseTVUrl}/${ep.slug}`;
 
+                                          const seasonNum = getSeasonNumber(ep.seasonFolder);
+                                          const episodeNum = getEpisodeNumber(ep.slug || ep.filename);
+
                                           return (
                                             <div
                                               key={ep.relativePath}
-                                              className="p-1.5 rounded-lg bg-black/50 border border-white/10 flex items-center gap-2.5 w-full hover:border-purple-500/40 transition-all shadow-sm"
+                                              className="p-2.5 sm:p-3 rounded-xl bg-[#090e1e]/90 border border-white/10 flex items-start gap-3 w-full hover:border-purple-500/50 hover:bg-[#0c1328] transition-all shadow-sm group"
                                             >
                                               {/* Left: Compact 16:9 Thumbnail */}
-                                              <div className="relative w-14 h-9 sm:w-16 sm:h-10 rounded overflow-hidden bg-slate-900 border border-white/10 flex-shrink-0">
-                                                <SafeAdminImage src={epPoster} fallbackSrc={poster} alt={epTitle} sizes="56px" />
+                                              <div className="relative w-16 h-11 sm:w-20 sm:h-13 rounded-lg overflow-hidden bg-slate-900 border border-white/10 flex-shrink-0 shadow-sm mt-0.5">
+                                                <SafeAdminImage src={epPoster} fallbackSrc={poster} alt={epTitle} sizes="80px" />
                                               </div>
 
-                                              {/* Center: Info & Badge */}
+                                              {/* Center: Info & Separated Badges */}
                                               <div className="flex-1 min-w-0">
-                                                <div className="flex items-center gap-1.5 mb-0.5">
-                                                  <span className="px-1.5 py-0.2 rounded text-[8.5px] font-extrabold bg-purple-500/20 text-purple-300 border border-purple-500/30 whitespace-nowrap">
-                                                    {formatEpisodeBadge(ep.seasonFolder, ep.slug)}
+                                                <div className="flex flex-wrap items-center gap-1.5 mb-1">
+                                                  <span className="px-1.5 py-0.5 rounded text-[9.5px] sm:text-[10px] font-extrabold bg-pink-500/20 text-pink-300 border border-pink-500/30 whitespace-nowrap">
+                                                    Season {seasonNum}
                                                   </span>
-                                                  <h5 className="font-semibold text-white text-[11px] truncate flex-1" title={epTitle}>
-                                                    {epTitle}
-                                                  </h5>
+                                                  <span className="px-1.5 py-0.5 rounded text-[9.5px] sm:text-[10px] font-extrabold bg-purple-500/20 text-purple-300 border border-purple-500/30 whitespace-nowrap">
+                                                    Episode {episodeNum}
+                                                  </span>
                                                 </div>
-                                                <p className="text-[9px] text-slate-400 font-mono truncate" title={epVideo}>
-                                                  {epVideo || <span className="text-red-400 font-bold">Video belum ada</span>}
+
+                                                <h5
+                                                  className="font-bold text-white text-xs sm:text-[13px] leading-snug line-clamp-2 break-words group-hover:text-purple-300 transition-colors"
+                                                  title={epTitle}
+                                                >
+                                                  {epTitle}
+                                                </h5>
+
+                                                <p className="text-[10px] text-slate-400 font-mono truncate mt-1" title={epVideo}>
+                                                  {epVideo || <span className="text-red-400 font-semibold">Video belum diisi</span>}
                                                 </p>
                                               </div>
 
                                               {/* Right: Actions */}
-                                              <div className="flex items-center gap-0.5 flex-shrink-0">
+                                              <div className="flex flex-col sm:flex-row items-center gap-1 flex-shrink-0 self-center sm:self-start mt-0.5">
                                                 <Link
                                                   href={linkPath}
                                                   target="_blank"
-                                                  className="p-1 rounded text-cyan-400 hover:text-cyan-300 hover:bg-cyan-500/10 transition-colors"
-                                                  title="Tonton"
+                                                  className="p-1.5 rounded-lg text-cyan-400 hover:text-cyan-300 hover:bg-cyan-500/15 transition-colors"
+                                                  title="Tonton Episode"
                                                 >
-                                                  <Play size={11} />
+                                                  <Play size={13} />
                                                 </Link>
                                                 <button
                                                   onClick={() => {
@@ -2135,17 +2214,17 @@ export default function AdminPage() {
                                                       content: ep.content,
                                                     });
                                                   }}
-                                                  className="p-1 rounded text-slate-400 hover:text-white transition-colors"
+                                                  className="p-1.5 rounded-lg text-slate-300 hover:text-white hover:bg-white/10 transition-colors"
                                                   title="Edit Episode"
                                                 >
-                                                  <Edit2 size={11} />
+                                                  <Edit2 size={13} />
                                                 </button>
                                                 <button
                                                   onClick={() => handleDelete(ep.relativePath, epTitle)}
-                                                  className="p-1 rounded text-red-400 hover:text-red-300 transition-colors"
+                                                  className="p-1.5 rounded-lg text-red-400 hover:text-red-300 hover:bg-red-500/15 transition-colors"
                                                   title="Hapus Episode"
                                                 >
-                                                  <Trash2 size={11} />
+                                                  <Trash2 size={13} />
                                                 </button>
                                               </div>
                                             </div>
@@ -2268,69 +2347,132 @@ export default function AdminPage() {
       </main>
 
       {/* ────────────────────────────────────────── */}
-      {/* Modal: GitHub Token Settings */}
+      {/* Modal: GitHub Token & Repository Settings */}
       {/* ────────────────────────────────────────── */}
       {isSettingsOpen && (
-        <div className="fixed inset-0 z-50 bg-black/80 backdrop-blur-sm flex items-center justify-center p-3 sm:p-4">
-          <div className="w-full max-w-md bg-[#0c1224] border border-white/15 rounded-2xl shadow-2xl overflow-hidden animate-slide-up">
+        <div className="fixed inset-0 z-50 bg-black/80 backdrop-blur-sm flex items-center justify-center p-3 sm:p-4 overflow-y-auto">
+          <div className="w-full max-w-lg bg-[#0c1224] border border-white/15 rounded-2xl shadow-2xl overflow-hidden animate-slide-up my-4">
             <div className="flex items-center justify-between p-3.5 border-b border-white/10 bg-white/5">
               <div className="flex items-center gap-1.5">
                 <Key size={15} className="text-cyan-400" />
-                <h3 className="text-xs sm:text-sm font-bold text-white tracking-tight">Pengaturan GitHub Token</h3>
+                <h3 className="text-xs sm:text-sm font-bold text-white tracking-tight">Pengaturan GitHub & Repositori</h3>
               </div>
               <button onClick={() => setIsSettingsOpen(false)} className="text-slate-400 hover:text-white">
                 <X size={16} />
               </button>
             </div>
 
-            <div className="p-3.5 sm:p-4 space-y-3">
-              {githubToken && (
-                <div className="p-2.5 bg-emerald-950/40 border border-emerald-500/30 rounded-lg flex items-center justify-between">
-                  <div className="flex items-center gap-1.5 text-xs text-emerald-300 font-semibold">
-                    <ShieldCheck size={14} />
-                    <span>Token tersimpan di browser</span>
+            <div className="p-3.5 sm:p-4 space-y-3.5 max-h-[80vh] overflow-y-auto">
+              {/* Environment Banner */}
+              {isLocalMode ? (
+                <div className="p-3 bg-emerald-950/40 border border-emerald-500/30 rounded-xl flex items-start gap-2.5">
+                  <span className="w-2.5 h-2.5 rounded-full bg-emerald-400 animate-pulse mt-1 flex-shrink-0" />
+                  <div className="text-[11px] text-emerald-200 leading-relaxed">
+                    <p className="font-bold text-emerald-300">Mode Local Development Aktif</p>
+                    <p className="text-slate-300 mt-0.5">
+                      Konten akan disimpan langsung ke disk lokal komputer Anda (<code className="text-emerald-300 font-mono">video/</code> dan <code className="text-emerald-300 font-mono">tv/</code>). GitHub Token bersifat <strong className="text-white">opsional</strong> di server lokal.
+                    </p>
                   </div>
-                  <button onClick={removeToken} className="text-[11px] text-red-400 hover:text-red-300 font-bold underline">
-                    Hapus
-                  </button>
+                </div>
+              ) : (
+                <div className="p-3 bg-blue-950/40 border border-cyan-500/30 rounded-xl flex items-start gap-2.5">
+                  <ShieldCheck size={16} className="text-cyan-400 mt-0.5 flex-shrink-0" />
+                  <div className="text-[11px] text-cyan-200 leading-relaxed">
+                    <p className="font-bold text-cyan-300">Mode Cloud Serverless (Vercel) Aktif</p>
+                    <p className="text-slate-300 mt-0.5">
+                      Karena hosting Vercel bersifat Read-Only, token GitHub diperlukan untuk menyimpan dan mengedit file langsung ke repositori secara real-time.
+                    </p>
+                  </div>
                 </div>
               )}
 
-              <div className="p-2.5 rounded-lg bg-cyan-950/30 border border-cyan-500/20 text-[11px] text-slate-300 leading-relaxed">
-                <p className="font-bold text-cyan-300 mb-0.5 flex items-center gap-1">
-                  <HelpCircle size={12} />
-                  Cara Mendapatkan Token:
-                </p>
-                Buka GitHub &gt; <em>Settings &gt; Developer settings &gt; Tokens (classic)</em>, beri izin <code className="text-cyan-300 font-bold">repo</code>.
-              </div>
-
+              {/* GitHub Token Input */}
               <div>
-                <label className="block text-[11px] font-bold text-slate-300 mb-1">
-                  GitHub Token (PAT) <span className="text-red-400">*</span>
-                </label>
+                <div className="flex items-center justify-between mb-1">
+                  <label className="block text-[11px] font-bold text-slate-200">
+                    GitHub Personal Access Token (PAT) {!isLocalMode && <span className="text-red-400">*</span>}
+                  </label>
+                  {githubToken && (
+                    <button onClick={removeToken} className="text-[10.5px] text-red-400 hover:text-red-300 font-bold underline">
+                      Reset Pengaturan
+                    </button>
+                  )}
+                </div>
                 <input
                   type="password"
                   value={tempToken}
                   onChange={(e) => setTempToken(e.target.value)}
                   placeholder="ghp_... atau github_pat_..."
-                  className="w-full px-2.5 py-1.5 bg-black/50 border border-white/10 rounded-lg text-xs text-white focus:outline-none focus:border-cyan-400 font-mono"
+                  className="w-full px-3 py-2 bg-black/50 border border-white/10 rounded-lg text-xs text-white focus:outline-none focus:border-cyan-400 font-mono"
                 />
+                <p className="text-[10px] text-slate-400 mt-1">
+                  Buka GitHub &gt; <em>Settings &gt; Developer Settings &gt; Personal Access Tokens</em>, beri izin <code className="text-cyan-300 font-bold">repo</code>.
+                </p>
               </div>
 
-              <div className="flex items-center justify-end gap-1.5 pt-2 border-t border-white/10">
+              {/* Repository Target Configuration (Custom Fork / Owner / Repo / Branch) */}
+              <div className="p-3 rounded-xl bg-black/30 border border-white/10 space-y-2.5">
+                <p className="text-[11px] font-bold text-slate-200 flex items-center gap-1.5">
+                  <Layers size={13} className="text-purple-400" />
+                  <span>Target Repositori GitHub (Opsional / Custom Fork)</span>
+                </p>
+
+                <div className="grid grid-cols-1 sm:grid-cols-2 gap-2">
+                  <div>
+                    <label className="block text-[10px] font-semibold text-slate-400 mb-0.5">
+                      Repository Owner / Username
+                    </label>
+                    <input
+                      type="text"
+                      value={tempOwner}
+                      onChange={(e) => setTempOwner(e.target.value)}
+                      placeholder="genstava789"
+                      className="w-full px-2.5 py-1.5 bg-black/50 border border-white/10 rounded-lg text-xs text-white focus:outline-none focus:border-purple-400 font-mono"
+                    />
+                  </div>
+
+                  <div>
+                    <label className="block text-[10px] font-semibold text-slate-400 mb-0.5">
+                      Repository Name
+                    </label>
+                    <input
+                      type="text"
+                      value={tempRepo}
+                      onChange={(e) => setTempRepo(e.target.value)}
+                      placeholder="filmes"
+                      className="w-full px-2.5 py-1.5 bg-black/50 border border-white/10 rounded-lg text-xs text-white focus:outline-none focus:border-purple-400 font-mono"
+                    />
+                  </div>
+                </div>
+
+                <div>
+                  <label className="block text-[10px] font-semibold text-slate-400 mb-0.5">
+                    Branch Target
+                  </label>
+                  <input
+                    type="text"
+                    value={tempBranch}
+                    onChange={(e) => setTempBranch(e.target.value)}
+                    placeholder="main"
+                    className="w-full px-2.5 py-1.5 bg-black/50 border border-white/10 rounded-lg text-xs text-white focus:outline-none focus:border-purple-400 font-mono"
+                  />
+                </div>
+              </div>
+
+              <div className="flex items-center justify-end gap-2 pt-2 border-t border-white/10">
                 <button
                   type="button"
                   onClick={() => setIsSettingsOpen(false)}
-                  className="px-3 py-1 rounded-md text-xs font-semibold bg-white/5 hover:bg-white/10 text-slate-300"
+                  className="px-3.5 py-1.5 rounded-lg text-xs font-semibold bg-white/5 hover:bg-white/10 text-slate-300"
                 >
                   Tutup
                 </button>
                 <button
                   type="button"
-                  onClick={saveToken}
-                  className="px-3.5 py-1 rounded-md text-xs font-bold bg-cyan-500 hover:bg-cyan-400 text-white shadow-sm"
+                  onClick={saveSettings}
+                  className="px-4 py-1.5 rounded-lg text-xs font-bold bg-cyan-500 hover:bg-cyan-400 text-white shadow-md transition-all"
                 >
-                  Simpan Token
+                  Simpan Pengaturan
                 </button>
               </div>
             </div>
@@ -3244,15 +3386,18 @@ export default function AdminPage() {
                                   </div>
 
                                   <div className="flex-1 min-w-0">
-                                    <div className="flex items-center gap-1 mb-0.5">
-                                      <span className="px-1.5 py-0.2 rounded text-[8px] font-extrabold bg-purple-500/20 text-purple-300 border border-purple-500/30 whitespace-nowrap">
-                                        {formatEpisodeBadge(ep.seasonFolder, ep.slug)}
+                                    <div className="flex flex-wrap items-center gap-1.5 mb-1">
+                                      <span className="px-1.5 py-0.5 rounded text-[9px] font-extrabold bg-pink-500/20 text-pink-300 border border-pink-500/30 whitespace-nowrap">
+                                        Season {getSeasonNumber(ep.seasonFolder)}
                                       </span>
-                                      <h5 className="font-bold text-[11px] text-white truncate">
-                                        {ep.displayTitle || ep.frontmatter.title || ep.slug}
-                                      </h5>
+                                      <span className="px-1.5 py-0.5 rounded text-[9px] font-extrabold bg-purple-500/20 text-purple-300 border border-purple-500/30 whitespace-nowrap">
+                                        Episode {getEpisodeNumber(ep.slug || ep.filename)}
+                                      </span>
                                     </div>
-                                    <p className="text-[9px] font-mono text-slate-400 truncate">
+                                    <h5 className="font-bold text-xs sm:text-[12.5px] text-white line-clamp-2 leading-snug break-words">
+                                      {ep.displayTitle || ep.frontmatter.title || ep.slug}
+                                    </h5>
+                                    <p className="text-[9.5px] font-mono text-slate-400 truncate mt-0.5" title={ep.frontmatter.videourl || ep.frontmatter.video_url || 'Belum ada link video'}>
                                       {ep.frontmatter.videourl || ep.frontmatter.video_url || 'Belum ada link video'}
                                     </p>
                                   </div>

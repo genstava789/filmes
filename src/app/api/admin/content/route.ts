@@ -30,8 +30,12 @@ function sanitizePath(relativePath: string, baseDir: string): string | null {
   return fullPath;
 }
 
-function getHeaderToken(req: NextRequest): string | null {
-  return req.headers.get('x-github-token') || process.env.GITHUB_TOKEN || process.env.GH_TOKEN || null;
+function getGitHubConfig(req: NextRequest) {
+  const token = req.headers.get('x-github-token') || process.env.GITHUB_TOKEN || process.env.GH_TOKEN || null;
+  const owner = req.headers.get('x-github-owner') || process.env.GITHUB_OWNER || 'genstava789';
+  const repo = req.headers.get('x-github-repo') || process.env.GITHUB_REPO || 'filmes';
+  const branch = req.headers.get('x-github-branch') || process.env.GITHUB_BRANCH || 'main';
+  return { token, owner, repo, branch };
 }
 
 export const dynamic = 'force-dynamic';
@@ -271,7 +275,16 @@ export async function GET() {
     // Sort TV shows newest first
     tvShows.sort((a, b) => (b.updatedAt || 0) - (a.updatedAt || 0));
 
-    return NextResponse.json({ movies, tvShows });
+    const isLocal = !process.env.VERCEL && process.env.NODE_ENV !== 'production';
+
+    return NextResponse.json({
+      movies,
+      tvShows,
+      isLocal,
+      defaultOwner: process.env.GITHUB_OWNER || 'genstava789',
+      defaultRepo: process.env.GITHUB_REPO || 'filmes',
+      defaultBranch: process.env.GITHUB_BRANCH || 'main',
+    });
   } catch (error: any) {
     console.error('Error fetching admin content:', error);
     return NextResponse.json({ error: error.message || 'Failed to list content' }, { status: 500 });
@@ -283,7 +296,8 @@ export async function GET() {
 // ──────────────────────────────────────────
 export async function POST(request: NextRequest) {
   ensureDirectories();
-  const token = getHeaderToken(request);
+  const ghConfig = getGitHubConfig(request);
+  const { token } = ghConfig;
 
   try {
     const body = await request.json();
@@ -484,9 +498,23 @@ export async function POST(request: NextRequest) {
         }
       }
 
-      if (!wroteIndexLocal || token) {
-        if (token) {
-          await saveGitHubFile(relativePath, fileContent, `cms: save ${relativePath}`, { token });
+      if (!wroteIndexLocal) {
+        if (!token) {
+          return NextResponse.json(
+            {
+              error:
+                'Sistem hosting Vercel bersifat Read-Only. Masukkan GitHub Personal Access Token di Pengaturan Admin (tombol ⚙️) untuk menyimpan langsung ke repositori.',
+              requiresToken: true,
+            },
+            { status: 400 }
+          );
+        }
+        await saveGitHubFile(relativePath, fileContent, `cms: save ${relativePath}`, ghConfig);
+      } else if (token) {
+        try {
+          await saveGitHubFile(relativePath, fileContent, `cms: save ${relativePath}`, ghConfig);
+        } catch (ghErr: any) {
+          console.warn('Local index save succeeded; GitHub sync notice:', ghErr?.message);
         }
       }
 
@@ -531,9 +559,23 @@ export async function POST(request: NextRequest) {
                 }
               }
 
-              if (!wroteEpLocal || token) {
-                if (token) {
-                  await saveGitHubFile(epRelPath, epContentStr, `cms: save ${epRelPath}`, { token });
+              if (!wroteEpLocal) {
+                if (!token) {
+                  return NextResponse.json(
+                    {
+                      error:
+                        'Sistem hosting Vercel bersifat Read-Only. Masukkan GitHub Personal Access Token di Pengaturan Admin (tombol ⚙️) untuk menyimpan langsung ke repositori.',
+                      requiresToken: true,
+                    },
+                    { status: 400 }
+                  );
+                }
+                await saveGitHubFile(epRelPath, epContentStr, `cms: save ${epRelPath}`, ghConfig);
+              } else if (token) {
+                try {
+                  await saveGitHubFile(epRelPath, epContentStr, `cms: save ${epRelPath}`, ghConfig);
+                } catch (ghErr: any) {
+                  console.warn('Local ep save succeeded; GitHub sync notice:', ghErr?.message);
                 }
               }
               savedEpisodesCount++;
@@ -635,8 +677,7 @@ export async function POST(request: NextRequest) {
       }
     }
 
-    // If on serverless/Vercel (or token provided), commit directly to GitHub
-    if (!wroteLocal || token) {
+    if (!wroteLocal) {
       if (!token) {
         return NextResponse.json(
           {
@@ -648,7 +689,13 @@ export async function POST(request: NextRequest) {
         );
       }
 
-      await saveGitHubFile(relativePath, fileContent, `cms: ${isUpdate ? 'update' : 'create'} ${relativePath}`, { token });
+      await saveGitHubFile(relativePath, fileContent, `cms: ${isUpdate ? 'update' : 'create'} ${relativePath}`, ghConfig);
+    } else if (token) {
+      try {
+        await saveGitHubFile(relativePath, fileContent, `cms: ${isUpdate ? 'update' : 'create'} ${relativePath}`, ghConfig);
+      } catch (ghErr: any) {
+        console.warn('Local save succeeded; GitHub sync notice:', ghErr?.message);
+      }
     }
 
     revalidateAll();
@@ -669,7 +716,8 @@ export async function POST(request: NextRequest) {
 // PUT: Update existing markdown file
 // ──────────────────────────────────────────
 export async function PUT(request: NextRequest) {
-  const token = getHeaderToken(request);
+  const ghConfig = getGitHubConfig(request);
+  const { token } = ghConfig;
 
   try {
     const body = await request.json();
@@ -723,7 +771,7 @@ export async function PUT(request: NextRequest) {
       }
     }
 
-    if (!wroteLocal || token) {
+    if (!wroteLocal) {
       if (!token) {
         return NextResponse.json(
           {
@@ -735,7 +783,13 @@ export async function PUT(request: NextRequest) {
         );
       }
 
-      await saveGitHubFile(relativePath, fileContent, `cms: update ${relativePath}`, { token });
+      await saveGitHubFile(relativePath, fileContent, `cms: update ${relativePath}`, ghConfig);
+    } else if (token) {
+      try {
+        await saveGitHubFile(relativePath, fileContent, `cms: update ${relativePath}`, ghConfig);
+      } catch (ghErr: any) {
+        console.warn('Local update succeeded; GitHub sync notice:', ghErr?.message);
+      }
     }
 
     revalidateAll();
@@ -750,7 +804,8 @@ export async function PUT(request: NextRequest) {
 // DELETE: Delete markdown file(s) or TV folder(s) (supports single & batch)
 // ──────────────────────────────────────────
 export async function DELETE(request: NextRequest) {
-  const token = getHeaderToken(request);
+  const ghConfig = getGitHubConfig(request);
+  const { token } = ghConfig;
 
   try {
     const { searchParams } = new URL(request.url);
@@ -800,8 +855,8 @@ export async function DELETE(request: NextRequest) {
         }
       }
 
-      if (!deletedLocal || token) {
-        if (!token && !deletedLocal) {
+      if (!deletedLocal) {
+        if (!token) {
           return NextResponse.json(
             {
               error:
@@ -812,8 +867,12 @@ export async function DELETE(request: NextRequest) {
           );
         }
 
-        if (token) {
-          await deleteGitHubFile(relativePath, `cms: delete ${relativePath}`, { token });
+        await deleteGitHubFile(relativePath, `cms: delete ${relativePath}`, ghConfig);
+      } else if (token) {
+        try {
+          await deleteGitHubFile(relativePath, `cms: delete ${relativePath}`, ghConfig);
+        } catch (ghErr: any) {
+          console.warn('Local delete succeeded; GitHub sync notice:', ghErr?.message);
         }
       }
     }

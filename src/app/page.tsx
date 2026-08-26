@@ -48,7 +48,7 @@ export default async function HomePage() {
   const featuredMovie = trending[0] || popular[0];
 
   return (
-    <div className="min-h-screen" style={{ background: '#050816' }}>
+    <div className="min-h-screen w-full max-w-full overflow-x-clip overflow-x-hidden" style={{ background: '#050816' }}>
       {/* Hero with Enriched & Deduplicated Featured Items Carousel */}
       <Hero
         movie={featuredMovie}

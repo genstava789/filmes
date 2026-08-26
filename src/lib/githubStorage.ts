@@ -112,7 +112,8 @@ export async function saveGitHubFile(
 
   if (!res.ok) {
     const err = await res.json().catch(() => ({}));
-    throw new Error(err.message || `Failed to commit to GitHub: ${res.status}`);
+    const errMsg = err.message || `HTTP ${res.status}`;
+    throw new Error(`Gagal menyimpan ke GitHub (${errMsg}). Pastikan token memiliki izin 'repo' dan akses tulis ke '${owner}/${repo}' branch '${branch}'.`);
   }
 
   return await res.json();
@@ -137,7 +138,7 @@ export async function deleteGitHubFile(
   // 1. Get file SHA
   const existing = await getGitHubFile(cleanPath, options);
   if (!existing) {
-    throw new Error(`File ${cleanPath} not found on GitHub`);
+    throw new Error(`File ${cleanPath} tidak ditemukan di repositori GitHub '${owner}/${repo}'`);
   }
 
   // 2. Delete file via GitHub API
@@ -160,7 +161,8 @@ export async function deleteGitHubFile(
 
   if (!res.ok) {
     const err = await res.json().catch(() => ({}));
-    throw new Error(err.message || `Failed to delete from GitHub: ${res.status}`);
+    const errMsg = err.message || `HTTP ${res.status}`;
+    throw new Error(`Gagal menghapus di GitHub (${errMsg}). Pastikan token memiliki izin 'repo' dan akses tulis ke '${owner}/${repo}' branch '${branch}'.`);
   }
 
   return await res.json();

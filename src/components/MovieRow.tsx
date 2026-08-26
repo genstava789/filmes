@@ -55,7 +55,7 @@ export default function MovieRow({
   if (!items || items.length === 0) return null;
 
   return (
-    <section className="relative w-full">
+    <section className="relative w-full max-w-full overflow-hidden">
       {/* Header with section-title style (vertical gradient accent on the left) */}
       <div className={`flex items-center justify-between mb-4 ${noPadding ? 'px-0' : 'px-4 sm:px-6 md:px-8 lg:px-10 xl:px-12 2xl:px-14'}`}>
         <h2 className="section-title text-xl sm:text-2xl font-bold text-neo-text-primary">
@@ -74,7 +74,7 @@ export default function MovieRow({
       </div>
 
       {/* Scroll container */}
-      <div className="relative group">
+      <div className="relative group w-full max-w-full">
         {/* Left arrow */}
         {canScrollLeft && (
           <button
@@ -142,6 +142,7 @@ export default function MovieRow({
           onScroll={handleScroll}
           onTouchStart={triggerScrollState}
           onTouchMove={handleScroll}
+          style={{ overscrollBehaviorX: 'contain' }}
           className={`flex gap-3 sm:gap-4 md:gap-5 overflow-x-auto hide-scrollbar ${noPadding ? 'px-0' : 'px-4 sm:px-6 md:px-8 lg:px-10 xl:px-12 2xl:px-14'} pb-3`}
         >
           {items.map((item) => (

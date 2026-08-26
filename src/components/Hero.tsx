@@ -170,7 +170,8 @@ export default function Hero({
 
   return (
     <section
-      className="relative w-full overflow-hidden select-none touch-pan-y aspect-[16/10] xs:aspect-[16/9] sm:aspect-auto sm:h-[460px] md:h-[540px] lg:h-[620px] xl:h-[680px] 2xl:h-[740px]"
+      className="relative w-full max-w-full overflow-hidden select-none touch-pan-y aspect-[16/10] xs:aspect-[16/9] sm:aspect-auto sm:h-[460px] md:h-[540px] lg:h-[620px] xl:h-[680px] 2xl:h-[740px]"
+      style={{ overscrollBehaviorX: 'none' }}
       onMouseEnter={() => setIsHovered(true)}
       onMouseLeave={() => setIsHovered(false)}
       onTouchStart={handleTouchStart}

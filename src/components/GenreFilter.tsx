@@ -75,7 +75,7 @@ export default function GenreFilter({
   };
 
   return (
-    <div className="relative group/genres">
+    <div className="relative group/genres w-full max-w-full overflow-hidden">
       {/* Header with Title & Desktop Navigation Arrows */}
       <div className="flex items-center justify-between mb-4">
         <h2 className="text-lg sm:text-xl md:text-2xl font-bold text-white tracking-tight">
@@ -112,7 +112,7 @@ export default function GenreFilter({
       </div>
 
       {/* Genre Pills Scroll Container */}
-      <div className="relative">
+      <div className="relative w-full max-w-full">
         {/* Left Fade Gradient */}
         {canScrollLeft && (
           <div
@@ -125,6 +125,7 @@ export default function GenreFilter({
 
         <div
           ref={scrollRef}
+          style={{ overscrollBehaviorX: 'contain' }}
           className="flex items-center gap-2.5 overflow-x-auto hide-scrollbar scroll-smooth py-1"
         >
           {/* "All" button */}
