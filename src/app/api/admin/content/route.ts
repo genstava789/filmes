@@ -88,6 +88,9 @@ export async function GET() {
     const movies = await Promise.all(
       rawMovies.map(async (m) => {
         let posterUrl = m.frontmatter.image_url || m.frontmatter.poster_path || null;
+        if (posterUrl) {
+          posterUrl = getImageUrl(posterUrl, 'w500');
+        }
         let displayTitle = m.frontmatter.title || m.slug;
         let year: number | null = null;
         let rating = m.frontmatter.rating ? Number(m.frontmatter.rating) : null;
@@ -123,6 +126,9 @@ export async function GET() {
         };
       })
     );
+
+    // Sort movies newest first
+    movies.sort((a, b) => (b.updatedAt || 0) - (a.updatedAt || 0));
 
     // 2. TV Series in tv/
     let tvDirs: string[] = [];
@@ -219,6 +225,9 @@ export async function GET() {
     const tvShows = await Promise.all(
       rawTvShows.map(async (s) => {
         let posterUrl = s.frontmatter.image_url || null;
+        if (posterUrl) {
+          posterUrl = getImageUrl(posterUrl, 'w500');
+        }
         let displayTitle = s.frontmatter.title || s.showSlug;
         let year: number | null = null;
         let rating = s.frontmatter.rating ? Number(s.frontmatter.rating) : null;
@@ -254,6 +263,9 @@ export async function GET() {
         };
       })
     );
+
+    // Sort TV shows newest first
+    tvShows.sort((a, b) => (b.updatedAt || 0) - (a.updatedAt || 0));
 
     return NextResponse.json({ movies, tvShows });
   } catch (error: any) {
@@ -599,9 +611,13 @@ export async function PUT(request: NextRequest) {
           cleanFrontmatter[key] = cleanVideoUrl(String(val)) || String(val).trim();
         } else if (key === 'rating' || key === 'episode_number' || key === 'season_number') {
           cleanFrontmatter[key] = isNaN(Number(val)) ? val : Number(val);
+        } else if (key === 'featured') {
+          cleanFrontmatter[key] = Boolean(val);
         } else {
           cleanFrontmatter[key] = val;
         }
+      } else if (key === 'featured') {
+        cleanFrontmatter[key] = false;
       }
     }
 

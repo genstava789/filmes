@@ -531,8 +531,10 @@ export default function AdminPage() {
       episode: formEpisode.trim() || undefined,
     };
 
-    // 1. Instant Optimistic UI Preview update
+    // 1. Instant update in local state - Place at the very top (index 0)
     if (contentType === 'movie') {
+      const posterImg = payload.poster || tmdbPreview?.posterUrl || null;
+      const formattedPoster = posterImg ? (posterImg.startsWith('http') ? posterImg : `https://image.tmdb.org/t/p/w500${posterImg}`) : null;
       const optimisticMovie: MovieItem = {
         filename: `${payload.slug || formTitle.toLowerCase().replace(/\s+/g, '-') || `movie-${payload.tmdb_id}`}.md`,
         slug: payload.slug || formTitle.toLowerCase().replace(/\s+/g, '-') || `movie-${payload.tmdb_id}`,
@@ -543,22 +545,21 @@ export default function AdminPage() {
           videourl: payload.videourl,
           image_url: payload.poster || tmdbPreview?.posterUrl || undefined,
           rating: payload.rating || tmdbPreview?.rating || undefined,
-          featured: payload.featured,
+          featured: Boolean(payload.featured),
         },
         content: '',
-        posterUrl: payload.poster || tmdbPreview?.posterUrl || null,
+        posterUrl: formattedPoster,
         displayTitle: payload.title || tmdbPreview?.title || `Movie ${payload.tmdb_id}`,
         year: tmdbPreview?.year || new Date().getFullYear(),
         rating: payload.rating || tmdbPreview?.rating || null,
         updatedAt: Date.now(),
-        isOptimistic: true,
       };
       setMovies((prev) => [optimisticMovie, ...prev.filter((m) => m.relativePath !== optimisticMovie.relativePath)]);
     }
 
     setIsCreateModalOpen(false);
     resetCreateForm();
-    showToast('Menyimpan ke GitHub & menyiapkan live preview...', 'success');
+    showToast('Menyimpan ke GitHub & memperbarui halaman...', 'success');
 
     try {
       const res = await fetch('/api/admin/content', {
@@ -572,18 +573,19 @@ export default function AdminPage() {
         if (result.isUpdate) {
           if (result.hasChanges && result.changedFields?.length > 0) {
             showToast(
-              `Post sudah ada. Melakukan pengeditan dan berhasil memperbarui: ${result.changedFields.join(', ')}!`,
+              `Post sudah ada. Berhasil memperbarui: ${result.changedFields.join(', ')}!`,
               'success'
             );
           } else {
             showToast(
-              `Post ini sudah ada dan tidak ada perbedaan data (data tetap sama).`,
+              `Post ini sudah ada (data tetap sama).`,
               'warning'
             );
           }
         } else {
           showToast(`Berhasil membuat post baru: ${result.relativePath}`, 'success');
         }
+        setTmdbPreview(null);
         fetchContent();
       } else {
         if (result.requiresToken) {
@@ -623,7 +625,7 @@ export default function AdminPage() {
     return Object.keys(errors).length === 0;
   };
 
-  // Submit Edit with Optimistic UI
+  // Submit Edit with instant update and moving the modified post to the top
   const handleEditSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
     if (!editingItem) return;
@@ -635,66 +637,80 @@ export default function AdminPage() {
 
     if (!requireToken('mengedit konten')) return;
 
-    // Optimistic UI update in local state for Movie, TV Show, and Episode
+    const imgVal = editingItem.frontmatter.image_url || editingItem.frontmatter.poster_path || null;
+    const formattedPoster = imgVal ? (imgVal.startsWith('http') ? imgVal : `https://image.tmdb.org/t/p/w500${imgVal}`) : null;
+
+    // Instant local state update & move edited post to index 0 (top of list)
     if (editingItem.type === 'movie') {
-      setMovies((prev) =>
-        prev.map((m) =>
-          m.relativePath === editingItem.relativePath
-            ? {
-                ...m,
-                frontmatter: {
-                  ...editingItem.frontmatter,
-                  featured: Boolean(editingItem.frontmatter.featured),
-                },
-                displayTitle: editingItem.frontmatter.title || m.displayTitle,
-                posterUrl: editingItem.frontmatter.image_url || m.posterUrl,
-                rating: editingItem.frontmatter.rating ? Number(editingItem.frontmatter.rating) : m.rating,
-                updatedAt: Date.now(),
-                isOptimistic: true,
-              }
-            : m
-        )
-      );
+      setMovies((prev) => {
+        const existing = prev.find((m) => m.relativePath === editingItem.relativePath);
+        const updatedMovie: MovieItem = {
+          filename: existing ? existing.filename : editingItem.relativePath.replace(/^video\//, ''),
+          slug: existing ? existing.slug : editingItem.relativePath.replace(/^video\//, '').replace(/\.(md|markdown)$/i, ''),
+          relativePath: editingItem.relativePath,
+          frontmatter: {
+            ...editingItem.frontmatter,
+            featured: Boolean(editingItem.frontmatter.featured),
+          },
+          content: editingItem.content || '',
+          displayTitle: editingItem.frontmatter.title || existing?.displayTitle,
+          posterUrl: formattedPoster || existing?.posterUrl,
+          rating: editingItem.frontmatter.rating ? Number(editingItem.frontmatter.rating) : existing?.rating,
+          year: existing?.year,
+          updatedAt: Date.now(),
+        };
+        return [updatedMovie, ...prev.filter((m) => m.relativePath !== editingItem.relativePath)];
+      });
     } else if (editingItem.type === 'tv_show') {
-      setTvShows((prev) =>
-        prev.map((s) =>
-          s.relativePath === editingItem.relativePath
-            ? {
-                ...s,
-                frontmatter: {
-                  ...editingItem.frontmatter,
-                  featured: Boolean(editingItem.frontmatter.featured),
-                },
-                displayTitle: editingItem.frontmatter.title || s.displayTitle,
-                posterUrl: editingItem.frontmatter.image_url || s.posterUrl,
-                rating: editingItem.frontmatter.rating ? Number(editingItem.frontmatter.rating) : s.rating,
-                updatedAt: Date.now(),
-                isOptimistic: true,
-              }
-            : s
-        )
-      );
+      setTvShows((prev) => {
+        const existing = prev.find(
+          (s) => s.relativePath === editingItem.relativePath || s.showSlug === editingItem.relativePath.split('/')[1]
+        );
+        const updatedShow: TVShowItem = {
+          showSlug: existing ? existing.showSlug : editingItem.relativePath.split('/')[1],
+          relativePath: editingItem.relativePath,
+          frontmatter: {
+            ...editingItem.frontmatter,
+            featured: Boolean(editingItem.frontmatter.featured),
+          },
+          content: editingItem.content || '',
+          displayTitle: editingItem.frontmatter.title || existing?.displayTitle,
+          posterUrl: formattedPoster || existing?.posterUrl,
+          rating: editingItem.frontmatter.rating ? Number(editingItem.frontmatter.rating) : existing?.rating,
+          year: existing?.year,
+          updatedAt: Date.now(),
+          episodes: existing ? existing.episodes : [],
+        };
+        return [updatedShow, ...prev.filter((s) => s.showSlug !== updatedShow.showSlug)];
+      });
     } else if (editingItem.type === 'tv_episode') {
-      setTvShows((prev) =>
-        prev.map((s) => ({
-          ...s,
-          episodes: s.episodes.map((ep) =>
-            ep.relativePath === editingItem.relativePath
-              ? {
-                  ...ep,
-                  frontmatter: { ...editingItem.frontmatter },
-                  displayTitle: editingItem.frontmatter.title || ep.displayTitle,
-                  posterUrl: editingItem.frontmatter.image_url || ep.posterUrl,
-                  updatedAt: Date.now(),
-                  isOptimistic: true,
-                }
-              : ep
-          ),
-        }))
-      );
+      setTvShows((prev) => {
+        const showSlug = editingItem.relativePath.split('/')[1];
+        const targetShow = prev.find((s) => s.showSlug === showSlug);
+        if (!targetShow) return prev;
+        const updatedEpisodes = targetShow.episodes.map((ep) =>
+          ep.relativePath === editingItem.relativePath
+            ? {
+                ...ep,
+                frontmatter: { ...editingItem.frontmatter },
+                displayTitle: editingItem.frontmatter.title || ep.displayTitle,
+                posterUrl: formattedPoster || ep.posterUrl,
+                updatedAt: Date.now(),
+              }
+            : ep
+        );
+        const updatedShow: TVShowItem = {
+          ...targetShow,
+          episodes: updatedEpisodes,
+          updatedAt: Date.now(),
+        };
+        return [updatedShow, ...prev.filter((s) => s.showSlug !== targetShow.showSlug)];
+      });
     }
 
     setIsEditModalOpen(false);
+    setEditTmdbPreview(null);
+    setShowEditBackdropPicker(false);
     showToast('Menyimpan perubahan...', 'success');
 
     try {
@@ -713,6 +729,7 @@ export default function AdminPage() {
         showToast(`Perubahan berhasil disimpan & live!`);
         setEditingItem(null);
         setEditErrors({});
+        setEditTmdbPreview(null);
         fetchContent();
       } else {
         if (result.requiresToken) {
@@ -1133,11 +1150,6 @@ export default function AdminPage() {
                                 {rating}
                               </span>
                             ) : null}
-                            {movie.isOptimistic && (
-                              <span className="px-1.5 py-0.5 rounded text-[9px] font-extrabold bg-blue-500/20 text-blue-300 border border-blue-500/40">
-                                ✨ Live Preview
-                              </span>
-                            )}
                           </div>
 
                           <h3 className="font-bold text-white text-base truncate leading-snug" title={title}>
@@ -1264,11 +1276,6 @@ export default function AdminPage() {
                             <span className="px-2 py-0.5 rounded text-[10px] font-bold bg-purple-500/10 text-purple-400 border border-purple-500/30">
                               {show.episodes.length} Episodes
                             </span>
-                            {show.isOptimistic && (
-                              <span className="px-1.5 py-0.5 rounded text-[9px] font-extrabold bg-blue-500/20 text-blue-300 border border-blue-500/40">
-                                ✨ Live Preview
-                              </span>
-                            )}
                           </div>
                           <h3 className="font-bold text-white text-lg leading-snug">
                             {title} {year ? <span className="text-slate-400 font-normal text-sm">({year})</span> : ''}
