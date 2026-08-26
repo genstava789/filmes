@@ -68,8 +68,25 @@ export function getAllCustomMovieFiles(): string[] {
 }
 
 /**
+ * Converts text into URL slug for route matching.
+ */
+function cleanSlug(text?: string | null): string {
+  if (!text) return '';
+  return text
+    .toString()
+    .toLowerCase()
+    .trim()
+    .replace(/\s*\([^)]*\)/g, '')
+    .replace(/&/g, '-and-')
+    .replace(/[^a-z0-9\s-]/g, '')
+    .replace(/\s+/g, '-')
+    .replace(/-+/g, '-')
+    .replace(/^-+|-+$/g, '');
+}
+
+/**
  * Returns all possible slugs for static path generation.
- * For example: if video/movie.md exists, returns ["movie", "movie.md"].
+ * Generates combinations of: filename, filename.md, tmdb_id, title slug, and title-id slug.
  */
 export function getAllCustomMovieSlugs(): string[] {
   const files = getAllCustomMovieFiles();
@@ -78,7 +95,29 @@ export function getAllCustomMovieSlugs(): string[] {
   files.forEach((file) => {
     const baseSlug = file.replace(/\.(md|markdown)$/i, '');
     slugs.push(baseSlug);
-    slugs.push(file); // Also allow accessing directly via /movie/movie.md
+    slugs.push(file);
+
+    try {
+      const filePath = path.join(CONTENT_DIR, file);
+      const fileContent = fs.readFileSync(filePath, 'utf8');
+      const { data } = matter(fileContent);
+      if (data) {
+        if (data.tmdb_id) {
+          slugs.push(String(data.tmdb_id));
+        }
+        if (data.title) {
+          const tSlug = cleanSlug(data.title);
+          if (tSlug) {
+            slugs.push(tSlug);
+            if (data.tmdb_id) {
+              slugs.push(`${tSlug}-${data.tmdb_id}`);
+            }
+          }
+        }
+      }
+    } catch (e) {
+      console.error(`Error reading slugs for ${file}:`, e);
+    }
   });
 
   return Array.from(new Set(slugs));
@@ -108,12 +147,16 @@ export function getCustomMovieTmdbMapping(): Record<string, string> {
 }
 
 /**
- * Finds and parses a custom markdown movie by its slug or tmdb_id.
+ * Finds and parses a custom markdown movie by its slug, title slug, trailing ID, or tmdb_id.
  */
 export async function getCustomMovieBySlug(slugOrId: string | number): Promise<CustomMovieData | null> {
   ensureContentDirExists();
   const searchKey = String(slugOrId).trim().toLowerCase();
   const cleanKey = searchKey.replace(/\.(md|markdown)$/i, '');
+
+  // Check if searchKey has trailing ID (e.g. "mutiny-1288445" -> "1288445")
+  const idMatch = cleanKey.match(/-(\d+)$/);
+  const trailingId = idMatch ? idMatch[1] : null;
 
   const files = getAllCustomMovieFiles();
   let matchedFile: string | null = null;
@@ -130,17 +173,32 @@ export async function getCustomMovieBySlug(slugOrId: string | number): Promise<C
     }
   }
 
-  // 2. If not matched by filename, check if searchKey is a tmdb_id inside frontmatter
+  // 2. Match by frontmatter tmdb_id, title slug, or trailing ID
   if (!matchedFile) {
     for (const file of files) {
       try {
         const filePath = path.join(CONTENT_DIR, file);
         const content = fs.readFileSync(filePath, 'utf8');
         const parsed = matter(content);
-        if (parsed.data && String(parsed.data.tmdb_id).trim() === searchKey) {
-          matchedFile = file;
-          fileContent = content;
-          break;
+        const data = parsed.data as CustomMovieFrontmatter;
+
+        if (data) {
+          const tmdbIdStr = String(data.tmdb_id || '').trim();
+          const titleSlug = cleanSlug(data.title);
+
+          // Direct TMDB ID match
+          if (tmdbIdStr && (tmdbIdStr === cleanKey || tmdbIdStr === trailingId)) {
+            matchedFile = file;
+            fileContent = content;
+            break;
+          }
+
+          // Title slug match (e.g. "mutiny" === "mutiny")
+          if (titleSlug && (titleSlug === cleanKey || cleanKey.startsWith(titleSlug))) {
+            matchedFile = file;
+            fileContent = content;
+            break;
+          }
         }
       } catch (err) {
         console.error(`Error reading ${file}:`, err);
@@ -174,13 +232,14 @@ export async function getCustomMovieBySlug(slugOrId: string | number): Promise<C
 
 /**
  * Fetches movie details and merges TMDB API baseline data with custom markdown overrides.
+ * Supports dual-routing: ID (1288445), title slug (mutiny), and title-id slug (mutiny-1288445).
  */
 export async function getMovieDetailsWithCustomOverride(
   slugOrId: string | number
 ): Promise<MergedMovieDetail | null> {
   const customMovie = await getCustomMovieBySlug(slugOrId);
 
-  let tmdbId: number;
+  let tmdbId: number | null = null;
 
   if (customMovie) {
     tmdbId = Number(customMovie.frontmatter.tmdb_id);
@@ -190,10 +249,19 @@ export async function getMovieDetailsWithCustomOverride(
       );
     }
   } else {
-    tmdbId = Number(slugOrId);
-    if (!tmdbId || isNaN(tmdbId)) {
-      return null;
+    const str = String(slugOrId).trim();
+    if (/^\d+$/.test(str)) {
+      tmdbId = Number(str);
+    } else {
+      const idMatch = str.match(/-(\d+)$/);
+      if (idMatch) {
+        tmdbId = Number(idMatch[1]);
+      }
     }
+  }
+
+  if (!tmdbId || isNaN(tmdbId)) {
+    return null;
   }
 
   // Fetch full data from TMDB API

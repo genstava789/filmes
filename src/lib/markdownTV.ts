@@ -132,50 +132,93 @@ export function getAllCustomTVShowDirs(): string[] {
 }
 
 /**
+ * Converts text into URL slug for route matching.
+ */
+function cleanSlug(text?: string | null): string {
+  if (!text) return '';
+  return text
+    .toString()
+    .toLowerCase()
+    .trim()
+    .replace(/\s*\([^)]*\)/g, '')
+    .replace(/&/g, '-and-')
+    .replace(/[^a-z0-9\s-]/g, '')
+    .replace(/\s+/g, '-')
+    .replace(/-+/g, '-')
+    .replace(/^-+|-+$/g, '');
+}
+
+/**
  * Returns all possible slug paths for Next.js generateStaticParams().
  * E.g. [
  *   { slug: ['lanterns'] },
  *   { slug: ['lanterns', 's1', 'e1'] },
  *   { slug: ['lanterns', 's1', 'e1.md'] },
- *   { slug: ['lanterns', 'e1'] }
+ *   { slug: ['lanterns', 'e1'] },
+ *   { slug: ['lanterns-95350'] },
+ *   { slug: ['lanterns-95350', 's1', 'e1'] },
+ *   { slug: ['95350'] },
+ *   { slug: ['95350', 's1', 'e1'] }
  * ]
  */
 export async function getAllCustomTVSlugPaths(): Promise<{ slug: string[] }[]> {
   const dirs = getAllCustomTVShowDirs();
-  const paths: { slug: string[] }[] = [];
+  const pathsMap = new Map<string, { slug: string[] }>();
+
+  const addPath = (segments: string[]) => {
+    const key = segments.join('/');
+    if (!pathsMap.has(key)) {
+      pathsMap.set(key, { slug: segments });
+    }
+  };
 
   for (const showSlug of dirs) {
-    // Show overview page
-    paths.push({ slug: [showSlug] });
-
     const showData = await getCustomTVShowBySlug(showSlug);
     if (!showData) continue;
 
-    for (const ep of showData.allEpisodes) {
-      if (ep.seasonFolder) {
-        // e.g. ['lanterns', 's1', 'e1']
+    const possibleShowSlugs = [showSlug];
+    if (showData.frontmatter.tmdb_id) {
+      possibleShowSlugs.push(String(showData.frontmatter.tmdb_id));
+      if (showData.frontmatter.title) {
+        const tSlug = cleanSlug(showData.frontmatter.title);
+        if (tSlug) {
+          possibleShowSlugs.push(tSlug);
+          possibleShowSlugs.push(`${tSlug}-${showData.frontmatter.tmdb_id}`);
+        }
+      }
+    }
+
+    for (const sSlug of possibleShowSlugs) {
+      addPath([sSlug]);
+
+      for (const ep of showData.allEpisodes) {
         const baseEp = ep.filename.replace(/\.(md|markdown)$/i, '');
-        paths.push({ slug: [showSlug, ep.seasonFolder, baseEp] });
-        paths.push({ slug: [showSlug, ep.seasonFolder, ep.filename] });
-      } else {
-        // Flat episode without season folder: e.g. ['lanterns', 'e1']
-        const baseEp = ep.filename.replace(/\.(md|markdown)$/i, '');
-        paths.push({ slug: [showSlug, baseEp] });
-        paths.push({ slug: [showSlug, ep.filename] });
+        if (ep.seasonFolder) {
+          addPath([sSlug, ep.seasonFolder, baseEp]);
+          addPath([sSlug, ep.seasonFolder, ep.filename]);
+        } else {
+          addPath([sSlug, baseEp]);
+          addPath([sSlug, ep.filename]);
+        }
       }
     }
   }
 
-  return paths;
+  return Array.from(pathsMap.values());
 }
 
 /**
  * Reads and parses a custom TV show and all its episodes from `tv/[showSlug]`.
+ * Supports directory name, TMDB ID, title slug, and title-id slug.
  */
 export async function getCustomTVShowBySlug(showSlugOrTmdbId: string | number): Promise<CustomTVShowData | null> {
   ensureTVDirExists();
   const searchKey = String(showSlugOrTmdbId).trim().toLowerCase();
   const showDirs = getAllCustomTVShowDirs();
+
+  // Extract trailing ID (e.g. "lanterns-95350" -> "95350")
+  const idMatch = searchKey.match(/-(\d+)$/);
+  const trailingId = idMatch ? idMatch[1] : null;
 
   let matchedDir: string | null = null;
   let showDirFullPath = '';
@@ -189,7 +232,7 @@ export async function getCustomTVShowBySlug(showSlugOrTmdbId: string | number): 
     }
   }
 
-  // 2. Search by tmdb_id in _index.md
+  // 2. Search by tmdb_id, title slug, or trailing ID in _index.md
   if (!matchedDir) {
     for (const dir of showDirs) {
       const fullPath = path.join(TV_CONTENT_DIR, dir);
@@ -203,10 +246,23 @@ export async function getCustomTVShowBySlug(showSlugOrTmdbId: string | number): 
         try {
           const content = fs.readFileSync(indexPath, 'utf8');
           const { data } = matter(content);
-          if (data && String(data.tmdb_id).trim() === searchKey) {
-            matchedDir = dir;
-            showDirFullPath = fullPath;
-            break;
+          if (data) {
+            const tmdbIdStr = String(data.tmdb_id || '').trim();
+            const titleSlug = cleanSlug(data.title || data.name);
+
+            // Direct TMDB ID or trailing ID match
+            if (tmdbIdStr && (tmdbIdStr === searchKey || tmdbIdStr === trailingId)) {
+              matchedDir = dir;
+              showDirFullPath = fullPath;
+              break;
+            }
+
+            // Title slug match
+            if (titleSlug && (titleSlug === searchKey || searchKey.startsWith(titleSlug))) {
+              matchedDir = dir;
+              showDirFullPath = fullPath;
+              break;
+            }
           }
         } catch (e) {
           console.error(`Error reading ${indexPath}:`, e);
@@ -444,9 +500,16 @@ export async function getTVShowDetailsWithCustomOverride(
       throw new Error(`Custom TV show '${customTV.showSlug}' missing valid tmdb_id in _index.md`);
     }
   } else {
-    tmdbId = Number(showSlugOrId);
-    if (!tmdbId || isNaN(tmdbId)) {
-      return null;
+    const str = String(showSlugOrId).trim();
+    if (/^\d+$/.test(str)) {
+      tmdbId = Number(str);
+    } else {
+      const idMatch = str.match(/-(\d+)$/);
+      if (idMatch) {
+        tmdbId = Number(idMatch[1]);
+      } else {
+        return null;
+      }
     }
   }
 

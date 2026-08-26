@@ -3,6 +3,7 @@ import { getMovieDetails, getTVShowDetails, getImageUrl } from '@/lib/tmdb';
 import { getAllFeaturedCustomMovies, getCustomMovieTmdbMapping, getCustomMovieBySlug } from '@/lib/markdownMovies';
 import { getAllFeaturedCustomTV, getCustomTVTmdbMapping, getCustomTVShowBySlug } from '@/lib/markdownTV';
 import siteConfig, { FeaturedItem } from '@/config';
+import { getMovieUrl, getTVUrl } from '@/lib/urls';
 
 /**
  * Normalizes title string by stripping descriptive edition suffixes, punctuation, and extra whitespace.
@@ -119,10 +120,10 @@ export async function enrichConfigFeaturedItem(item: FeaturedItem): Promise<Feat
     : (tmdbData?.genres?.map((g) => g.name) || []);
 
   const defaultLink = type === 'tv'
-    ? (customTVSlug ? `/tv/${customTVSlug}` : `/tv/${tmdbIdNum}`)
-    : (customMovieSlug ? `/movie/${customMovieSlug}` : `/movie/${tmdbIdNum}`);
+    ? getTVUrl({ tmdbId: tmdbIdNum, name: title, customSlug: customTVSlug })
+    : getMovieUrl({ tmdbId: tmdbIdNum, title, customSlug: customMovieSlug });
 
-  const link = item.link || defaultLink;
+  const link = item.link && item.link !== '/movie/movie' ? item.link : defaultLink;
 
   return {
     ...item,
@@ -206,38 +207,35 @@ export async function getEnrichedFeaturedItems(options: GetFeaturedOptions = {})
     }
 
     if (existingIndex >= 0) {
-      // Merge missing fields into existing item rather than duplicating slide
+      // Merge properties if missing in the existing item
       const existing = featuredList[existingIndex];
       featuredList[existingIndex] = {
         ...existing,
+        link: existing.link && existing.link !== '/' && existing.link !== '/movie/movie' ? existing.link : item.link,
         tagline: existing.tagline || item.tagline,
+        overview: existing.overview || item.overview,
+        backdropUrl: existing.backdropUrl || item.backdropUrl,
+        posterUrl: existing.posterUrl || item.posterUrl,
+        rating: existing.rating || item.rating,
+        year: existing.year || item.year,
         duration: existing.duration || item.duration,
+        badge: existing.badge || item.badge,
         genres: existing.genres && existing.genres.length > 0 ? existing.genres : item.genres,
-        backdropUrl: (existing.backdropUrl && !existing.backdropUrl.includes('placeholder')) ? existing.backdropUrl : item.backdropUrl,
-        posterUrl: (existing.posterUrl && !existing.posterUrl.includes('placeholder')) ? existing.posterUrl : item.posterUrl,
       };
-      return;
+    } else {
+      featuredList.push(item);
+      if (tmdbKey) seenTmdbIds.add(tmdbKey);
+      if (titleKey) seenTitles.add(titleKey);
+      if (linkKey) seenLinks.add(linkKey);
     }
-
-    // New unique featured item
-    if (tmdbKey) seenTmdbIds.add(tmdbKey);
-    if (titleKey) seenTitles.add(titleKey);
-    if (linkKey) seenLinks.add(linkKey);
-    featuredList.push(item);
   };
 
-  // Add custom markdown items first (they have custom streaming links / local files)
-  for (const item of customMovies) {
-    addItem(item);
-  }
-  for (const item of customTV) {
-    addItem(item);
-  }
+  // Process custom markdown items first (highest priority)
+  customMovies.forEach(addItem);
+  customTV.forEach(addItem);
 
-  // Add enriched config items (e.g. from siteConfig.featuredItems)
-  for (const item of enrichedConfigItems) {
-    addItem(item);
-  }
+  // Process configured featured items
+  enrichedConfigItems.forEach(addItem);
 
   // 4. If we still have fewer items than maxItems, fill with non-duplicate dynamic TMDB movies/shows
   if (featuredList.length < maxItems && dynamicFallbackMovies.length > 0) {
@@ -248,38 +246,36 @@ export async function getEnrichedFeaturedItems(options: GetFeaturedOptions = {})
       const titleKey = `movie:${normalizeTitle(m.title)}`;
 
       // Strict condition: do NOT duplicate items that are already featured
-      if (seenTmdbIds.has(tmdbKey) || seenTitles.has(titleKey)) {
-        continue;
+      if (!seenTmdbIds.has(tmdbKey) && !seenTitles.has(titleKey)) {
+        seenTmdbIds.add(tmdbKey);
+        seenTitles.add(titleKey);
+
+        const backdrop = m.backdrop_path
+          ? getImageUrl(m.backdrop_path, 'w1280')
+          : m.poster_path
+          ? getImageUrl(m.poster_path, 'w780')
+          : '/placeholder-poster.svg';
+
+        const poster = m.poster_path
+          ? getImageUrl(m.poster_path, 'w500')
+          : m.backdrop_path
+          ? getImageUrl(m.backdrop_path, 'w780')
+          : '/placeholder-poster.svg';
+
+        featuredList.push({
+          id: `dynamic-movie-${m.id}`,
+          tmdbId: m.id,
+          title: m.title,
+          overview: m.overview,
+          backdropUrl: backdrop,
+          posterUrl: poster,
+          rating: Math.round(m.vote_average * 10) / 10,
+          year: m.release_date ? new Date(m.release_date).getFullYear() : '2025',
+          type: 'movie',
+          link: getMovieUrl(m),
+          badge: 'Featured',
+        });
       }
-
-      seenTmdbIds.add(tmdbKey);
-      seenTitles.add(titleKey);
-
-      const backdrop = m.backdrop_path
-        ? getImageUrl(m.backdrop_path, 'w1280')
-        : m.poster_path
-        ? getImageUrl(m.poster_path, 'w780')
-        : '/placeholder-poster.svg';
-
-      const poster = m.poster_path
-        ? getImageUrl(m.poster_path, 'w500')
-        : m.backdrop_path
-        ? getImageUrl(m.backdrop_path, 'w780')
-        : '/placeholder-poster.svg';
-
-      featuredList.push({
-        id: `dynamic-movie-${m.id}`,
-        tmdbId: m.id,
-        title: m.title,
-        overview: m.overview,
-        backdropUrl: backdrop,
-        posterUrl: poster,
-        rating: Math.round(m.vote_average * 10) / 10,
-        year: m.release_date ? new Date(m.release_date).getFullYear() : '2025',
-        type: 'movie',
-        link: `/movie/${m.id}`,
-        badge: 'Featured',
-      });
     }
   }
 

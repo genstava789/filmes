@@ -47,7 +47,12 @@ export const siteConfig = {
 
   // When enabled (true), video titles for generic scrapers & Rave.io use the format: "Judul (Tahun) | LeviStream"
   // When disabled (false), video titles will be: "Judul (Tahun)"
-  useCreditTitleForRave: true,
+  useCreditTitleForRave: false,
+
+  // When enabled (true), URLs for movies and TV shows use clean title slugs (e.g. /movie/mutiny-1288445 or /tv/stranger-things-66732)
+  // When disabled (false), URLs use TMDB IDs (e.g. /movie/1288445 or /tv/95350)
+  // Note: Dual routing is always active, meaning both ID and Title slug URLs will always work for users!
+  useTitleSlug: true,
 
   // Auto-slide interval for Featured Hero (in seconds)
   heroIntervalSeconds: 6,
@@ -63,7 +68,6 @@ export const siteConfig = {
       title: 'Mutiny',
       tagline: 'Trust No One. Fight Everyone.',
       badge: 'Featured',
-      link: '/movie/movie',
     },
     {
       id: 'lanterns-dc',

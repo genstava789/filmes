@@ -7,6 +7,7 @@ import { Play, Star, Calendar, ChevronLeft, ChevronRight, Sparkles } from 'lucid
 import { Movie, TVShow, Genre } from '@/types/tmdb';
 import { getImageUrl } from '@/lib/tmdb';
 import siteConfig, { FeaturedItem } from '@/config';
+import { getMovieUrl, getTVUrl } from '@/lib/urls';
 
 interface HeroProps {
   movie?: Movie;
@@ -66,7 +67,7 @@ export default function Hero({
         : m.first_air_date
         ? new Date(m.first_air_date).getFullYear()
         : '2025';
-      const itemLink = isTV ? `/tv/${m.id}` : `/movie/${m.id}`;
+      const itemLink = isTV ? getTVUrl(m) : getMovieUrl(m);
 
       return {
         id: m.id,
@@ -231,25 +232,9 @@ export default function Hero({
         <div className="w-full px-4 sm:px-6 md:px-8 lg:px-10 xl:px-12 2xl:px-14">
           <div className="max-w-xl md:max-w-2xl lg:max-w-3xl">
 
-            {/* Badge */}
-            <div className="flex items-center gap-2 mb-1.5 sm:mb-3">
-              <span
-                className="inline-flex items-center gap-1.5 px-3 py-1 sm:px-3.5 sm:py-1.5 rounded-full text-[10px] sm:text-xs font-extrabold uppercase tracking-wider"
-                style={{
-                  background: badgeBg,
-                  border: badgeBorder,
-                  color: badgeColor,
-                  boxShadow: badgeShadow,
-                }}
-              >
-                <Sparkles size={12} />
-                {currentItem.badge || (isTV ? 'Featured Series' : 'Featured')}
-              </span>
-            </div>
-
-            {/* Title */}
+            {/* Title (Scaled responsively for small mobile screen) */}
             <h1
-              className="text-2xl xs:text-3xl sm:text-4xl md:text-5xl lg:text-6xl font-black leading-tight mb-2 sm:mb-3 text-white tracking-tight line-clamp-2"
+              className="text-xl xs:text-2xl sm:text-3xl md:text-5xl lg:text-6xl font-black leading-tight mb-2 sm:mb-3 text-white tracking-tight line-clamp-2"
               style={{
                 textShadow: '0 2px 24px rgba(0,0,0,0.9)',
               }}
@@ -257,31 +242,32 @@ export default function Hero({
               {currentItem.title}
             </h1>
 
-            {/* Tagline (Desktop) */}
+            {/* Tagline (Desktop only) */}
             {currentItem.tagline && (
               <p className="hidden sm:block text-xs sm:text-sm md:text-base italic text-purple-300 mb-2 font-medium">
                 &ldquo;{currentItem.tagline}&rdquo;
               </p>
             )}
 
-            {/* Meta row with Designed Badges */}
-            <div className="flex flex-wrap items-center gap-2 sm:gap-3 mb-3 sm:mb-5 text-xs sm:text-sm">
-              {/* Rating */}
-              <div
-                className="flex items-center gap-1 px-2.5 py-1 rounded-lg text-[11px] sm:text-xs font-bold"
+            {/* Meta row with Designed Badges: Featured badge placed side-by-side with HD badge */}
+            <div className="flex flex-wrap items-center gap-1.5 xs:gap-2 sm:gap-3 mb-3 sm:mb-5 text-xs sm:text-sm">
+              {/* Featured Badge */}
+              <span
+                className="inline-flex items-center gap-1 px-2.5 py-1 sm:px-3 sm:py-1 rounded-lg text-[10px] sm:text-xs font-extrabold uppercase tracking-wider"
                 style={{
-                  background: 'rgba(34,197,94,0.15)',
-                  border: '1px solid rgba(34,197,94,0.4)',
-                  color: '#22c55e',
+                  background: badgeBg,
+                  border: badgeBorder,
+                  color: badgeColor,
+                  boxShadow: badgeShadow,
                 }}
               >
-                <Star size={12} fill="currentColor" />
-                {(currentItem.rating ?? 8.5).toFixed(1)}
-              </div>
+                <Sparkles size={11} className="flex-shrink-0" />
+                <span>{currentItem.badge || (isTV ? 'Featured Series' : 'Featured')}</span>
+              </span>
 
               {/* HD Badge */}
               <span
-                className="px-2 py-0.5 rounded text-[10px] sm:text-[11px] font-black tracking-wider"
+                className="px-2 py-0.5 sm:py-1 rounded text-[10px] sm:text-[11px] font-black tracking-wider"
                 style={{
                   background: isTV ? 'rgba(236,72,153,0.15)' : 'rgba(6, 182, 212, 0.15)',
                   border: isTV ? '1px solid rgba(236,72,153,0.4)' : '1px solid rgba(6, 182, 212, 0.4)',
@@ -291,10 +277,23 @@ export default function Hero({
                 HD
               </span>
 
+              {/* Rating */}
+              <div
+                className="flex items-center gap-1 px-2.5 py-0.5 sm:py-1 rounded-lg text-[11px] sm:text-xs font-bold"
+                style={{
+                  background: 'rgba(34,197,94,0.15)',
+                  border: '1px solid rgba(34,197,94,0.4)',
+                  color: '#22c55e',
+                }}
+              >
+                <Star size={11} fill="currentColor" className="flex-shrink-0" />
+                {(currentItem.rating ?? 8.5).toFixed(1)}
+              </div>
+
               {/* Styled Year Label Badge */}
               {currentItem.year && (
                 <div
-                  className="flex items-center gap-1.5 px-2.5 py-1 rounded-lg text-[11px] sm:text-xs font-semibold"
+                  className="flex items-center gap-1 px-2 sm:px-2.5 py-0.5 sm:py-1 rounded-lg text-[10px] sm:text-xs font-semibold"
                   style={{
                     background: 'rgba(255, 255, 255, 0.08)',
                     border: '1px solid rgba(255, 255, 255, 0.18)',
@@ -334,9 +333,9 @@ export default function Hero({
               )}
             </div>
 
-            {/* Overview / Deskripsi */}
+            {/* Overview / Deskripsi (Hidden on small mobile screen for sleek & clean UI, visible on md+) */}
             {currentItem.overview && (
-              <p className="hidden sm:block text-xs sm:text-sm md:text-base leading-relaxed text-slate-300 mb-4 sm:mb-6 line-clamp-2 md:line-clamp-3 max-w-2xl">
+              <p className="hidden md:block text-xs sm:text-sm md:text-base leading-relaxed text-slate-300 mb-4 sm:mb-6 line-clamp-2 md:line-clamp-3 max-w-2xl">
                 {currentItem.overview}
               </p>
             )}
@@ -345,14 +344,14 @@ export default function Hero({
             <div className="flex items-center gap-2.5 sm:gap-3">
               <Link
                 href={currentItem.link || '/'}
-                className="inline-flex items-center gap-2.5 px-6 py-2.5 sm:px-8 sm:py-3.5 rounded-xl font-bold text-xs sm:text-sm transition-all duration-300 hover:scale-105 active:scale-95 shadow-lg"
+                className="inline-flex items-center gap-2.5 px-5 py-2 xs:px-6 xs:py-2.5 sm:px-8 sm:py-3.5 rounded-xl font-bold text-xs sm:text-sm transition-all duration-300 hover:scale-105 active:scale-95 shadow-lg"
                 style={{
                   background: btnBg,
                   color: 'white',
                   boxShadow: btnShadow,
                 }}
               >
-                <Play size={16} fill="white" className="sm:w-[18px] sm:h-[18px]" />
+                <Play size={15} fill="white" className="sm:w-[18px] sm:h-[18px]" />
                 <span>Tonton Sekarang</span>
               </Link>
             </div>

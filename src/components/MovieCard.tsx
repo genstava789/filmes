@@ -6,6 +6,7 @@ import Link from 'next/link';
 import { Play, Star, Tv, Film } from 'lucide-react';
 import { Movie, TVShow } from '@/types/tmdb';
 import { getImageUrl } from '@/lib/tmdb';
+import { getMovieUrl, getTVUrl } from '@/lib/urls';
 
 interface MovieCardProps {
   item: Movie | TVShow;
@@ -24,7 +25,7 @@ export default function MovieCard({ item, type = 'movie' }: MovieCardProps) {
   const date = isMovie(item) ? item.release_date : item.first_air_date;
   const year = date ? new Date(date).getFullYear() : null;
   const rating = Math.round(item.vote_average * 10) / 10;
-  const href = type === 'tv' ? `/tv/${item.id}` : `/movie/${item.id}`;
+  const href = type === 'tv' ? getTVUrl(item) : getMovieUrl(item);
 
   const getRatingColor = (r: number) => {
     if (r >= 7) return '#4ade80';

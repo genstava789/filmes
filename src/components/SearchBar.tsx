@@ -6,6 +6,7 @@ import { useRouter } from 'next/navigation';
 import { Search, X, Star } from 'lucide-react';
 import { Movie } from '@/types/tmdb';
 import { searchMovies, getImageUrl } from '@/lib/tmdb';
+import { getMovieUrl } from '@/lib/urls';
 
 interface SearchBarProps {
   onClose?: () => void;
@@ -74,10 +75,10 @@ export default function SearchBar({ onClose, autoFocus = false, className = '', 
     }
   };
 
-  const handleResultClick = (movieId: number) => {
+  const handleResultClick = (movie: Movie) => {
     setIsOpen(false);
     setQuery('');
-    router.push(`/movie/${movieId}`);
+    router.push(getMovieUrl(movie));
     onClose?.();
   };
 
@@ -139,7 +140,7 @@ export default function SearchBar({ onClose, autoFocus = false, className = '', 
           {results.map((movie) => (
             <button
               key={movie.id}
-              onClick={() => handleResultClick(movie.id)}
+              onClick={() => handleResultClick(movie)}
               className="w-full flex items-center gap-3 p-3 text-left transition-colors duration-150 hover:bg-white/5"
             >
               <div className="relative w-10 h-14 rounded-md overflow-hidden flex-shrink-0"
