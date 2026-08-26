@@ -243,9 +243,9 @@ export default function Hero({
               {currentItem.title}
             </h1>
 
-            {/* Tagline (Desktop only) */}
+            {/* Tagline (Only on large desktop screens lg+) */}
             {currentItem.tagline && (
-              <p className="hidden sm:block text-xs sm:text-sm md:text-base italic text-purple-300 mb-2 font-medium">
+              <p className="hidden lg:block text-xs sm:text-sm md:text-base italic text-purple-300 mb-2 font-medium">
                 &ldquo;{currentItem.tagline}&rdquo;
               </p>
             )}
@@ -327,9 +327,9 @@ export default function Hero({
               )}
             </div>
 
-            {/* Overview / Deskripsi (Hidden on mobile & small screens, only on large screens md+) */}
+            {/* Overview / Deskripsi (Completely hidden on all small & tablet screens, only visible on large desktop lg+) */}
             {currentItem.overview && (
-              <p className="hidden md:block text-xs sm:text-sm md:text-base leading-relaxed text-slate-300 mb-4 sm:mb-6 line-clamp-2 md:line-clamp-3 max-w-2xl">
+              <p className="hidden lg:block text-xs sm:text-sm md:text-base leading-relaxed text-slate-300 mb-4 sm:mb-6 line-clamp-2 md:line-clamp-3 max-w-2xl">
                 {currentItem.overview}
               </p>
             )}
