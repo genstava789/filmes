@@ -2550,8 +2550,8 @@ export default function AdminPage() {
                     </div>
                   )}
 
-                  {/* Ultra-Compact Season Tabs with Clean Stacked Badges */}
-                  <div className="flex items-center gap-1.5 overflow-x-auto pb-1">
+                  {/* Ultra-Compact Season Tabs with Clean Stacked Badges & Visible Delete Button */}
+                  <div className="flex items-center gap-1.5 overflow-x-auto pb-1 pt-1.5 px-1">
                     {formSeasons.map((s) => {
                       const isActive = activeSeasonTab === s.season;
                       return (
@@ -2559,14 +2559,14 @@ export default function AdminPage() {
                           <button
                             type="button"
                             onClick={() => setActiveSeasonTab(s.season)}
-                            className={`px-3 py-1.5 rounded-lg text-center transition-all flex flex-col items-center justify-center min-w-[75px] sm:min-w-[85px] gap-0.5 ${
+                            className={`px-2.5 py-1 rounded-md text-center transition-all flex flex-col items-center justify-center min-w-[62px] sm:min-w-[68px] gap-0.5 ${
                               isActive
                                 ? 'bg-purple-700 text-white shadow-sm ring-1 ring-purple-400 border border-purple-400/40'
                                 : 'bg-black/40 text-slate-300 hover:text-white hover:bg-white/5 border border-white/10'
                             }`}
                           >
-                            <span className="text-[11px] font-bold tracking-tight">{s.name}</span>
-                            <span className={`text-[9px] font-semibold px-1.5 py-0.2 rounded-full border ${
+                            <span className="text-[10.5px] font-bold tracking-tight">{s.name}</span>
+                            <span className={`text-[8.5px] font-semibold px-1.5 py-0.1 rounded-full border ${
                               isActive ? 'bg-black/50 text-purple-200 border-purple-400/30' : 'bg-white/5 text-slate-400 border-white/5'
                             }`}>
                               {s.episodes.length} Episode
@@ -2580,10 +2580,10 @@ export default function AdminPage() {
                                 e.stopPropagation();
                                 removeSeason(s.season);
                               }}
-                              className="absolute -top-1 -right-1 w-3.5 h-3.5 rounded-full bg-red-500 text-white flex items-center justify-center opacity-0 group-hover:opacity-100 transition-opacity shadow-sm"
+                              className="absolute -top-1.5 -right-1.5 w-4 h-4 rounded-full bg-red-600 hover:bg-red-500 text-white flex items-center justify-center border border-white/40 shadow-md transition-all z-10"
                               title={`Hapus ${s.name}`}
                             >
-                              <X size={8} />
+                              <X size={10} strokeWidth={2.5} />
                             </button>
                           )}
                         </div>
@@ -2793,9 +2793,9 @@ export default function AdminPage() {
               )}
 
               {/* Rating and Featured in Homepage */}
-              <div className="grid grid-cols-1 sm:grid-cols-2 gap-2.5 pt-1">
+              <div className="grid grid-cols-1 sm:grid-cols-2 gap-2 pt-0.5">
                 <div>
-                  <label className="block text-[11px] font-medium text-slate-400 mb-1">
+                  <label className="block text-[10px] font-semibold text-slate-400 mb-0.5">
                     Rating (Opsional)
                   </label>
                   <input
@@ -2806,21 +2806,19 @@ export default function AdminPage() {
                     value={formRating}
                     onChange={(e) => setFormRating(e.target.value)}
                     placeholder="Contoh: 8.5"
-                    className="w-full px-2.5 py-1.5 bg-black/40 border border-white/10 rounded-lg text-xs text-white focus:outline-none focus:border-cyan-400"
+                    className="w-full px-2 py-1 bg-black/40 border border-white/10 rounded-md text-xs text-white focus:outline-none focus:border-cyan-400"
                   />
                 </div>
 
                 <div
                   onClick={() => setFormFeatured(!formFeatured)}
-                  className="flex items-center justify-between p-2 rounded-lg bg-white/5 border border-white/10 hover:border-cyan-500/40 transition-all cursor-pointer select-none"
+                  className="flex items-center justify-between px-2.5 py-1 rounded-md bg-white/5 border border-white/10 hover:border-cyan-500/40 transition-all cursor-pointer select-none self-end h-[34px]"
                 >
-                  <div className="flex items-center gap-1.5">
-                    <div className="p-1 rounded bg-cyan-500/10 text-cyan-400">
-                      <Star size={13} fill={formFeatured ? 'currentColor' : 'none'} />
-                    </div>
+                  <div className="flex items-center gap-1.5 min-w-0">
+                    <Star size={12} className={formFeatured ? 'text-amber-400 fill-amber-400' : 'text-slate-400'} />
                     <div>
-                      <p className="text-[11px] font-bold text-white select-none">Featured Homepage</p>
-                      <p className="text-[9px] text-slate-400 select-none">Hero banner utama</p>
+                      <p className="text-[10.5px] font-bold text-white select-none leading-none">Featured</p>
+                      <p className="text-[8px] text-slate-400 select-none leading-none mt-0.5">Hero banner utama</p>
                     </div>
                   </div>
                   <input
@@ -2987,14 +2985,14 @@ export default function AdminPage() {
                               setEditActiveSeasonTab(s);
                               setSelectedEditEpPaths([]);
                             }}
-                            className={`px-3 py-1.5 rounded-lg text-center transition-all flex flex-col items-center justify-center min-w-[75px] sm:min-w-[85px] gap-0.5 ${
+                            className={`px-2.5 py-1 rounded-md text-center transition-all flex flex-col items-center justify-center min-w-[62px] sm:min-w-[68px] gap-0.5 ${
                               isActive
                                 ? 'bg-purple-700 text-white shadow-sm ring-1 ring-purple-400 border border-purple-400/40'
                                 : 'bg-black/40 text-slate-300 hover:text-white hover:bg-white/5 border border-white/10'
                             }`}
                           >
-                            <span className="text-[11px] font-bold tracking-tight">{formatSeasonLabel(s)}</span>
-                            <span className={`text-[9px] font-semibold px-1.5 py-0.2 rounded-full border ${
+                            <span className="text-[10.5px] font-bold tracking-tight">{formatSeasonLabel(s)}</span>
+                            <span className={`text-[8.5px] font-semibold px-1.5 py-0.1 rounded-full border ${
                               isActive ? 'bg-black/50 text-purple-200 border-purple-400/30' : 'bg-white/5 text-slate-400 border-white/5'
                             }`}>
                               {count} Episode
@@ -3400,9 +3398,9 @@ export default function AdminPage() {
 
                 {/* Rating & Featured */}
                 {editingItem.type !== 'tv_episode' && (
-                  <div className="grid grid-cols-1 sm:grid-cols-2 gap-2.5">
+                  <div className="grid grid-cols-1 sm:grid-cols-2 gap-2 pt-0.5">
                     <div>
-                      <label className="block text-[11px] font-medium text-slate-400 mb-1">Rating</label>
+                      <label className="block text-[10px] font-semibold text-slate-400 mb-0.5">Rating</label>
                       <input
                         type="number"
                         step="0.1"
@@ -3415,7 +3413,7 @@ export default function AdminPage() {
                             frontmatter: { ...editingItem.frontmatter, rating: e.target.value },
                           })
                         }
-                        className="w-full px-2.5 py-1.5 bg-black/40 border border-white/10 rounded-lg text-xs text-white focus:outline-none focus:border-cyan-400"
+                        className="w-full px-2 py-1 bg-black/40 border border-white/10 rounded-md text-xs text-white focus:outline-none focus:border-cyan-400"
                       />
                     </div>
 
@@ -3426,15 +3424,13 @@ export default function AdminPage() {
                           frontmatter: { ...editingItem.frontmatter, featured: !editingItem.frontmatter.featured },
                         })
                       }
-                      className="flex items-center justify-between p-2 rounded-lg bg-white/5 border border-white/10 hover:border-cyan-500/40 transition-all cursor-pointer select-none"
+                      className="flex items-center justify-between px-2.5 py-1 rounded-md bg-white/5 border border-white/10 hover:border-cyan-500/40 transition-all cursor-pointer select-none self-end h-[34px]"
                     >
-                      <div className="flex items-center gap-1.5">
-                        <div className="p-1 rounded bg-cyan-500/10 text-cyan-400">
-                          <Star size={13} fill={editingItem.frontmatter.featured ? 'currentColor' : 'none'} />
-                        </div>
+                      <div className="flex items-center gap-1.5 min-w-0">
+                        <Star size={12} className={editingItem.frontmatter.featured ? 'text-amber-400 fill-amber-400' : 'text-slate-400'} />
                         <div>
-                          <p className="text-[11px] font-bold text-white select-none">Jadikan Featured</p>
-                          <p className="text-[9px] text-slate-400 select-none">Hero banner</p>
+                          <p className="text-[10.5px] font-bold text-white select-none leading-none">Featured</p>
+                          <p className="text-[8px] text-slate-400 select-none leading-none mt-0.5">Hero banner</p>
                         </div>
                       </div>
                       <input
