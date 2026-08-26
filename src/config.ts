@@ -28,8 +28,8 @@ export const siteConfig = {
   tagline: 'Watch Movies & TV Shows Online',
   description:
     'Discover and explore thousands of movies and TV shows. Find trending titles, top-rated classics, and everything in between on LeviStream.',
-  url: 'https://levistream.vercel.app',
-  logoUrl: 'https://levistream.vercel.app/logo.png',
+  url: 'https://filmes-xi-seven.vercel.app',
+  logoUrl: 'https://filmes-xi-seven.vercel.app/logo.png',
   keywords: [
     'movies',
     'TV shows',

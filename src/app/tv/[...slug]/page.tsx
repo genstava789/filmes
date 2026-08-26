@@ -45,12 +45,14 @@ export async function generateMetadata({ params }: PageProps): Promise<Metadata>
   }
 
   const isEpisodePage = params.slug.length > 1;
-  const epTitle = isEpisodePage && data.activeEpisode
-    ? ` - ${data.activeEpisode.episodeLabel}: ${data.activeEpisode.title}`
+  const activeEpisode = data.activeEpisode || null;
+  const siteUrl = process.env.NEXT_PUBLIC_SITE_URL || siteConfig.url;
+  const epTitle = isEpisodePage && activeEpisode
+    ? ` - ${activeEpisode.episodeLabel}: ${activeEpisode.title}`
     : '';
   const title = `${data.name}${epTitle} - ${siteConfig.name}`;
-  const description = isEpisodePage && data.activeEpisode?.overview
-    ? data.activeEpisode.overview
+  const description = isEpisodePage && activeEpisode?.overview
+    ? activeEpisode.overview
     : data.overview || `Watch TV shows and stream episodes online on ${siteConfig.name}.`;
 
   const image = isEpisodePage && data.activeEpisode?.imageUrl
@@ -60,6 +62,8 @@ export async function generateMetadata({ params }: PageProps): Promise<Metadata>
 
   const videoUrl = isEpisodePage && data.activeEpisode?.videoUrl ? data.activeEpisode.videoUrl : null;
   const videoType = videoUrl && videoUrl.includes('.m3u8') ? 'application/x-mpegURL' : 'video/mp4';
+  const pageUrl = `${siteUrl}/tv/${params.slug.join('/')}`;
+  const embedUrl = `${siteUrl}/embed/tv/${params.slug.join('/')}`;
 
   return {
     title,
@@ -71,6 +75,13 @@ export async function generateMetadata({ params }: PageProps): Promise<Metadata>
       images: image ? [image] : [],
       videos: videoUrl
         ? [
+            {
+              url: embedUrl,
+              secureUrl: embedUrl,
+              type: 'text/html',
+              width: 1920,
+              height: 1080,
+            },
             {
               url: videoUrl,
               secureUrl: videoUrl,
@@ -84,19 +95,19 @@ export async function generateMetadata({ params }: PageProps): Promise<Metadata>
     other: videoUrl
       ? {
           'og:type': 'video.other',
-          'og:video': videoUrl,
-          'og:video:url': videoUrl,
-          'og:video:secure_url': videoUrl,
-          'og:video:type': videoType,
+          'og:video': embedUrl,
+          'og:video:url': embedUrl,
+          'og:video:secure_url': embedUrl,
+          'og:video:type': 'text/html',
           'og:video:width': '1920',
           'og:video:height': '1080',
           'twitter:card': 'player',
-          'twitter:player': videoUrl,
+          'twitter:player': embedUrl,
           'twitter:player:width': '1920',
           'twitter:player:height': '1080',
           'twitter:player:stream': videoUrl,
           'twitter:player:stream:content_type': videoType,
-          'video_src': videoUrl,
+          'video_src': embedUrl,
         }
       : {},
   };
@@ -147,11 +158,14 @@ export default async function TVShowPage({ params }: PageProps) {
     );
   }
 
+  const siteUrl = process.env.NEXT_PUBLIC_SITE_URL || siteConfig.url;
   const isEpisodePage = params.slug.length > 1;
   const activeEpisode = data.activeEpisode || null;
   const showSlug = params.slug[0];
   const videoUrl = activeEpisode?.videoUrl || null;
   const videoType = videoUrl && videoUrl.includes('.m3u8') ? 'application/x-mpegURL' : 'video/mp4';
+  const pageUrl = `${siteUrl}/tv/${params.slug.join('/')}`;
+  const embedUrl = `${siteUrl}/embed/tv/${params.slug.join('/')}`;
 
   const cast = data.credits?.cast?.slice(0, 14) || [];
   const similarShows = data.similar?.results?.slice(0, 14) || [];
@@ -183,8 +197,8 @@ export default async function TVShowPage({ params }: PageProps) {
         thumbnailUrl: [thumbnailImage],
         uploadDate: uploadDate,
         duration: durationIso,
-        contentUrl: videoUrl,
-        embedUrl: videoUrl,
+        contentUrl: pageUrl,
+        embedUrl: embedUrl,
         publisher: {
           '@type': 'Organization',
           name: siteConfig.name,
@@ -201,11 +215,11 @@ export default async function TVShowPage({ params }: PageProps) {
       {/* OpenGraph Video & Schema.org VideoObject (Only on Episode page with video) */}
       {isEpisodePage && videoUrl && (
         <>
-          <link rel="video_src" href={videoUrl} />
-          <meta property="og:video" content={videoUrl} />
-          <meta property="og:video:url" content={videoUrl} />
-          <meta property="og:video:secure_url" content={videoUrl} />
-          <meta property="og:video:type" content={videoType} />
+          <link rel="video_src" href={embedUrl} />
+          <meta property="og:video" content={embedUrl} />
+          <meta property="og:video:url" content={embedUrl} />
+          <meta property="og:video:secure_url" content={embedUrl} />
+          <meta property="og:video:type" content="text/html" />
           <meta property="og:video:width" content="1920" />
           <meta property="og:video:height" content="1080" />
           {videoObjectSchema && (

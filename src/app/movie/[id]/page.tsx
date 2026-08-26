@@ -46,10 +46,13 @@ export async function generateMetadata({ params }: PageProps): Promise<Metadata>
     };
   }
 
+  const siteUrl = process.env.NEXT_PUBLIC_SITE_URL || siteConfig.url;
   const title = `${movie.title} ${movie.release_date ? `(${new Date(movie.release_date).getFullYear()})` : ''} - ${siteConfig.name}`;
   const description = movie.overview ? movie.overview.slice(0, 160) : `Watch movies and stream online on ${siteConfig.name}.`;
   const videoUrl = movie.customVideoUrl || null;
   const videoType = videoUrl && videoUrl.includes('.m3u8') ? 'application/x-mpegURL' : 'video/mp4';
+  const pageUrl = `${siteUrl}/movie/${params.id}`;
+  const embedUrl = `${siteUrl}/embed/movie/${params.id}`;
 
   const image = movie.backdrop_path
     ? getImageUrl(movie.backdrop_path, 'w1280')
@@ -68,6 +71,13 @@ export async function generateMetadata({ params }: PageProps): Promise<Metadata>
       videos: videoUrl
         ? [
             {
+              url: embedUrl,
+              secureUrl: embedUrl,
+              type: 'text/html',
+              width: 1920,
+              height: 1080,
+            },
+            {
               url: videoUrl,
               secureUrl: videoUrl,
               type: videoType,
@@ -80,19 +90,19 @@ export async function generateMetadata({ params }: PageProps): Promise<Metadata>
     other: videoUrl
       ? {
           'og:type': 'video.other',
-          'og:video': videoUrl,
-          'og:video:url': videoUrl,
-          'og:video:secure_url': videoUrl,
-          'og:video:type': videoType,
+          'og:video': embedUrl,
+          'og:video:url': embedUrl,
+          'og:video:secure_url': embedUrl,
+          'og:video:type': 'text/html',
           'og:video:width': '1920',
           'og:video:height': '1080',
           'twitter:card': 'player',
-          'twitter:player': videoUrl,
+          'twitter:player': embedUrl,
           'twitter:player:width': '1920',
           'twitter:player:height': '1080',
           'twitter:player:stream': videoUrl,
           'twitter:player:stream:content_type': videoType,
-          'video_src': videoUrl,
+          'video_src': embedUrl,
         }
       : {},
   };
@@ -143,6 +153,7 @@ export default async function MovieDetailPage({ params }: PageProps) {
     );
   }
 
+  const siteUrl = process.env.NEXT_PUBLIC_SITE_URL || siteConfig.url;
   const director = movie.credits?.crew?.find((c) => c.job === 'Director');
   const cast = (movie.credits?.cast || []).slice(0, 10);
   const similarMovies = movie.similar?.results?.slice(0, 14) || [];
@@ -156,6 +167,8 @@ export default async function MovieDetailPage({ params }: PageProps) {
   const trailerKey = trailer ? trailer.key : null;
   const videoUrl = movie.customVideoUrl || null;
   const videoType = videoUrl && videoUrl.includes('.m3u8') ? 'application/x-mpegURL' : 'video/mp4';
+  const pageUrl = `${siteUrl}/movie/${params.id}`;
+  const embedUrl = `${siteUrl}/embed/movie/${params.id}`;
 
   const defaultBackdrop = movie.backdrop_path
     ? getImageUrl(movie.backdrop_path, 'original')
@@ -176,8 +189,8 @@ export default async function MovieDetailPage({ params }: PageProps) {
         thumbnailUrl: [thumbnailImage],
         uploadDate: uploadDate,
         duration: durationIso,
-        contentUrl: videoUrl,
-        embedUrl: videoUrl,
+        contentUrl: pageUrl,
+        embedUrl: embedUrl,
         publisher: {
           '@type': 'Organization',
           name: siteConfig.name,
@@ -194,11 +207,11 @@ export default async function MovieDetailPage({ params }: PageProps) {
       {/* OpenGraph Video & Schema.org VideoObject */}
       {videoUrl && (
         <>
-          <link rel="video_src" href={videoUrl} />
-          <meta property="og:video" content={videoUrl} />
-          <meta property="og:video:url" content={videoUrl} />
-          <meta property="og:video:secure_url" content={videoUrl} />
-          <meta property="og:video:type" content={videoType} />
+          <link rel="video_src" href={embedUrl} />
+          <meta property="og:video" content={embedUrl} />
+          <meta property="og:video:url" content={embedUrl} />
+          <meta property="og:video:secure_url" content={embedUrl} />
+          <meta property="og:video:type" content="text/html" />
           <meta property="og:video:width" content="1920" />
           <meta property="og:video:height" content="1080" />
           {videoObjectSchema && (

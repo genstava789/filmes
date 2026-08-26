@@ -197,23 +197,20 @@ export default function TVDetailClient({
     ? `${showTitle} - ${activeEpisode.episodeLabel}: ${activeEpisode.title}`
     : showTitle;
 
+  const siteUrl = typeof window !== 'undefined' ? window.location.origin : 'https://filmes-xi-seven.vercel.app';
+  const pageUrl = activeEpisode?.urlPath ? `${siteUrl}${activeEpisode.urlPath}` : siteUrl;
+  const embedUrl = activeEpisode?.urlPath ? `${siteUrl}/embed${activeEpisode.urlPath}` : siteUrl;
+
   return (
     <div className="w-full">
       {/* Dynamic Video Meta & Schema for Third-Party Players */}
       {activeEpisode?.videoUrl && (
         <>
-          <link rel="video_src" href={activeEpisode.videoUrl} />
-          <meta property="og:video" content={activeEpisode.videoUrl} />
-          <meta property="og:video:url" content={activeEpisode.videoUrl} />
-          <meta property="og:video:secure_url" content={activeEpisode.videoUrl} />
-          <meta
-            property="og:video:type"
-            content={
-              activeEpisode.videoUrl.includes('.m3u8')
-                ? 'application/x-mpegURL'
-                : 'video/mp4'
-            }
-          />
+          <link rel="video_src" href={embedUrl} />
+          <meta property="og:video" content={embedUrl} />
+          <meta property="og:video:url" content={embedUrl} />
+          <meta property="og:video:secure_url" content={embedUrl} />
+          <meta property="og:video:type" content="text/html" />
           <meta property="og:video:width" content="1920" />
           <meta property="og:video:height" content="1080" />
           <script
@@ -225,8 +222,8 @@ export default function TVDetailClient({
                 name: currentVideoTitle,
                 description: activeEpisode.overview || currentVideoTitle,
                 thumbnailUrl: [activeEpisode.imageUrl || defaultBackdrop || ''],
-                contentUrl: activeEpisode.videoUrl,
-                embedUrl: activeEpisode.videoUrl,
+                contentUrl: pageUrl,
+                embedUrl: embedUrl,
                 uploadDate: '2026-08-24T00:00:00+07:00',
               }),
             }}
