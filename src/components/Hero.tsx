@@ -307,13 +307,6 @@ export default function Hero({
                 </div>
               )}
 
-              {/* Duration / Episodes */}
-              {currentItem.duration && (
-                <span className="hidden sm:inline-block text-slate-400 text-xs">
-                  • {currentItem.duration}
-                </span>
-              )}
-
               {/* Genres */}
               {currentItem.genres && currentItem.genres.length > 0 && (
                 <div className="hidden sm:flex items-center gap-1.5">
@@ -334,7 +327,7 @@ export default function Hero({
               )}
             </div>
 
-            {/* Overview / Deskripsi (Hidden on small mobile screen for sleek & clean UI, visible on md+) */}
+            {/* Overview / Deskripsi (Hidden on mobile & small screens, only on large screens md+) */}
             {currentItem.overview && (
               <p className="hidden md:block text-xs sm:text-sm md:text-base leading-relaxed text-slate-300 mb-4 sm:mb-6 line-clamp-2 md:line-clamp-3 max-w-2xl">
                 {currentItem.overview}
