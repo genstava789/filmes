@@ -19,7 +19,8 @@ export function getEffectiveToken(customToken?: string | null): string | null {
 }
 
 /**
- * Gets a file from GitHub repository
+ * Gets a file metadata (including current SHA and content) from GitHub repository.
+ * Always fetches fresh content without caching to ensure accurate SHA for edits.
  */
 export async function getGitHubFile(filePath: string, options: GitHubOptions = {}) {
   const token = getEffectiveToken(options.token);
@@ -30,15 +31,15 @@ export async function getGitHubFile(filePath: string, options: GitHubOptions = {
   const branch = options.branch || DEFAULT_BRANCH;
   const cleanPath = filePath.replace(/^\/+/, '');
 
-  const url = `https://api.github.com/repos/${owner}/${repo}/contents/${cleanPath}?ref=${branch}`;
+  const url = `https://api.github.com/repos/${owner}/${repo}/contents/${cleanPath}?ref=${branch}&_t=${Date.now()}`;
 
   const res = await fetch(url, {
+    cache: 'no-store',
     headers: {
       Authorization: `Bearer ${token}`,
       Accept: 'application/vnd.github.v3+json',
       'User-Agent': 'LeviStream-CMS',
     },
-    next: { revalidate: 3600, tags: ['github-content'] },
   });
 
   if (!res.ok) {
@@ -58,7 +59,7 @@ export async function getGitHubFile(filePath: string, options: GitHubOptions = {
 }
 
 /**
- * Creates or updates a file in GitHub repository
+ * Creates or updates a file in GitHub repository with automatic conflict resolution.
  */
 export async function saveGitHubFile(
   filePath: string,
@@ -74,7 +75,34 @@ export async function saveGitHubFile(
   const branch = options.branch || DEFAULT_BRANCH;
   const cleanPath = filePath.replace(/^\/+/, '');
 
-  // 1. Get existing file SHA if it exists
+  const putFile = async (currentSha?: string) => {
+    const url = `https://api.github.com/repos/${owner}/${repo}/contents/${cleanPath}`;
+    const base64Content = Buffer.from(fileContent, 'utf8').toString('base64');
+
+    const bodyPayload: any = {
+      message: commitMessage || `cms: update ${cleanPath}`,
+      content: base64Content,
+      branch,
+    };
+
+    if (currentSha) {
+      bodyPayload.sha = currentSha;
+    }
+
+    return await fetch(url, {
+      method: 'PUT',
+      cache: 'no-store',
+      headers: {
+        Authorization: `Bearer ${token}`,
+        Accept: 'application/vnd.github.v3+json',
+        'Content-Type': 'application/json',
+        'User-Agent': 'LeviStream-CMS',
+      },
+      body: JSON.stringify(bodyPayload),
+    });
+  };
+
+  // 1. Get existing file SHA if it exists (fresh lookup)
   let sha: string | undefined;
   try {
     const existing = await getGitHubFile(cleanPath, options);
@@ -86,34 +114,24 @@ export async function saveGitHubFile(
   }
 
   // 2. Put file to GitHub API
-  const url = `https://api.github.com/repos/${owner}/${repo}/contents/${cleanPath}`;
-  const base64Content = Buffer.from(fileContent, 'utf8').toString('base64');
+  let res = await putFile(sha);
 
-  const bodyPayload: any = {
-    message: commitMessage || `cms: update ${cleanPath}`,
-    content: base64Content,
-    branch,
-  };
-
-  if (sha) {
-    bodyPayload.sha = sha;
+  // 3. Auto-retry on 409 conflict (stale SHA) by fetching fresh SHA
+  if (res.status === 409) {
+    try {
+      const freshExisting = await getGitHubFile(cleanPath, options);
+      if (freshExisting?.sha) {
+        res = await putFile(freshExisting.sha);
+      }
+    } catch {}
   }
-
-  const res = await fetch(url, {
-    method: 'PUT',
-    headers: {
-      Authorization: `Bearer ${token}`,
-      Accept: 'application/vnd.github.v3+json',
-      'Content-Type': 'application/json',
-      'User-Agent': 'LeviStream-CMS',
-    },
-    body: JSON.stringify(bodyPayload),
-  });
 
   if (!res.ok) {
     const err = await res.json().catch(() => ({}));
     const errMsg = err.message || `HTTP ${res.status}`;
-    throw new Error(`Gagal menyimpan ke GitHub (${errMsg}). Pastikan token memiliki izin 'repo' dan akses tulis ke '${owner}/${repo}' branch '${branch}'.`);
+    throw new Error(
+      `Gagal menyimpan ke GitHub (${errMsg}). Pastikan token memiliki izin 'repo' dan akses tulis ke '${owner}/${repo}' branch '${branch}'.`
+    );
   }
 
   return await res.json();
@@ -135,17 +153,19 @@ export async function deleteGitHubFile(
   const branch = options.branch || DEFAULT_BRANCH;
   const cleanPath = filePath.replace(/^\/+/, '');
 
-  // 1. Get file SHA
+  // 1. Get fresh file SHA
   const existing = await getGitHubFile(cleanPath, options);
   if (!existing) {
-    throw new Error(`File ${cleanPath} tidak ditemukan di repositori GitHub '${owner}/${repo}'`);
+    // Already deleted or not found
+    return { success: true, message: 'File already deleted or not found' };
   }
 
   // 2. Delete file via GitHub API
   const url = `https://api.github.com/repos/${owner}/${repo}/contents/${cleanPath}`;
 
-  const res = await fetch(url, {
+  let res = await fetch(url, {
     method: 'DELETE',
+    cache: 'no-store',
     headers: {
       Authorization: `Bearer ${token}`,
       Accept: 'application/vnd.github.v3+json',
@@ -159,10 +179,36 @@ export async function deleteGitHubFile(
     }),
   });
 
+  // Retry on conflict
+  if (res.status === 409) {
+    try {
+      const freshExisting = await getGitHubFile(cleanPath, options);
+      if (freshExisting) {
+        res = await fetch(url, {
+          method: 'DELETE',
+          cache: 'no-store',
+          headers: {
+            Authorization: `Bearer ${token}`,
+            Accept: 'application/vnd.github.v3+json',
+            'Content-Type': 'application/json',
+            'User-Agent': 'LeviStream-CMS',
+          },
+          body: JSON.stringify({
+            message: commitMessage || `cms: delete ${cleanPath}`,
+            sha: freshExisting.sha,
+            branch,
+          }),
+        });
+      }
+    } catch {}
+  }
+
   if (!res.ok) {
     const err = await res.json().catch(() => ({}));
     const errMsg = err.message || `HTTP ${res.status}`;
-    throw new Error(`Gagal menghapus di GitHub (${errMsg}). Pastikan token memiliki izin 'repo' dan akses tulis ke '${owner}/${repo}' branch '${branch}'.`);
+    throw new Error(
+      `Gagal menghapus di GitHub (${errMsg}). Pastikan token memiliki izin 'repo' dan akses tulis ke '${owner}/${repo}' branch '${branch}'.`
+    );
   }
 
   return await res.json();
@@ -181,7 +227,7 @@ export async function getGitHubRawFile(filePath: string, options: GitHubOptions 
 
   // 1. Primary: Use GitHub REST API with Accept: application/vnd.github.v3.raw (Bypasses Fastly CDN cache completely)
   try {
-    const apiUrl = `https://api.github.com/repos/${owner}/${repo}/contents/${cleanPath}?ref=${branch}`;
+    const apiUrl = `https://api.github.com/repos/${owner}/${repo}/contents/${cleanPath}?ref=${branch}&_t=${Date.now()}`;
     const headers: Record<string, string> = {
       Accept: 'application/vnd.github.v3.raw',
       'User-Agent': 'LeviStream-CMS',
@@ -192,7 +238,7 @@ export async function getGitHubRawFile(filePath: string, options: GitHubOptions 
 
     const res = await fetch(apiUrl, {
       headers,
-      next: { revalidate: 3600, tags: ['github-content'] },
+      cache: 'no-store',
     });
     if (res.ok) {
       const text = await res.text();
@@ -204,9 +250,9 @@ export async function getGitHubRawFile(filePath: string, options: GitHubOptions 
 
   // 2. Secondary Fallback: public GitHub raw URL with timestamp cache buster
   try {
-    const rawUrl = `https://raw.githubusercontent.com/${owner}/${repo}/${branch}/${cleanPath}`;
+    const rawUrl = `https://raw.githubusercontent.com/${owner}/${repo}/${branch}/${cleanPath}?_t=${Date.now()}`;
     const res = await fetch(rawUrl, {
-      next: { revalidate: 3600, tags: ['github-content'] },
+      cache: 'no-store',
     });
     if (res.ok) {
       const text = await res.text();
@@ -238,8 +284,8 @@ export async function listGitHubDir(dirPath: string, options: GitHubOptions = {}
   }
 
   try {
-    const url = `https://api.github.com/repos/${owner}/${repo}/contents/${cleanPath}?ref=${branch}`;
-    const res = await fetch(url, { headers, next: { revalidate: 3600, tags: ['github-content'] } });
+    const url = `https://api.github.com/repos/${owner}/${repo}/contents/${cleanPath}?ref=${branch}&_t=${Date.now()}`;
+    const res = await fetch(url, { headers, cache: 'no-store' });
     if (res.ok) {
       const items = await res.json();
       if (Array.isArray(items)) {
@@ -278,8 +324,8 @@ export async function getGitHubTree(options: GitHubOptions = {}): Promise<GitHub
   }
 
   try {
-    const url = `https://api.github.com/repos/${owner}/${repo}/git/trees/${branch}?recursive=1`;
-    const res = await fetch(url, { headers, next: { revalidate: 3600, tags: ['github-content'] } });
+    const url = `https://api.github.com/repos/${owner}/${repo}/git/trees/${branch}?recursive=1&_t=${Date.now()}`;
+    const res = await fetch(url, { headers, cache: 'no-store' });
     if (res.ok) {
       const data = await res.json();
       if (data && Array.isArray(data.tree)) {
@@ -310,8 +356,8 @@ export async function getGitHubBlob(sha: string, options: GitHubOptions = {}): P
   }
 
   try {
-    const url = `https://api.github.com/repos/${owner}/${repo}/git/blobs/${sha}`;
-    const res = await fetch(url, { headers, next: { revalidate: 3600, tags: ['github-content'] } });
+    const url = `https://api.github.com/repos/${owner}/${repo}/git/blobs/${sha}?_t=${Date.now()}`;
+    const res = await fetch(url, { headers, cache: 'no-store' });
     if (res.ok) {
       return await res.text();
     }
@@ -319,4 +365,3 @@ export async function getGitHubBlob(sha: string, options: GitHubOptions = {}): P
 
   return null;
 }
-

@@ -14,6 +14,11 @@ import {
 import { getMovieDetails, getTVShowDetails, getImageUrl } from '@/lib/tmdb';
 import { memoryCache } from '@/lib/cache';
 import { getContentProvider } from '@/lib/content';
+import {
+  serializeTinaMovie,
+  serializeTinaTVShow,
+  serializeTinaTVEpisode,
+} from '@/lib/tina/schema';
 
 const VIDEO_DIR = path.join(process.cwd(), 'video');
 const TV_DIR = path.join(process.cwd(), 'tv');
@@ -25,15 +30,6 @@ function ensureDirectories() {
   } catch {
     // Read-only filesystem in cloud/vercel
   }
-}
-
-function sanitizePath(relativePath: string, baseDir: string): string | null {
-  const normalized = path.normalize(relativePath).replace(/^(\.\.[\/\\])+/, '');
-  const fullPath = path.join(baseDir, normalized);
-  if (!fullPath.startsWith(baseDir)) {
-    return null;
-  }
-  return fullPath;
 }
 
 function getGitHubConfig(req: NextRequest) {
@@ -187,7 +183,7 @@ export async function GET(request: NextRequest) {
                   frontmatter: data,
                   content: content || '',
                   displayTitle: data.title || filename.replace(/\.(md|markdown)$/i, ''),
-                  posterUrl: data.image_url || null,
+                  posterUrl: data.image_url ? getImageUrl(data.image_url, 'w500') : null,
                   updatedAt: Date.now(),
                 });
               } else if (parts.length === 2) {
@@ -200,7 +196,7 @@ export async function GET(request: NextRequest) {
                   frontmatter: data,
                   content: content || '',
                   displayTitle: data.title || filename.replace(/\.(md|markdown)$/i, ''),
-                  posterUrl: data.image_url || null,
+                  posterUrl: data.image_url ? getImageUrl(data.image_url, 'w500') : null,
                   updatedAt: Date.now(),
                 });
               }
@@ -296,7 +292,7 @@ export async function GET(request: NextRequest) {
                 frontmatter: data,
                 content: content || '',
                 displayTitle: data.title || epFile.replace(/\.(md|markdown)$/i, ''),
-                posterUrl: data.image_url || null,
+                posterUrl: data.image_url ? getImageUrl(data.image_url, 'w500') : null,
                 updatedAt: epStat.mtimeMs || Date.now(),
               });
             }
@@ -314,7 +310,7 @@ export async function GET(request: NextRequest) {
               frontmatter: data,
               content: content || '',
               displayTitle: data.title || entry.name.replace(/\.(md|markdown)$/i, ''),
-              posterUrl: data.image_url || null,
+              posterUrl: data.image_url ? getImageUrl(data.image_url, 'w500') : null,
               updatedAt: epStat.mtimeMs || Date.now(),
             });
           }
@@ -331,7 +327,7 @@ export async function GET(request: NextRequest) {
       }
     }
 
-    // Enrich movies with TMDB metadata & vertical poster
+    // Enrich movies with TMDB metadata & ALWAYS prioritize custom frontmatter image/backdrop
     const movies = await Promise.all(
       rawMovies.map(async (m) => {
         let displayTitle = m.frontmatter.title || m.slug;
@@ -361,18 +357,19 @@ export async function GET(request: NextRequest) {
           }
         }
 
-        // Prefer vertical TMDB poster for thumbnail, fallback to frontmatter poster/image
-        let posterUrl = tmdbPoster;
-        if (!posterUrl && m.frontmatter.poster_path) {
-          posterUrl = getImageUrl(m.frontmatter.poster_path, 'w500');
-        }
-        if (!posterUrl && m.frontmatter.image_url) {
-          posterUrl = getImageUrl(m.frontmatter.image_url, 'w500');
+        // CRITICAL FIX: Custom frontmatter image_url / poster_path takes STRICT TOP PRECEDENCE
+        const customImg = m.frontmatter.image_url || m.frontmatter.poster_path || m.frontmatter.backdrop_url;
+        let posterUrl: string | null = null;
+        if (customImg && String(customImg).trim()) {
+          posterUrl = getImageUrl(String(customImg).trim(), 'w500');
+        } else if (tmdbPoster) {
+          posterUrl = tmdbPoster;
         }
 
         return {
           ...m,
           posterUrl,
+          customImageUrl: customImg || null,
           displayTitle,
           year,
           rating,
@@ -383,7 +380,7 @@ export async function GET(request: NextRequest) {
     // Sort movies newest first
     movies.sort((a, b) => (b.updatedAt || 0) - (a.updatedAt || 0));
 
-    // Enrich TV shows with TMDB metadata & vertical poster
+    // Enrich TV shows with TMDB metadata & ALWAYS prioritize custom frontmatter image/backdrop from _index.md
     const rawTvShows = Array.from(rawTvShowsMap.values());
     const tvShows = await Promise.all(
       rawTvShows.map(async (s) => {
@@ -414,12 +411,17 @@ export async function GET(request: NextRequest) {
           }
         }
 
-        let posterUrl = tmdbPoster;
-        if (!posterUrl && s.indexFrontmatter.poster_path) {
-          posterUrl = getImageUrl(s.indexFrontmatter.poster_path, 'w500');
-        }
-        if (!posterUrl && s.indexFrontmatter.image_url) {
-          posterUrl = getImageUrl(s.indexFrontmatter.image_url, 'w500');
+        // CRITICAL FIX: Custom _index.md image_url / poster_path takes STRICT TOP PRECEDENCE
+        const customImg =
+          s.indexFrontmatter.image_url ||
+          s.indexFrontmatter.poster_path ||
+          s.indexFrontmatter.backdrop_url;
+
+        let posterUrl: string | null = null;
+        if (customImg && String(customImg).trim()) {
+          posterUrl = getImageUrl(String(customImg).trim(), 'w500');
+        } else if (tmdbPoster) {
+          posterUrl = tmdbPoster;
         }
 
         return {
@@ -430,6 +432,7 @@ export async function GET(request: NextRequest) {
           updatedAt: s.updatedAt,
           episodes: s.episodes,
           posterUrl,
+          customImageUrl: customImg || null,
           displayTitle,
           year,
           rating,
@@ -479,7 +482,10 @@ export async function POST(request: NextRequest) {
       const parsedId = extracted.id ? Number(extracted.id) : Number(tmdb_id);
 
       if (!parsedId || isNaN(parsedId)) {
-        return NextResponse.json({ error: 'tmdb_id is required and must be a valid numeric ID or TMDB URL' }, { status: 400 });
+        return NextResponse.json(
+          { error: 'tmdb_id is required and must be a valid numeric ID or TMDB URL' },
+          { status: 400 }
+        );
       }
 
       const cleanVideo = cleanVideoUrl(videourl);
@@ -506,7 +512,7 @@ export async function POST(request: NextRequest) {
 
       const fileSlug = slug ? slugify(slug) : title ? slugify(title) : `movie-${tmdbIdNum}`;
 
-      // Check if existing file already exists for this tmdb_id or filename to perform in-place update
+      // Check if existing file already exists for this tmdb_id or filename
       let existingFileName: string | null = null;
       let existingFrontmatter: Record<string, any> = {};
       try {
@@ -515,7 +521,11 @@ export async function POST(request: NextRequest) {
           for (const f of files) {
             const raw = fs.readFileSync(path.join(VIDEO_DIR, f), 'utf8');
             const parsed = matter(raw);
-            if (Number(parsed.data.tmdb_id) === tmdbIdNum || f === `${fileSlug}.md` || (slug && f === `${slugify(slug)}.md`)) {
+            if (
+              Number(parsed.data.tmdb_id) === tmdbIdNum ||
+              f === `${fileSlug}.md` ||
+              (slug && f === `${slugify(slug)}.md`)
+            ) {
               existingFileName = f;
               existingFrontmatter = parsed.data;
               break;
@@ -562,7 +572,7 @@ export async function POST(request: NextRequest) {
         hasChanges = changedFields.length > 0;
       }
 
-      fileContent = matter.stringify(content || '', frontmatterData);
+      fileContent = serializeTinaMovie(frontmatterData, content || '');
     } else if (contentType === 'tv_show') {
       let { tmdb_id, title, desc, poster, rating, featured, showSlug, content = '', seasons = [] } = body;
 
@@ -570,7 +580,10 @@ export async function POST(request: NextRequest) {
       const parsedId = extracted.id ? Number(extracted.id) : Number(tmdb_id);
 
       if (!parsedId || isNaN(parsedId)) {
-        return NextResponse.json({ error: 'tmdb_id is required and must be a valid numeric ID or TMDB URL' }, { status: 400 });
+        return NextResponse.json(
+          { error: 'tmdb_id is required and must be a valid numeric ID or TMDB URL' },
+          { status: 400 }
+        );
       }
 
       const tmdbIdNum = parsedId;
@@ -590,7 +603,7 @@ export async function POST(request: NextRequest) {
         }
       }
 
-      const cleanShowSlug = showSlug ? slugify(showSlug) : title ? slugify(title) : `tv-${tmdb_id}`;
+      const cleanShowSlug = showSlug ? slugify(showSlug) : title ? slugify(title) : `tv-${tmdbIdNum}`;
 
       let existingShowSlug = cleanShowSlug;
       let existingFrontmatter: Record<string, any> = {};
@@ -626,6 +639,7 @@ export async function POST(request: NextRequest) {
       if (desc && desc.trim()) frontmatterData.deskripsi = desc.trim();
       else if (existingFrontmatter.deskripsi) frontmatterData.deskripsi = existingFrontmatter.deskripsi;
 
+      // CRITICAL FIX: Ensure custom backdrop / poster selected in the form is saved
       if (poster && poster.trim()) frontmatterData.image_url = poster.trim();
       else if (existingFrontmatter.image_url) frontmatterData.image_url = existingFrontmatter.image_url;
 
@@ -645,7 +659,7 @@ export async function POST(request: NextRequest) {
         hasChanges = changedFields.length > 0;
       }
 
-      fileContent = matter.stringify(content || '', frontmatterData);
+      fileContent = serializeTinaTVShow(frontmatterData, content || '');
 
       // Save TV Show _index.md
       const isProductionOrCloud = Boolean(process.env.VERCEL || process.env.NODE_ENV === 'production');
@@ -714,7 +728,7 @@ export async function POST(request: NextRequest) {
               if (ep.duration && ep.duration.trim()) epFrontmatter.duration = ep.duration.trim();
               if (ep.subtitles && ep.subtitles.trim()) epFrontmatter.subtitles = ep.subtitles.trim();
 
-              const epContentStr = matter.stringify(ep.content || '', epFrontmatter);
+              const epContentStr = serializeTinaTVEpisode(epFrontmatter, ep.content || '');
 
               if (isProductionOrCloud) {
                 await saveGitHubFile(epRelPath, epContentStr, `cms: save ${epRelPath}`, ghConfig);
@@ -834,7 +848,7 @@ export async function POST(request: NextRequest) {
         hasChanges = changedFields.length > 0;
       }
 
-      fileContent = matter.stringify(content || '', frontmatterData);
+      fileContent = serializeTinaTVEpisode(frontmatterData, content || '');
     } else {
       return NextResponse.json({ error: 'Invalid contentType' }, { status: 400 });
     }
@@ -934,7 +948,15 @@ export async function PUT(request: NextRequest) {
       }
     }
 
-    const fileContent = matter.stringify(content || '', cleanFrontmatter);
+    // Serialize using TinaCMS schemas
+    let fileContent = '';
+    if (isMovie) {
+      fileContent = serializeTinaMovie(cleanFrontmatter, content || '');
+    } else if (relativePath.endsWith('_index.md') || relativePath.endsWith('index.md')) {
+      fileContent = serializeTinaTVShow(cleanFrontmatter, content || '');
+    } else {
+      fileContent = serializeTinaTVEpisode(cleanFrontmatter, content || '');
+    }
 
     // Save: strictly to GitHub in cloud/production, local in dev
     const isProductionOrCloud = Boolean(process.env.VERCEL || process.env.NODE_ENV === 'production');
