@@ -1,6 +1,6 @@
 'use client';
 
-import React, { useState, useEffect, useCallback } from 'react';
+import React, { useState, useEffect, useCallback, useMemo } from 'react';
 import Image from 'next/image';
 import Link from 'next/link';
 import {
@@ -18,11 +18,18 @@ import {
   X,
   Play,
   Star,
-  Settings,
   Key,
   ShieldCheck,
+  ShieldAlert,
   Layers,
   HelpCircle,
+  ArrowUpDown,
+  Filter,
+  ChevronLeft,
+  ChevronRight,
+  ChevronsLeft,
+  ChevronsRight,
+  ImageIcon,
 } from 'lucide-react';
 
 interface MovieItem {
@@ -44,6 +51,11 @@ interface MovieItem {
     [key: string]: any;
   };
   content: string;
+  posterUrl?: string | null;
+  displayTitle?: string;
+  year?: number | null;
+  rating?: number | null;
+  updatedAt?: number;
 }
 
 interface TVEpisodeItem {
@@ -64,6 +76,9 @@ interface TVEpisodeItem {
     [key: string]: any;
   };
   content: string;
+  displayTitle?: string;
+  posterUrl?: string | null;
+  updatedAt?: number;
 }
 
 interface TVShowItem {
@@ -79,6 +94,11 @@ interface TVShowItem {
     [key: string]: any;
   };
   content: string;
+  posterUrl?: string | null;
+  displayTitle?: string;
+  year?: number | null;
+  rating?: number | null;
+  updatedAt?: number;
   episodes: TVEpisodeItem[];
 }
 
@@ -96,13 +116,22 @@ interface TMDBPreviewData {
   genres?: string[];
 }
 
+type SortOption = 'newest' | 'oldest' | 'title_asc' | 'title_desc' | 'rating_desc';
+type FilterOption = 'all' | 'featured' | 'non_featured';
+
 export default function AdminPage() {
   const [activeTab, setActiveTab] = useState<'movies' | 'tv'>('movies');
   const [movies, setMovies] = useState<MovieItem[]>([]);
   const [tvShows, setTvShows] = useState<TVShowItem[]>([]);
   const [loading, setLoading] = useState(true);
   const [searchQuery, setSearchQuery] = useState('');
-  const [toastMessage, setToastMessage] = useState<{ text: string; type: 'success' | 'error' } | null>(null);
+  const [sortBy, setSortBy] = useState<SortOption>('newest');
+  const [filterBy, setFilterBy] = useState<FilterOption>('all');
+  const [toastMessage, setToastMessage] = useState<{ text: string; type: 'success' | 'error' | 'warning' } | null>(null);
+
+  // Pagination State
+  const [currentPage, setCurrentPage] = useState(1);
+  const [itemsPerPage, setItemsPerPage] = useState(9);
 
   // GitHub Token & Settings
   const [githubToken, setGithubToken] = useState<string>('');
@@ -119,7 +148,7 @@ export default function AdminPage() {
     content: string;
   } | null>(null);
 
-  // Form State for Creation
+  // Form State for Creation & Validation Errors
   const [contentType, setContentType] = useState<'movie' | 'tv_show' | 'tv_episode'>('movie');
   const [formTmdbId, setFormTmdbId] = useState('');
   const [formVideoUrl, setFormVideoUrl] = useState('');
@@ -135,6 +164,11 @@ export default function AdminPage() {
   const [formSeason, setFormSeason] = useState('s1');
   const [formEpisode, setFormEpisode] = useState('e1');
 
+  // Form Validation Touched & Errors
+  const [formErrors, setFormErrors] = useState<Record<string, string>>({});
+  const [editErrors, setEditErrors] = useState<Record<string, string>>({});
+  const [formSubmitted, setFormSubmitted] = useState(false);
+
   // Live TMDB Preview State
   const [tmdbPreview, setTmdbPreview] = useState<TMDBPreviewData | null>(null);
   const [fetchingTmdb, setFetchingTmdb] = useState(false);
@@ -147,15 +181,29 @@ export default function AdminPage() {
   }, []);
 
   const saveToken = () => {
+    if (!tempToken.trim()) {
+      showToast('Token tidak boleh kosong', 'warning');
+      return;
+    }
     localStorage.setItem('levistream_github_token', tempToken.trim());
     setGithubToken(tempToken.trim());
     setIsSettingsOpen(false);
-    showToast('GitHub Token berhasil disimpan!');
+    showToast('GitHub Token berhasil disimpan & aktif!');
   };
 
-  const showToast = (text: string, type: 'success' | 'error' = 'success') => {
+  const showToast = (text: string, type: 'success' | 'error' | 'warning' = 'success') => {
     setToastMessage({ text, type });
     setTimeout(() => setToastMessage(null), 5000);
+  };
+
+  // Guard action requiring GitHub token
+  const requireToken = (actionDescription: string): boolean => {
+    if (!githubToken) {
+      setIsSettingsOpen(true);
+      showToast(`GitHub Token wajib diisi sebelum ${actionDescription}!`, 'error');
+      return false;
+    }
+    return true;
   };
 
   const getHeaders = useCallback(() => {
@@ -190,9 +238,17 @@ export default function AdminPage() {
     fetchContent();
   }, [fetchContent]);
 
+  // Reset page when tab, search, or filters change
+  useEffect(() => {
+    setCurrentPage(1);
+  }, [activeTab, searchQuery, sortBy, filterBy]);
+
   // TMDB Autofetch preview
   const handleFetchTmdbPreview = async (id: string, type: 'movie' | 'tv') => {
-    if (!id || !/^\d+$/.test(id.trim())) return;
+    if (!id || !/^\d+$/.test(id.trim())) {
+      setFormErrors((prev) => ({ ...prev, tmdb_id: 'Masukkan TMDB ID berupa angka' }));
+      return;
+    }
     setFetchingTmdb(true);
     try {
       const res = await fetch(`/api/admin/tmdb-preview?id=${id.trim()}&type=${type}`);
@@ -203,11 +259,18 @@ export default function AdminPage() {
         if (!formDesc && data.overview) setFormDesc(data.overview);
         if (!formPoster && data.posterUrl) setFormPoster(data.posterUrl);
         if (!formRating && data.rating) setFormRating(String(data.rating));
+        setFormErrors((prev) => {
+          const next = { ...prev };
+          delete next.tmdb_id;
+          return next;
+        });
       } else {
         setTmdbPreview(null);
+        showToast(data.error || 'Data TMDB tidak ditemukan', 'error');
       }
     } catch (e) {
       setTmdbPreview(null);
+      showToast('Gagal menghubungi TMDB API', 'error');
     } finally {
       setFetchingTmdb(false);
     }
@@ -227,28 +290,53 @@ export default function AdminPage() {
     setFormShowSlug('');
     setFormSeason('s1');
     setFormEpisode('e1');
+    setFormErrors({});
+    setFormSubmitted(false);
     setTmdbPreview(null);
+  };
+
+  // Validate create form
+  const validateCreateForm = (): boolean => {
+    const errors: Record<string, string> = {};
+
+    if (contentType === 'movie' || contentType === 'tv_show') {
+      if (!formTmdbId.trim()) {
+        errors.tmdb_id = 'TMDB ID wajib diisi!';
+      } else if (!/^\d+$/.test(formTmdbId.trim())) {
+        errors.tmdb_id = 'TMDB ID harus berupa angka!';
+      }
+    }
+
+    if (contentType === 'movie' || contentType === 'tv_episode') {
+      if (!formVideoUrl.trim()) {
+        errors.videourl = 'URL Video wajib diisi!';
+      }
+    }
+
+    if (contentType === 'tv_episode') {
+      if (!formShowSlug.trim()) {
+        errors.showSlug = 'Show slug wajib diisi!';
+      }
+      if (!formEpisode.trim()) {
+        errors.episode = 'Nomor Episode wajib diisi!';
+      }
+    }
+
+    setFormErrors(errors);
+    return Object.keys(errors).length === 0;
   };
 
   // Submit Create
   const handleCreateSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
-    if (contentType === 'movie' || contentType === 'tv_show') {
-      if (!formTmdbId.trim()) {
-        showToast('TMDB ID wajib diisi!', 'error');
-        return;
-      }
-    }
-    if (contentType === 'movie' || contentType === 'tv_episode') {
-      if (!formVideoUrl.trim()) {
-        showToast('URL Video (videourl) wajib diisi!', 'error');
-        return;
-      }
-    }
-    if (contentType === 'tv_episode' && !formShowSlug.trim()) {
-      showToast('Show slug wajib diisi untuk episode!', 'error');
+    setFormSubmitted(true);
+
+    if (!validateCreateForm()) {
+      showToast('Mohon lengkapi semua field yang wajib diisi (bergaris merah)', 'error');
       return;
     }
+
+    if (!requireToken('membuat konten')) return;
 
     try {
       const payload: any = {
@@ -291,10 +379,42 @@ export default function AdminPage() {
     }
   };
 
+  // Validate edit form
+  const validateEditForm = (): boolean => {
+    if (!editingItem) return false;
+    const errors: Record<string, string> = {};
+
+    if (editingItem.type !== 'tv_episode') {
+      const id = String(editingItem.frontmatter.tmdb_id || '').trim();
+      if (!id) {
+        errors.tmdb_id = 'TMDB ID wajib diisi!';
+      } else if (!/^\d+$/.test(id)) {
+        errors.tmdb_id = 'TMDB ID harus berupa angka!';
+      }
+    }
+
+    if (editingItem.type !== 'tv_show') {
+      const video = (editingItem.frontmatter.videourl || editingItem.frontmatter.video_url || '').trim();
+      if (!video) {
+        errors.videourl = 'URL Video wajib diisi!';
+      }
+    }
+
+    setEditErrors(errors);
+    return Object.keys(errors).length === 0;
+  };
+
   // Submit Edit
   const handleEditSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
     if (!editingItem) return;
+
+    if (!validateEditForm()) {
+      showToast('Mohon periksa field wajib (bergaris merah)', 'error');
+      return;
+    }
+
+    if (!requireToken('mengedit konten')) return;
 
     try {
       const res = await fetch('/api/admin/content', {
@@ -312,6 +432,7 @@ export default function AdminPage() {
         showToast(`Perubahan berhasil disimpan & live!`);
         setIsEditModalOpen(false);
         setEditingItem(null);
+        setEditErrors({});
         fetchContent();
       } else {
         if (result.requiresToken) {
@@ -326,7 +447,9 @@ export default function AdminPage() {
 
   // Delete Content
   const handleDelete = async (relativePath: string, label: string) => {
-    if (!confirm(`Apakah Anda yakin ingin menghapus "${label}" (${relativePath})?`)) return;
+    if (!requireToken('menghapus konten')) return;
+
+    if (!confirm(`Apakah Anda yakin ingin menghapus "${label}" (${relativePath})? Tindakan ini permanen.`)) return;
 
     try {
       const res = await fetch(`/api/admin/content?path=${encodeURIComponent(relativePath)}`, {
@@ -348,20 +471,93 @@ export default function AdminPage() {
     }
   };
 
-  // Filtered lists
-  const filteredMovies = movies.filter((m) => {
-    const q = searchQuery.toLowerCase();
-    const title = (m.frontmatter.title || m.slug).toLowerCase();
-    const tmdbId = String(m.frontmatter.tmdb_id || '');
-    return title.includes(q) || tmdbId.includes(q) || m.filename.toLowerCase().includes(q);
-  });
+  // ──────────────────────────────────────────
+  // Filter & Sort Logic
+  // ──────────────────────────────────────────
+  const processedMovies = useMemo(() => {
+    let result = movies.filter((m) => {
+      const q = searchQuery.toLowerCase();
+      const title = (m.displayTitle || m.frontmatter.title || m.slug).toLowerCase();
+      const tmdbId = String(m.frontmatter.tmdb_id || '');
+      const matchesSearch = title.includes(q) || tmdbId.includes(q) || m.filename.toLowerCase().includes(q);
 
-  const filteredTvShows = tvShows.filter((s) => {
-    const q = searchQuery.toLowerCase();
-    const title = (s.frontmatter.title || s.showSlug).toLowerCase();
-    const tmdbId = String(s.frontmatter.tmdb_id || '');
-    return title.includes(q) || tmdbId.includes(q) || s.showSlug.toLowerCase().includes(q);
-  });
+      if (!matchesSearch) return false;
+
+      if (filterBy === 'featured') return Boolean(m.frontmatter.featured);
+      if (filterBy === 'non_featured') return !m.frontmatter.featured;
+      return true;
+    });
+
+    result.sort((a, b) => {
+      if (sortBy === 'newest') return (b.updatedAt || 0) - (a.updatedAt || 0);
+      if (sortBy === 'oldest') return (a.updatedAt || 0) - (b.updatedAt || 0);
+      if (sortBy === 'title_asc') {
+        const titleA = a.displayTitle || a.frontmatter.title || a.slug;
+        const titleB = b.displayTitle || b.frontmatter.title || b.slug;
+        return titleA.localeCompare(titleB);
+      }
+      if (sortBy === 'title_desc') {
+        const titleA = a.displayTitle || a.frontmatter.title || a.slug;
+        const titleB = b.displayTitle || b.frontmatter.title || b.slug;
+        return titleB.localeCompare(titleA);
+      }
+      if (sortBy === 'rating_desc') {
+        return (Number(b.rating) || 0) - (Number(a.rating) || 0);
+      }
+      return 0;
+    });
+
+    return result;
+  }, [movies, searchQuery, sortBy, filterBy]);
+
+  const processedTvShows = useMemo(() => {
+    let result = tvShows.filter((s) => {
+      const q = searchQuery.toLowerCase();
+      const title = (s.displayTitle || s.frontmatter.title || s.showSlug).toLowerCase();
+      const tmdbId = String(s.frontmatter.tmdb_id || '');
+      const matchesSearch = title.includes(q) || tmdbId.includes(q) || s.showSlug.toLowerCase().includes(q);
+
+      if (!matchesSearch) return false;
+
+      if (filterBy === 'featured') return Boolean(s.frontmatter.featured);
+      if (filterBy === 'non_featured') return !s.frontmatter.featured;
+      return true;
+    });
+
+    result.sort((a, b) => {
+      if (sortBy === 'newest') return (b.updatedAt || 0) - (a.updatedAt || 0);
+      if (sortBy === 'oldest') return (a.updatedAt || 0) - (b.updatedAt || 0);
+      if (sortBy === 'title_asc') {
+        const titleA = a.displayTitle || a.frontmatter.title || a.showSlug;
+        const titleB = b.displayTitle || b.frontmatter.title || b.showSlug;
+        return titleA.localeCompare(titleB);
+      }
+      if (sortBy === 'title_desc') {
+        const titleA = a.displayTitle || a.frontmatter.title || a.showSlug;
+        const titleB = b.displayTitle || b.frontmatter.title || b.showSlug;
+        return titleB.localeCompare(titleA);
+      }
+      if (sortBy === 'rating_desc') {
+        return (Number(b.rating) || 0) - (Number(a.rating) || 0);
+      }
+      return 0;
+    });
+
+    return result;
+  }, [tvShows, searchQuery, sortBy, filterBy]);
+
+  // Pagination slicing
+  const totalItems = activeTab === 'movies' ? processedMovies.length : processedTvShows.length;
+  const totalPages = Math.ceil(totalItems / itemsPerPage) || 1;
+  const paginatedMovies = useMemo(() => {
+    const start = (currentPage - 1) * itemsPerPage;
+    return processedMovies.slice(start, start + itemsPerPage);
+  }, [processedMovies, currentPage, itemsPerPage]);
+
+  const paginatedTvShows = useMemo(() => {
+    const start = (currentPage - 1) * itemsPerPage;
+    return processedTvShows.slice(start, start + itemsPerPage);
+  }, [processedTvShows, currentPage, itemsPerPage]);
 
   const totalEpisodes = tvShows.reduce((acc, s) => acc + (s.episodes?.length || 0), 0);
 
@@ -372,12 +568,28 @@ export default function AdminPage() {
         <div
           className="fixed bottom-6 right-6 z-50 flex items-center gap-2.5 px-5 py-3.5 rounded-xl shadow-2xl border transition-all animate-slide-up max-w-md"
           style={{
-            background: toastMessage.type === 'success' ? '#064e3b' : '#7f1d1d',
-            borderColor: toastMessage.type === 'success' ? '#10b981' : '#ef4444',
+            background:
+              toastMessage.type === 'success'
+                ? '#064e3b'
+                : toastMessage.type === 'warning'
+                ? '#78350f'
+                : '#7f1d1d',
+            borderColor:
+              toastMessage.type === 'success'
+                ? '#10b981'
+                : toastMessage.type === 'warning'
+                ? '#f59e0b'
+                : '#ef4444',
             color: '#ffffff',
           }}
         >
-          {toastMessage.type === 'success' ? <CheckCircle size={18} className="flex-shrink-0" /> : <AlertCircle size={18} className="flex-shrink-0" />}
+          {toastMessage.type === 'success' ? (
+            <CheckCircle size={18} className="flex-shrink-0 text-emerald-300" />
+          ) : toastMessage.type === 'warning' ? (
+            <AlertCircle size={18} className="flex-shrink-0 text-amber-300" />
+          ) : (
+            <AlertCircle size={18} className="flex-shrink-0 text-red-300" />
+          )}
           <span className="text-sm font-semibold leading-snug">{toastMessage.text}</span>
         </div>
       )}
@@ -396,7 +608,7 @@ export default function AdminPage() {
             </div>
             <p className="text-sm text-slate-400">
               Kelola konten custom movie (<code className="text-cyan-400">video/</code>) dan TV series (
-              <code className="text-pink-400">tv/</code>) secara live dari browser.
+              <code className="text-pink-400">tv/</code>) dengan live commit ke GitHub & auto TMDB sync.
             </p>
           </div>
 
@@ -406,13 +618,13 @@ export default function AdminPage() {
               onClick={() => setIsSettingsOpen(true)}
               className={`inline-flex items-center gap-2 px-3.5 py-2.5 rounded-xl text-xs sm:text-sm font-bold border transition-all ${
                 githubToken
-                  ? 'bg-emerald-500/10 border-emerald-500/30 text-emerald-400 hover:bg-emerald-500/20'
-                  : 'bg-amber-500/10 border-amber-500/30 text-amber-300 hover:bg-amber-500/20'
+                  ? 'bg-emerald-500/10 border-emerald-500/40 text-emerald-400 hover:bg-emerald-500/20 shadow-sm shadow-emerald-500/10'
+                  : 'bg-red-500/10 border-red-500/40 text-red-400 hover:bg-red-500/20 shadow-sm shadow-red-500/10 animate-pulse'
               }`}
               title="Pengaturan GitHub Token untuk Live Sync di Vercel"
             >
-              {githubToken ? <ShieldCheck size={16} /> : <Key size={16} />}
-              <span>{githubToken ? 'GitHub Live Sync Aktif' : 'Atur GitHub Token'}</span>
+              {githubToken ? <ShieldCheck size={16} /> : <ShieldAlert size={16} />}
+              <span>{githubToken ? 'GitHub Token Terhubung' : 'Token Wajib Diisi! (Klik Di Sini)'}</span>
             </button>
 
             <button
@@ -425,6 +637,7 @@ export default function AdminPage() {
 
             <button
               onClick={() => {
+                if (!requireToken('menambah konten')) return;
                 resetCreateForm();
                 setIsCreateModalOpen(true);
               }}
@@ -469,9 +682,10 @@ export default function AdminPage() {
           </div>
         </div>
 
-        {/* Search & Tabs */}
-        <div className="flex flex-col sm:flex-row items-center justify-between gap-4 mt-6">
-          <div className="flex items-center gap-2 p-1 rounded-xl bg-white/5 border border-white/10 w-full sm:w-auto">
+        {/* Controls Bar: Tabs, Search, Sort, Filter */}
+        <div className="flex flex-col lg:flex-row items-stretch lg:items-center justify-between gap-4 mt-6 p-4 rounded-2xl bg-[#0c1224]/80 border border-white/10 backdrop-blur-md">
+          {/* Tabs */}
+          <div className="flex items-center gap-2 p-1 rounded-xl bg-white/5 border border-white/10">
             <button
               onClick={() => setActiveTab('movies')}
               className={`flex items-center gap-2 px-5 py-2 rounded-lg text-sm font-bold transition-all ${
@@ -497,15 +711,49 @@ export default function AdminPage() {
             </button>
           </div>
 
-          <div className="relative w-full sm:w-72">
-            <Search size={16} className="absolute left-3.5 top-1/2 -translate-y-1/2 text-slate-400" />
-            <input
-              type="text"
-              value={searchQuery}
-              onChange={(e) => setSearchQuery(e.target.value)}
-              placeholder="Cari judul, slug, atau TMDB ID..."
-              className="w-full pl-10 pr-4 py-2 bg-white/5 border border-white/10 rounded-xl text-sm text-white placeholder-slate-500 focus:outline-none focus:border-cyan-400"
-            />
+          {/* Search, Sort, Filter */}
+          <div className="flex items-center gap-2.5 flex-wrap sm:flex-nowrap">
+            {/* Search */}
+            <div className="relative flex-1 sm:w-64">
+              <Search size={16} className="absolute left-3.5 top-1/2 -translate-y-1/2 text-slate-400" />
+              <input
+                type="text"
+                value={searchQuery}
+                onChange={(e) => setSearchQuery(e.target.value)}
+                placeholder="Cari judul, file, atau TMDB ID..."
+                className="w-full pl-10 pr-4 py-2 bg-black/40 border border-white/10 rounded-xl text-sm text-white placeholder-slate-500 focus:outline-none focus:border-cyan-400"
+              />
+            </div>
+
+            {/* Sort Dropdown */}
+            <div className="relative flex items-center gap-1.5 px-3 py-2 bg-black/40 border border-white/10 rounded-xl text-xs font-semibold text-slate-300">
+              <ArrowUpDown size={14} className="text-cyan-400" />
+              <select
+                value={sortBy}
+                onChange={(e) => setSortBy(e.target.value as SortOption)}
+                className="bg-transparent text-white focus:outline-none cursor-pointer"
+              >
+                <option value="newest" className="bg-slate-900 text-white">⏱️ Terbaru</option>
+                <option value="oldest" className="bg-slate-900 text-white">⏳ Terlama</option>
+                <option value="title_asc" className="bg-slate-900 text-white">🔤 Judul (A-Z)</option>
+                <option value="title_desc" className="bg-slate-900 text-white">🔡 Judul (Z-A)</option>
+                <option value="rating_desc" className="bg-slate-900 text-white">⭐ Rating Tertinggi</option>
+              </select>
+            </div>
+
+            {/* Filter Dropdown */}
+            <div className="relative flex items-center gap-1.5 px-3 py-2 bg-black/40 border border-white/10 rounded-xl text-xs font-semibold text-slate-300">
+              <Filter size={14} className="text-pink-400" />
+              <select
+                value={filterBy}
+                onChange={(e) => setFilterBy(e.target.value as FilterOption)}
+                className="bg-transparent text-white focus:outline-none cursor-pointer"
+              >
+                <option value="all" className="bg-slate-900 text-white">Semua Status</option>
+                <option value="featured" className="bg-slate-900 text-white">✨ Featured Saja</option>
+                <option value="non_featured" className="bg-slate-900 text-white">Standard (Non-Featured)</option>
+              </select>
+            </div>
           </div>
         </div>
       </div>
@@ -515,19 +763,24 @@ export default function AdminPage() {
         {loading ? (
           <div className="py-24 text-center">
             <RefreshCw size={36} className="animate-spin mx-auto text-cyan-400 mb-3" />
-            <p className="text-slate-400 text-sm">Memuat konten markdown...</p>
+            <p className="text-slate-400 text-sm">Memuat konten markdown & poster TMDB...</p>
           </div>
         ) : activeTab === 'movies' ? (
           /* Movies List */
-          filteredMovies.length === 0 ? (
+          paginatedMovies.length === 0 ? (
             <div className="p-12 text-center rounded-2xl bg-[#0c1224] border border-white/10">
               <Film size={48} className="mx-auto text-slate-600 mb-3" />
-              <h3 className="text-lg font-bold text-white mb-1">Belum ada custom movie</h3>
+              <h3 className="text-lg font-bold text-white mb-1">
+                {searchQuery || filterBy !== 'all' ? 'Tidak ada movie yang cocok dengan filter' : 'Belum ada custom movie'}
+              </h3>
               <p className="text-slate-400 text-sm mb-4">
-                Buat file markdown movie pertama Anda dengan menekan tombol di bawah.
+                {searchQuery || filterBy !== 'all'
+                  ? 'Coba ubah kata kunci pencarian atau filter status.'
+                  : 'Buat file markdown movie pertama Anda dengan menekan tombol di bawah.'}
               </p>
               <button
                 onClick={() => {
+                  if (!requireToken('menambah movie')) return;
                   setContentType('movie');
                   setIsCreateModalOpen(true);
                 }}
@@ -539,27 +792,35 @@ export default function AdminPage() {
             </div>
           ) : (
             <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
-              {filteredMovies.map((movie) => {
-                const title = movie.frontmatter.title || movie.slug;
+              {paginatedMovies.map((movie) => {
+                const title = movie.displayTitle || movie.frontmatter.title || movie.slug;
                 const tmdbId = movie.frontmatter.tmdb_id;
                 const videoUrl = movie.frontmatter.videourl || movie.frontmatter.video_url || '';
-                const poster = movie.frontmatter.image_url || movie.frontmatter.poster_path;
-                const rating = movie.frontmatter.rating;
+                const poster = movie.posterUrl || movie.frontmatter.image_url || movie.frontmatter.poster_path;
+                const rating = movie.rating || movie.frontmatter.rating;
                 const featured = movie.frontmatter.featured;
+                const year = movie.year;
 
                 return (
                   <div
                     key={movie.relativePath}
-                    className="p-5 rounded-2xl bg-[#0c1224] border border-white/10 hover:border-cyan-500/40 transition-all flex flex-col justify-between group"
+                    className="p-5 rounded-2xl bg-[#0c1224] border border-white/10 hover:border-cyan-500/40 transition-all flex flex-col justify-between group shadow-lg shadow-black/30"
                   >
                     <div>
                       <div className="flex items-start gap-3.5 mb-3">
-                        <div className="relative w-16 h-24 rounded-lg overflow-hidden bg-slate-900 flex-shrink-0 border border-white/10">
+                        <div className="relative w-16 h-24 rounded-lg overflow-hidden bg-slate-900 flex-shrink-0 border border-white/10 shadow-md">
                           {poster ? (
-                            <Image src={poster} alt={title} fill className="object-cover" sizes="64px" />
+                            <Image
+                              src={poster}
+                              alt={title}
+                              fill
+                              className="object-cover group-hover:scale-105 transition-transform duration-300"
+                              sizes="64px"
+                            />
                           ) : (
-                            <div className="w-full h-full flex items-center justify-center text-slate-600">
-                              <Film size={24} />
+                            <div className="w-full h-full flex flex-col items-center justify-center text-slate-600 bg-slate-800">
+                              <ImageIcon size={20} className="mb-1" />
+                              <span className="text-[9px] font-bold">NO POSTER</span>
                             </div>
                           )}
                         </div>
@@ -575,26 +836,26 @@ export default function AdminPage() {
                                 Featured
                               </span>
                             )}
-                            {rating && (
+                            {rating ? (
                               <span className="px-1.5 py-0.5 rounded text-[10px] font-bold bg-emerald-500/10 text-emerald-400 border border-emerald-500/30 flex items-center gap-0.5">
                                 <Star size={10} fill="currentColor" />
                                 {rating}
                               </span>
-                            )}
+                            ) : null}
                           </div>
 
-                          <h3 className="font-bold text-white text-base truncate" title={title}>
-                            {title}
+                          <h3 className="font-bold text-white text-base truncate leading-snug" title={title}>
+                            {title} {year ? <span className="text-slate-400 font-normal text-xs">({year})</span> : ''}
                           </h3>
                           <p className="text-xs text-slate-400 font-mono truncate">{movie.relativePath}</p>
                         </div>
                       </div>
 
                       {/* Video URL Display */}
-                      <div className="mb-4 p-2.5 rounded-xl bg-black/30 border border-white/5">
-                        <p className="text-[11px] text-slate-400 font-medium mb-0.5">URL Video:</p>
+                      <div className="mb-4 p-2.5 rounded-xl bg-black/40 border border-white/5">
+                        <p className="text-[11px] text-slate-400 font-medium mb-0.5">URL Video (Stream Link):</p>
                         <p className="text-xs text-slate-300 font-mono truncate" title={videoUrl}>
-                          {videoUrl || <span className="text-red-400">Belum diisi</span>}
+                          {videoUrl || <span className="text-red-400 font-bold">⚠️ Belum diisi</span>}
                         </p>
                       </div>
                     </div>
@@ -604,7 +865,7 @@ export default function AdminPage() {
                       <Link
                         href={`/movie/${movie.slug}`}
                         target="_blank"
-                        className="inline-flex items-center gap-1.5 text-xs font-semibold text-cyan-400 hover:underline"
+                        className="inline-flex items-center gap-1.5 text-xs font-semibold text-cyan-400 hover:text-cyan-300 hover:underline"
                       >
                         <ExternalLink size={13} />
                         <span>Buka Halaman</span>
@@ -613,12 +874,14 @@ export default function AdminPage() {
                       <div className="flex items-center gap-1.5">
                         <button
                           onClick={() => {
+                            if (!requireToken('mengedit movie')) return;
                             setEditingItem({
                               type: 'movie',
                               relativePath: movie.relativePath,
                               frontmatter: { ...movie.frontmatter },
                               content: movie.content,
                             });
+                            setEditErrors({});
                             setIsEditModalOpen(true);
                           }}
                           className="p-2 rounded-lg bg-white/5 hover:bg-white/10 text-slate-300 hover:text-white transition-all"
@@ -643,15 +906,20 @@ export default function AdminPage() {
           )
         ) : (
           /* TV Series & Episodes List */
-          filteredTvShows.length === 0 ? (
+          paginatedTvShows.length === 0 ? (
             <div className="p-12 text-center rounded-2xl bg-[#0c1224] border border-white/10">
               <Tv size={48} className="mx-auto text-slate-600 mb-3" />
-              <h3 className="text-lg font-bold text-white mb-1">Belum ada custom TV Series</h3>
+              <h3 className="text-lg font-bold text-white mb-1">
+                {searchQuery || filterBy !== 'all' ? 'Tidak ada TV series yang cocok dengan filter' : 'Belum ada custom TV Series'}
+              </h3>
               <p className="text-slate-400 text-sm mb-4">
-                Buat TV Series pertama Anda dengan menekan tombol di bawah.
+                {searchQuery || filterBy !== 'all'
+                  ? 'Coba ubah kata kunci pencarian atau filter status.'
+                  : 'Buat TV Series pertama Anda dengan menekan tombol di bawah.'}
               </p>
               <button
                 onClick={() => {
+                  if (!requireToken('menambah TV series')) return;
                   setContentType('tv_show');
                   setIsCreateModalOpen(true);
                 }}
@@ -663,25 +931,27 @@ export default function AdminPage() {
             </div>
           ) : (
             <div className="space-y-6">
-              {filteredTvShows.map((show) => {
-                const title = show.frontmatter.title || show.showSlug;
+              {paginatedTvShows.map((show) => {
+                const title = show.displayTitle || show.frontmatter.title || show.showSlug;
                 const tmdbId = show.frontmatter.tmdb_id;
-                const poster = show.frontmatter.image_url;
+                const poster = show.posterUrl || show.frontmatter.image_url;
+                const year = show.year;
 
                 return (
                   <div
                     key={show.showSlug}
-                    className="p-5 sm:p-6 rounded-2xl bg-[#0c1224] border border-white/10 hover:border-pink-500/40 transition-all"
+                    className="p-5 sm:p-6 rounded-2xl bg-[#0c1224] border border-white/10 hover:border-pink-500/40 transition-all shadow-lg shadow-black/30"
                   >
                     {/* Show Main Header */}
                     <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4 pb-4 border-b border-white/10">
                       <div className="flex items-center gap-3.5">
-                        <div className="relative w-14 h-20 rounded-lg overflow-hidden bg-slate-900 flex-shrink-0 border border-white/10">
+                        <div className="relative w-14 h-20 rounded-lg overflow-hidden bg-slate-900 flex-shrink-0 border border-white/10 shadow-md">
                           {poster ? (
                             <Image src={poster} alt={title} fill className="object-cover" sizes="56px" />
                           ) : (
-                            <div className="w-full h-full flex items-center justify-center text-slate-600">
-                              <Tv size={24} />
+                            <div className="w-full h-full flex flex-col items-center justify-center text-slate-600 bg-slate-800">
+                              <ImageIcon size={18} />
+                              <span className="text-[8px] font-bold mt-0.5">NO POSTER</span>
                             </div>
                           )}
                         </div>
@@ -695,7 +965,9 @@ export default function AdminPage() {
                               {show.episodes.length} Episodes
                             </span>
                           </div>
-                          <h3 className="font-bold text-white text-lg">{title}</h3>
+                          <h3 className="font-bold text-white text-lg leading-snug">
+                            {title} {year ? <span className="text-slate-400 font-normal text-sm">({year})</span> : ''}
+                          </h3>
                           <p className="text-xs text-slate-400 font-mono">tv/{show.showSlug}/_index.md</p>
                         </div>
                       </div>
@@ -712,6 +984,7 @@ export default function AdminPage() {
 
                         <button
                           onClick={() => {
+                            if (!requireToken('menambah episode')) return;
                             setFormShowSlug(show.showSlug);
                             setContentType('tv_episode');
                             setIsCreateModalOpen(true);
@@ -724,12 +997,14 @@ export default function AdminPage() {
 
                         <button
                           onClick={() => {
+                            if (!requireToken('mengedit TV series')) return;
                             setEditingItem({
                               type: 'tv_show',
                               relativePath: show.relativePath,
                               frontmatter: { ...show.frontmatter },
                               content: show.content,
                             });
+                            setEditErrors({});
                             setIsEditModalOpen(true);
                           }}
                           className="p-1.5 rounded-lg bg-white/5 hover:bg-white/10 text-slate-300"
@@ -759,7 +1034,7 @@ export default function AdminPage() {
                       ) : (
                         <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-3">
                           {show.episodes.map((ep) => {
-                            const epTitle = ep.frontmatter.title || ep.slug;
+                            const epTitle = ep.displayTitle || ep.frontmatter.title || ep.slug;
                             const epVideo = ep.frontmatter.videourl || ep.frontmatter.video_url;
                             const seasonLabel = ep.seasonFolder ? ep.seasonFolder.toUpperCase() : 'Flat';
                             const linkPath = ep.seasonFolder
@@ -779,21 +1054,25 @@ export default function AdminPage() {
                                     <div className="flex items-center gap-1">
                                       <button
                                         onClick={() => {
+                                          if (!requireToken('mengedit episode')) return;
                                           setEditingItem({
                                             type: 'tv_episode',
                                             relativePath: ep.relativePath,
                                             frontmatter: { ...ep.frontmatter },
                                             content: ep.content,
                                           });
+                                          setEditErrors({});
                                           setIsEditModalOpen(true);
                                         }}
                                         className="p-1 rounded text-slate-400 hover:text-white"
+                                        title="Edit Episode"
                                       >
                                         <Edit2 size={13} />
                                       </button>
                                       <button
                                         onClick={() => handleDelete(ep.relativePath, epTitle)}
                                         className="p-1 rounded text-red-400 hover:text-red-300"
+                                        title="Hapus Episode"
                                       >
                                         <Trash2 size={13} />
                                       </button>
@@ -804,7 +1083,7 @@ export default function AdminPage() {
                                     {epTitle}
                                   </h5>
                                   <p className="text-[11px] text-slate-400 font-mono truncate" title={epVideo}>
-                                    {epVideo || <span className="text-red-400">Video belum ada</span>}
+                                    {epVideo || <span className="text-red-400 font-bold">⚠️ Video belum ada</span>}
                                   </p>
                                 </div>
 
@@ -830,6 +1109,65 @@ export default function AdminPage() {
             </div>
           )
         )}
+
+        {/* Pagination Bar */}
+        {totalItems > 0 && (
+          <div className="flex flex-col sm:flex-row items-center justify-between gap-4 mt-8 pt-6 border-t border-white/10">
+            <div className="text-xs text-slate-400">
+              Menampilkan{' '}
+              <span className="font-bold text-white">
+                {Math.min(totalItems, (currentPage - 1) * itemsPerPage + 1)}
+              </span>{' '}
+              -{' '}
+              <span className="font-bold text-white">
+                {Math.min(totalItems, currentPage * itemsPerPage)}
+              </span>{' '}
+              dari <span className="font-bold text-white">{totalItems}</span> konten
+            </div>
+
+            <div className="flex items-center gap-2">
+              <button
+                onClick={() => setCurrentPage(1)}
+                disabled={currentPage === 1}
+                className="p-2 rounded-lg bg-white/5 border border-white/10 text-slate-400 hover:text-white disabled:opacity-30 disabled:cursor-not-allowed transition-all"
+                title="Halaman Pertama"
+              >
+                <ChevronsLeft size={16} />
+              </button>
+
+              <button
+                onClick={() => setCurrentPage((p) => Math.max(1, p - 1))}
+                disabled={currentPage === 1}
+                className="p-2 rounded-lg bg-white/5 border border-white/10 text-slate-400 hover:text-white disabled:opacity-30 disabled:cursor-not-allowed transition-all"
+                title="Sebelumnya"
+              >
+                <ChevronLeft size={16} />
+              </button>
+
+              <span className="px-3.5 py-1.5 rounded-lg bg-cyan-500/10 border border-cyan-500/30 text-cyan-300 text-xs font-bold">
+                {currentPage} / {totalPages}
+              </span>
+
+              <button
+                onClick={() => setCurrentPage((p) => Math.min(totalPages, p + 1))}
+                disabled={currentPage === totalPages}
+                className="p-2 rounded-lg bg-white/5 border border-white/10 text-slate-400 hover:text-white disabled:opacity-30 disabled:cursor-not-allowed transition-all"
+                title="Selanjutnya"
+              >
+                <ChevronRight size={16} />
+              </button>
+
+              <button
+                onClick={() => setCurrentPage(totalPages)}
+                disabled={currentPage === totalPages}
+                className="p-2 rounded-lg bg-white/5 border border-white/10 text-slate-400 hover:text-white disabled:opacity-30 disabled:cursor-not-allowed transition-all"
+                title="Halaman Terakhir"
+              >
+                <ChevronsRight size={16} />
+              </button>
+            </div>
+          </div>
+        )}
       </div>
 
       {/* ────────────────────────────────────────── */}
@@ -849,19 +1187,29 @@ export default function AdminPage() {
             </div>
 
             <div className="p-6 space-y-4">
+              {!githubToken && (
+                <div className="p-3.5 rounded-xl bg-red-950/40 border border-red-500/40 text-xs text-red-200 leading-relaxed flex items-start gap-2.5">
+                  <AlertCircle size={18} className="text-red-400 flex-shrink-0 mt-0.5" />
+                  <div>
+                    <strong className="text-red-300 block mb-0.5">Token Diperlukan untuk Mengubah Konten!</strong>
+                    Hosting Vercel bersifat Read-Only. Untuk menambah, mengedit, atau menghapus konten, masukkan Personal Access Token GitHub Anda di bawah ini.
+                  </div>
+                </div>
+              )}
+
               <div className="p-3.5 rounded-xl bg-cyan-950/30 border border-cyan-500/20 text-xs text-slate-300 leading-relaxed">
                 <p className="font-bold text-cyan-300 mb-1 flex items-center gap-1.5">
                   <HelpCircle size={14} />
-                  Mengapa ini diperlukan di Vercel?
+                  Cara Mendapatkan Token GitHub:
                 </p>
-                Hosting cloud seperti Vercel memiliki sistem berkas <em>Read-Only</em> (tidak bisa menulis file lokal).
-                Dengan memasukkan <strong>GitHub Personal Access Token</strong>, setiap aksi tambah, edit, atau hapus konten akan
-                <strong> langsung di-commit ke repositori GitHub</strong> secara instan dan live!
+                1. Buka GitHub &gt; <em>Settings &gt; Developer settings &gt; Personal access tokens &gt; Tokens (classic)</em>.<br />
+                2. Klik <strong>Generate new token (classic)</strong>, centang izin <code className="text-cyan-300 font-bold">repo</code>.<br />
+                3. Salin token tersebut dan tempelkan di kotak input di bawah ini.
               </div>
 
               <div>
                 <label className="block text-xs font-bold text-slate-300 mb-1">
-                  GitHub Personal Access Token (PAT)
+                  GitHub Personal Access Token (PAT) <span className="text-red-400">*</span>
                 </label>
                 <input
                   type="password"
@@ -870,9 +1218,6 @@ export default function AdminPage() {
                   placeholder="github_pat_... atau ghp_..."
                   className="w-full px-3.5 py-2.5 bg-black/50 border border-white/10 rounded-xl text-sm text-white focus:outline-none focus:border-cyan-400 font-mono"
                 />
-                <p className="text-[11px] text-slate-400 mt-1">
-                  Buat token di GitHub: <em>Settings &gt; Developer settings &gt; Personal access tokens</em> dengan izin <code className="text-cyan-300">repo</code>.
-                </p>
               </div>
 
               <div className="flex items-center justify-end gap-3 pt-3 border-t border-white/10">
@@ -924,6 +1269,7 @@ export default function AdminPage() {
                     onClick={() => {
                       setContentType('movie');
                       setTmdbPreview(null);
+                      setFormErrors({});
                     }}
                     className={`py-2 px-3 rounded-xl text-xs font-bold transition-all ${
                       contentType === 'movie'
@@ -938,6 +1284,7 @@ export default function AdminPage() {
                     onClick={() => {
                       setContentType('tv_show');
                       setTmdbPreview(null);
+                      setFormErrors({});
                     }}
                     className={`py-2 px-3 rounded-xl text-xs font-bold transition-all ${
                       contentType === 'tv_show'
@@ -952,6 +1299,7 @@ export default function AdminPage() {
                     onClick={() => {
                       setContentType('tv_episode');
                       setTmdbPreview(null);
+                      setFormErrors({});
                     }}
                     className={`py-2 px-3 rounded-xl text-xs font-bold transition-all ${
                       contentType === 'tv_episode'
@@ -967,23 +1315,42 @@ export default function AdminPage() {
               {/* TMDB ID & Live Autofetch (Required for Movie & TV Show) */}
               {(contentType === 'movie' || contentType === 'tv_show') && (
                 <div>
-                  <label className="block text-xs font-bold text-slate-300 mb-1">
-                    TMDB ID <span className="text-red-400 font-extrabold">* (Wajib)</span>
-                  </label>
+                  <div className="flex items-center justify-between mb-1">
+                    <label className="text-xs font-bold text-slate-300">
+                      TMDB ID <span className="text-red-400 font-extrabold">* (Wajib)</span>
+                    </label>
+                    {formErrors.tmdb_id && (
+                      <span className="text-[11px] font-bold text-red-400 flex items-center gap-1">
+                        <AlertCircle size={12} /> {formErrors.tmdb_id}
+                      </span>
+                    )}
+                  </div>
                   <div className="flex gap-2">
                     <input
                       type="number"
                       value={formTmdbId}
-                      onChange={(e) => setFormTmdbId(e.target.value)}
+                      onChange={(e) => {
+                        setFormTmdbId(e.target.value);
+                        if (e.target.value) {
+                          setFormErrors((prev) => {
+                            const next = { ...prev };
+                            delete next.tmdb_id;
+                            return next;
+                          });
+                        }
+                      }}
                       placeholder="Contoh: 1288445"
-                      required
-                      className="flex-1 px-3.5 py-2.5 bg-black/40 border border-white/10 rounded-xl text-sm text-white focus:outline-none focus:border-cyan-400"
+                      className={`flex-1 px-3.5 py-2.5 bg-black/40 rounded-xl text-sm text-white transition-all focus:outline-none ${
+                        formErrors.tmdb_id
+                          ? 'border-2 border-red-500 ring-2 ring-red-500/20 bg-red-950/20'
+                          : 'border border-white/10 focus:border-cyan-400'
+                      }`}
                     />
                     <button
                       type="button"
                       onClick={() => handleFetchTmdbPreview(formTmdbId, contentType === 'movie' ? 'movie' : 'tv')}
                       disabled={fetchingTmdb || !formTmdbId}
-                      className="px-4 py-2.5 bg-cyan-500/20 text-cyan-300 border border-cyan-500/40 rounded-xl text-xs font-bold hover:bg-cyan-500/30 transition-all flex items-center gap-1.5"
+                      className="px-4 py-2.5 bg-cyan-500/20 text-cyan-300 border border-cyan-500/40 rounded-xl text-xs font-bold hover:bg-cyan-500/30 transition-all flex items-center gap-1.5 disabled:opacity-50"
                     >
                       <Sparkles size={14} className={fetchingTmdb ? 'animate-spin' : ''} />
                       <span>{fetchingTmdb ? 'Fetching...' : 'Auto-Fetch TMDB'}</span>
@@ -994,17 +1361,31 @@ export default function AdminPage() {
 
               {/* TMDB Live Preview Card */}
               {tmdbPreview && (
-                <div className="p-3.5 rounded-xl bg-cyan-950/30 border border-cyan-500/30 flex items-center gap-3.5">
-                  {tmdbPreview.posterUrl && (
-                    <div className="relative w-12 h-16 rounded overflow-hidden flex-shrink-0">
-                      <Image src={tmdbPreview.posterUrl} alt="Preview" fill className="object-cover" sizes="48px" />
+                <div className="p-3.5 rounded-xl bg-cyan-950/40 border border-cyan-500/30 flex items-center gap-3.5 animate-slide-up">
+                  {tmdbPreview.posterUrl ? (
+                    <div className="relative w-14 h-20 rounded-lg overflow-hidden flex-shrink-0 border border-white/10 shadow-md">
+                      <Image src={tmdbPreview.posterUrl} alt="Preview" fill className="object-cover" sizes="56px" />
+                    </div>
+                  ) : (
+                    <div className="w-14 h-20 rounded-lg bg-slate-800 flex items-center justify-center text-slate-500">
+                      <ImageIcon size={20} />
                     </div>
                   )}
                   <div className="flex-1 min-w-0">
-                    <p className="text-xs font-extrabold text-cyan-300 truncate">
+                    <div className="flex items-center gap-1.5 mb-1">
+                      <span className="px-1.5 py-0.5 rounded text-[10px] font-bold bg-cyan-500/20 text-cyan-300">
+                        TMDB {tmdbPreview.id}
+                      </span>
+                      {tmdbPreview.rating ? (
+                        <span className="px-1.5 py-0.5 rounded text-[10px] font-bold bg-emerald-500/20 text-emerald-300 flex items-center gap-0.5">
+                          <Star size={10} fill="currentColor" /> {tmdbPreview.rating}
+                        </span>
+                      ) : null}
+                    </div>
+                    <p className="text-xs font-extrabold text-white truncate">
                       {tmdbPreview.title} {tmdbPreview.year ? `(${tmdbPreview.year})` : ''}
                     </p>
-                    <p className="text-[11px] text-slate-300 line-clamp-2">{tmdbPreview.overview}</p>
+                    <p className="text-[11px] text-slate-300 line-clamp-2 mt-0.5">{tmdbPreview.overview}</p>
                   </div>
                 </div>
               )}
@@ -1012,16 +1393,35 @@ export default function AdminPage() {
               {/* URL Video (Required for Movie and Episode) */}
               {(contentType === 'movie' || contentType === 'tv_episode') && (
                 <div>
-                  <label className="block text-xs font-bold text-slate-300 mb-1">
-                    URL Video / Stream Link <span className="text-red-400 font-extrabold">* (Wajib)</span>
-                  </label>
+                  <div className="flex items-center justify-between mb-1">
+                    <label className="text-xs font-bold text-slate-300">
+                      URL Video / Stream Link <span className="text-red-400 font-extrabold">* (Wajib)</span>
+                    </label>
+                    {formErrors.videourl && (
+                      <span className="text-[11px] font-bold text-red-400 flex items-center gap-1">
+                        <AlertCircle size={12} /> {formErrors.videourl}
+                      </span>
+                    )}
+                  </div>
                   <input
                     type="text"
                     value={formVideoUrl}
-                    onChange={(e) => setFormVideoUrl(e.target.value)}
-                    placeholder="https://.../video.mp4 atau direct link / mkv / m3u8"
-                    required
-                    className="w-full px-3.5 py-2.5 bg-black/40 border border-white/10 rounded-xl text-sm text-white focus:outline-none focus:border-cyan-400 font-mono"
+                    onChange={(e) => {
+                      setFormVideoUrl(e.target.value);
+                      if (e.target.value) {
+                        setFormErrors((prev) => {
+                          const next = { ...prev };
+                          delete next.videourl;
+                          return next;
+                        });
+                      }
+                    }}
+                    placeholder="https://.../video.mp4 atau link .mkv / .m3u8"
+                    className={`w-full px-3.5 py-2.5 bg-black/40 rounded-xl text-sm text-white font-mono transition-all focus:outline-none ${
+                      formErrors.videourl
+                        ? 'border-2 border-red-500 ring-2 ring-red-500/20 bg-red-950/20'
+                        : 'border border-white/10 focus:border-cyan-400'
+                    }`}
                   />
                 </div>
               )}
@@ -1030,16 +1430,31 @@ export default function AdminPage() {
               {contentType === 'tv_episode' && (
                 <div className="grid grid-cols-1 sm:grid-cols-3 gap-3">
                   <div>
-                    <label className="block text-xs font-bold text-slate-300 mb-1">
-                      Show Slug <span className="text-red-400 font-extrabold">*</span>
-                    </label>
+                    <div className="flex items-center justify-between mb-1">
+                      <label className="text-xs font-bold text-slate-300">
+                        Show Slug <span className="text-red-400 font-extrabold">*</span>
+                      </label>
+                      {formErrors.showSlug && <span className="text-[10px] text-red-400 font-bold">Wajib</span>}
+                    </div>
                     <input
                       type="text"
                       value={formShowSlug}
-                      onChange={(e) => setFormShowSlug(e.target.value)}
+                      onChange={(e) => {
+                        setFormShowSlug(e.target.value);
+                        if (e.target.value) {
+                          setFormErrors((prev) => {
+                            const next = { ...prev };
+                            delete next.showSlug;
+                            return next;
+                          });
+                        }
+                      }}
                       placeholder="lanterns"
-                      required
-                      className="w-full px-3.5 py-2.5 bg-black/40 border border-white/10 rounded-xl text-sm text-white focus:outline-none focus:border-purple-400"
+                      className={`w-full px-3.5 py-2.5 bg-black/40 rounded-xl text-sm text-white focus:outline-none ${
+                        formErrors.showSlug
+                          ? 'border-2 border-red-500 ring-2 ring-red-500/20 bg-red-950/20'
+                          : 'border border-white/10 focus:border-purple-400'
+                      }`}
                     />
                   </div>
                   <div>
@@ -1053,14 +1468,31 @@ export default function AdminPage() {
                     />
                   </div>
                   <div>
-                    <label className="block text-xs font-bold text-slate-300 mb-1">Episode</label>
+                    <div className="flex items-center justify-between mb-1">
+                      <label className="text-xs font-bold text-slate-300">
+                        Episode <span className="text-red-400 font-extrabold">*</span>
+                      </label>
+                      {formErrors.episode && <span className="text-[10px] text-red-400 font-bold">Wajib</span>}
+                    </div>
                     <input
                       type="text"
                       value={formEpisode}
-                      onChange={(e) => setFormEpisode(e.target.value)}
+                      onChange={(e) => {
+                        setFormEpisode(e.target.value);
+                        if (e.target.value) {
+                          setFormErrors((prev) => {
+                            const next = { ...prev };
+                            delete next.episode;
+                            return next;
+                          });
+                        }
+                      }}
                       placeholder="e1"
-                      required
-                      className="w-full px-3.5 py-2.5 bg-black/40 border border-white/10 rounded-xl text-sm text-white focus:outline-none focus:border-purple-400"
+                      className={`w-full px-3.5 py-2.5 bg-black/40 rounded-xl text-sm text-white focus:outline-none ${
+                        formErrors.episode
+                          ? 'border-2 border-red-500 ring-2 ring-red-500/20 bg-red-950/20'
+                          : 'border border-white/10 focus:border-purple-400'
+                      }`}
                     />
                   </div>
                 </div>
@@ -1097,13 +1529,13 @@ export default function AdminPage() {
               {/* Poster / Image URL (Optional) */}
               <div>
                 <label className="block text-xs font-medium text-slate-400 mb-1">
-                  Poster Image URL (Opsional)
+                  Poster Image URL (Opsional - otomatis diambil dari TMDB jika kosong)
                 </label>
                 <input
                   type="text"
                   value={formPoster}
                   onChange={(e) => setFormPoster(e.target.value)}
-                  placeholder="https://image.tmdb.org/... atau link poster"
+                  placeholder="https://image.tmdb.org/... atau link gambar"
                   className="w-full px-3.5 py-2.5 bg-black/40 border border-white/10 rounded-xl text-sm text-white focus:outline-none focus:border-cyan-400"
                 />
               </div>
@@ -1130,7 +1562,7 @@ export default function AdminPage() {
                     onChange={(e) => setFormFeatured(e.target.checked)}
                     className="w-5 h-5 rounded bg-black/40 border-white/10 text-cyan-500 focus:ring-cyan-400"
                   />
-                  <label htmlFor="featuredCheckbox" className="text-xs font-bold text-white select-none">
+                  <label htmlFor="featuredCheckbox" className="text-xs font-bold text-white select-none cursor-pointer">
                     ✨ Jadikan Featured di Homepage
                   </label>
                 </div>
@@ -1191,17 +1623,37 @@ export default function AdminPage() {
               {/* TMDB ID (if movie or show) */}
               {editingItem.type !== 'tv_episode' && (
                 <div>
-                  <label className="block text-xs font-bold text-slate-300 mb-1">TMDB ID</label>
+                  <div className="flex items-center justify-between mb-1">
+                    <label className="text-xs font-bold text-slate-300">
+                      TMDB ID <span className="text-red-400 font-extrabold">* (Wajib)</span>
+                    </label>
+                    {editErrors.tmdb_id && (
+                      <span className="text-[11px] font-bold text-red-400 flex items-center gap-1">
+                        <AlertCircle size={12} /> {editErrors.tmdb_id}
+                      </span>
+                    )}
+                  </div>
                   <input
                     type="number"
                     value={editingItem.frontmatter.tmdb_id || ''}
-                    onChange={(e) =>
+                    onChange={(e) => {
                       setEditingItem({
                         ...editingItem,
                         frontmatter: { ...editingItem.frontmatter, tmdb_id: e.target.value },
-                      })
-                    }
-                    className="w-full px-3.5 py-2.5 bg-black/40 border border-white/10 rounded-xl text-sm text-white focus:outline-none focus:border-cyan-400"
+                      });
+                      if (e.target.value) {
+                        setEditErrors((prev) => {
+                          const next = { ...prev };
+                          delete next.tmdb_id;
+                          return next;
+                        });
+                      }
+                    }}
+                    className={`w-full px-3.5 py-2.5 bg-black/40 rounded-xl text-sm text-white transition-all focus:outline-none ${
+                      editErrors.tmdb_id
+                        ? 'border-2 border-red-500 ring-2 ring-red-500/20 bg-red-950/20'
+                        : 'border border-white/10 focus:border-cyan-400'
+                    }`}
                   />
                 </div>
               )}
@@ -1209,17 +1661,37 @@ export default function AdminPage() {
               {/* Video URL */}
               {editingItem.type !== 'tv_show' && (
                 <div>
-                  <label className="block text-xs font-bold text-slate-300 mb-1">URL Video (videourl)</label>
+                  <div className="flex items-center justify-between mb-1">
+                    <label className="text-xs font-bold text-slate-300">
+                      URL Video (videourl) <span className="text-red-400 font-extrabold">* (Wajib)</span>
+                    </label>
+                    {editErrors.videourl && (
+                      <span className="text-[11px] font-bold text-red-400 flex items-center gap-1">
+                        <AlertCircle size={12} /> {editErrors.videourl}
+                      </span>
+                    )}
+                  </div>
                   <input
                     type="text"
                     value={editingItem.frontmatter.videourl || editingItem.frontmatter.video_url || ''}
-                    onChange={(e) =>
+                    onChange={(e) => {
                       setEditingItem({
                         ...editingItem,
                         frontmatter: { ...editingItem.frontmatter, videourl: e.target.value },
-                      })
-                    }
-                    className="w-full px-3.5 py-2.5 bg-black/40 border border-white/10 rounded-xl text-sm text-white focus:outline-none focus:border-cyan-400 font-mono"
+                      });
+                      if (e.target.value) {
+                        setEditErrors((prev) => {
+                          const next = { ...prev };
+                          delete next.videourl;
+                          return next;
+                        });
+                      }
+                    }}
+                    className={`w-full px-3.5 py-2.5 bg-black/40 rounded-xl text-sm text-white font-mono transition-all focus:outline-none ${
+                      editErrors.videourl
+                        ? 'border-2 border-red-500 ring-2 ring-red-500/20 bg-red-950/20'
+                        : 'border border-white/10 focus:border-cyan-400'
+                    }`}
                   />
                 </div>
               )}
@@ -1303,7 +1775,7 @@ export default function AdminPage() {
                     }
                     className="w-5 h-5 rounded bg-black/40 border-white/10 text-cyan-500 focus:ring-cyan-400"
                   />
-                  <label htmlFor="editFeatured" className="text-xs font-bold text-white select-none">
+                  <label htmlFor="editFeatured" className="text-xs font-bold text-white select-none cursor-pointer">
                     Featured di Homepage
                   </label>
                 </div>

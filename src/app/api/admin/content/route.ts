@@ -5,6 +5,7 @@ import matter from 'gray-matter';
 import { revalidatePath } from 'next/cache';
 import { slugify } from '@/lib/urls';
 import { saveGitHubFile, deleteGitHubFile } from '@/lib/githubStorage';
+import { getMovieDetails, getTVShowDetails, getImageUrl } from '@/lib/tmdb';
 
 const VIDEO_DIR = path.join(process.cwd(), 'video');
 const TV_DIR = path.join(process.cwd(), 'tv');
@@ -59,9 +60,10 @@ export async function GET() {
       console.warn('Read video dir notice:', e);
     }
 
-    const movies = movieFiles.map((file) => {
+    const rawMovies = movieFiles.map((file) => {
       const fullPath = path.join(VIDEO_DIR, file);
       const raw = fs.readFileSync(fullPath, 'utf8');
+      const stat = fs.statSync(fullPath);
       const { data, content } = matter(raw);
       return {
         filename: file,
@@ -69,8 +71,49 @@ export async function GET() {
         relativePath: `video/${file}`,
         frontmatter: data,
         content: content || '',
+        updatedAt: stat.mtimeMs || Date.now(),
       };
     });
+
+    // Enrich movies with TMDB poster & title if missing
+    const movies = await Promise.all(
+      rawMovies.map(async (m) => {
+        let posterUrl = m.frontmatter.image_url || m.frontmatter.poster_path || null;
+        let displayTitle = m.frontmatter.title || m.slug;
+        let year: number | null = null;
+        let rating = m.frontmatter.rating ? Number(m.frontmatter.rating) : null;
+
+        if (m.frontmatter.tmdb_id) {
+          try {
+            const tmdb = await getMovieDetails(Number(m.frontmatter.tmdb_id)).catch(() => null);
+            if (tmdb) {
+              if (!posterUrl && tmdb.poster_path) {
+                posterUrl = getImageUrl(tmdb.poster_path, 'w500');
+              }
+              if (!m.frontmatter.title && tmdb.title) {
+                displayTitle = tmdb.title;
+              }
+              if (tmdb.release_date) {
+                year = new Date(tmdb.release_date).getFullYear();
+              }
+              if (!rating && tmdb.vote_average) {
+                rating = Math.round(tmdb.vote_average * 10) / 10;
+              }
+            }
+          } catch {
+            // ignore TMDB fetch error in list
+          }
+        }
+
+        return {
+          ...m,
+          posterUrl,
+          displayTitle,
+          year,
+          rating,
+        };
+      })
+    );
 
     // 2. TV Series in tv/
     let tvDirs: string[] = [];
@@ -82,10 +125,11 @@ export async function GET() {
       console.warn('Read tv dir notice:', e);
     }
 
-    const tvShows = tvDirs.map((showDir) => {
+    const rawTvShows = tvDirs.map((showDir) => {
       const showPath = path.join(TV_DIR, showDir);
       let indexFrontmatter: any = {};
       let indexContent = '';
+      let updatedAt = Date.now();
 
       const indexPath = fs.existsSync(path.join(showPath, '_index.md'))
         ? path.join(showPath, '_index.md')
@@ -95,9 +139,11 @@ export async function GET() {
 
       if (indexPath) {
         const raw = fs.readFileSync(indexPath, 'utf8');
+        const stat = fs.statSync(indexPath);
         const parsed = matter(raw);
         indexFrontmatter = parsed.data;
         indexContent = parsed.content || '';
+        updatedAt = stat.mtimeMs || Date.now();
       }
 
       // Read episodes
@@ -113,7 +159,9 @@ export async function GET() {
           const epFiles = fs.readdirSync(seasonPath).filter((f) => /\.(md|markdown)$/i.test(f));
 
           for (const epFile of epFiles) {
-            const raw = fs.readFileSync(path.join(seasonPath, epFile), 'utf8');
+            const epFullPath = path.join(seasonPath, epFile);
+            const raw = fs.readFileSync(epFullPath, 'utf8');
+            const epStat = fs.statSync(epFullPath);
             const { data, content } = matter(raw);
             episodes.push({
               showSlug: showDir,
@@ -123,10 +171,15 @@ export async function GET() {
               relativePath: `tv/${showDir}/${seasonFolder}/${epFile}`,
               frontmatter: data,
               content: content || '',
+              displayTitle: data.title || epFile.replace(/\.(md|markdown)$/i, ''),
+              posterUrl: data.image_url || null,
+              updatedAt: epStat.mtimeMs || Date.now(),
             });
           }
         } else if (/\.(md|markdown)$/i.test(entry.name)) {
-          const raw = fs.readFileSync(path.join(showPath, entry.name), 'utf8');
+          const epFullPath = path.join(showPath, entry.name);
+          const raw = fs.readFileSync(epFullPath, 'utf8');
+          const epStat = fs.statSync(epFullPath);
           const { data, content } = matter(raw);
           episodes.push({
             showSlug: showDir,
@@ -136,6 +189,9 @@ export async function GET() {
             relativePath: `tv/${showDir}/${entry.name}`,
             frontmatter: data,
             content: content || '',
+            displayTitle: data.title || entry.name.replace(/\.(md|markdown)$/i, ''),
+            posterUrl: data.image_url || null,
+            updatedAt: epStat.mtimeMs || Date.now(),
           });
         }
       }
@@ -145,9 +201,50 @@ export async function GET() {
         relativePath: `tv/${showDir}/_index.md`,
         frontmatter: indexFrontmatter,
         content: indexContent,
+        updatedAt,
         episodes,
       };
     });
+
+    // Enrich TV shows with TMDB poster & metadata if missing
+    const tvShows = await Promise.all(
+      rawTvShows.map(async (s) => {
+        let posterUrl = s.frontmatter.image_url || null;
+        let displayTitle = s.frontmatter.title || s.showSlug;
+        let year: number | null = null;
+        let rating = s.frontmatter.rating ? Number(s.frontmatter.rating) : null;
+
+        if (s.frontmatter.tmdb_id) {
+          try {
+            const tmdb = await getTVShowDetails(Number(s.frontmatter.tmdb_id)).catch(() => null);
+            if (tmdb) {
+              if (!posterUrl && tmdb.poster_path) {
+                posterUrl = getImageUrl(tmdb.poster_path, 'w500');
+              }
+              if (!s.frontmatter.title && tmdb.name) {
+                displayTitle = tmdb.name;
+              }
+              if (tmdb.first_air_date) {
+                year = new Date(tmdb.first_air_date).getFullYear();
+              }
+              if (!rating && tmdb.vote_average) {
+                rating = Math.round(tmdb.vote_average * 10) / 10;
+              }
+            }
+          } catch {
+            // ignore TMDB fetch error
+          }
+        }
+
+        return {
+          ...s,
+          posterUrl,
+          displayTitle,
+          year,
+          rating,
+        };
+      })
+    );
 
     return NextResponse.json({ movies, tvShows });
   } catch (error: any) {
