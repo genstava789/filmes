@@ -268,7 +268,7 @@ export async function POST(request: NextRequest) {
     let fileContent = '';
 
     if (contentType === 'movie') {
-      const { tmdb_id, videourl, title, desc, poster, rating, featured, subtitles, content = '', slug } = body;
+      let { tmdb_id, videourl, title, desc, poster, rating, featured, subtitles, content = '', slug } = body;
 
       if (!tmdb_id) {
         return NextResponse.json({ error: 'tmdb_id is required' }, { status: 400 });
@@ -277,12 +277,29 @@ export async function POST(request: NextRequest) {
         return NextResponse.json({ error: 'videourl (url_video) is required' }, { status: 400 });
       }
 
+      const tmdbIdNum = Number(tmdb_id);
+
+      // If title or metadata is missing, fetch from TMDB API to enrich the markdown file
+      if (!title || !desc || !poster) {
+        try {
+          const tmdb = await getMovieDetails(tmdbIdNum).catch(() => null);
+          if (tmdb) {
+            if (!title && tmdb.title) title = tmdb.title;
+            if (!desc && tmdb.overview) desc = tmdb.overview;
+            if (!poster && tmdb.poster_path) poster = getImageUrl(tmdb.poster_path, 'w500');
+            if (rating === undefined && tmdb.vote_average) rating = Math.round(tmdb.vote_average * 10) / 10;
+          }
+        } catch {
+          // ignore TMDB fetch error
+        }
+      }
+
       const fileSlug = slug ? slugify(slug) : title ? slugify(title) : `movie-${tmdb_id}`;
       const filename = `${fileSlug}.md`;
       relativePath = `video/${filename}`;
 
       const frontmatterData: Record<string, any> = {
-        tmdb_id: Number(tmdb_id),
+        tmdb_id: tmdbIdNum,
         videourl: videourl.trim(),
       };
 
@@ -295,17 +312,34 @@ export async function POST(request: NextRequest) {
 
       fileContent = matter.stringify(content || '', frontmatterData);
     } else if (contentType === 'tv_show') {
-      const { tmdb_id, title, desc, poster, rating, featured, showSlug, content = '' } = body;
+      let { tmdb_id, title, desc, poster, rating, featured, showSlug, content = '' } = body;
 
       if (!tmdb_id) {
         return NextResponse.json({ error: 'tmdb_id is required' }, { status: 400 });
+      }
+
+      const tmdbIdNum = Number(tmdb_id);
+
+      // If title or metadata is missing, fetch from TMDB API
+      if (!title || !desc || !poster) {
+        try {
+          const tmdb = await getTVShowDetails(tmdbIdNum).catch(() => null);
+          if (tmdb) {
+            if (!title && tmdb.name) title = tmdb.name;
+            if (!desc && tmdb.overview) desc = tmdb.overview;
+            if (!poster && tmdb.poster_path) poster = getImageUrl(tmdb.poster_path, 'w500');
+            if (rating === undefined && tmdb.vote_average) rating = Math.round(tmdb.vote_average * 10) / 10;
+          }
+        } catch {
+          // ignore TMDB fetch error
+        }
       }
 
       const cleanShowSlug = showSlug ? slugify(showSlug) : title ? slugify(title) : `tv-${tmdb_id}`;
       relativePath = `tv/${cleanShowSlug}/_index.md`;
 
       const frontmatterData: Record<string, any> = {
-        tmdb_id: Number(tmdb_id),
+        tmdb_id: tmdbIdNum,
       };
 
       if (title && title.trim()) frontmatterData.title = title.trim();

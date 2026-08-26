@@ -517,7 +517,7 @@ export async function getTVShowDetailsWithCustomOverride(
   if (!slugArray || slugArray.length === 0) return null;
 
   const showSlugOrId = slugArray[0];
-  const customTV = await getCustomTVShowBySlug(showSlugOrId);
+  let customTV = await getCustomTVShowBySlug(showSlugOrId);
 
   let tmdbId: number | null = null;
 
@@ -551,6 +551,12 @@ export async function getTVShowDetailsWithCustomOverride(
         }
       }
     }
+  }
+
+  // If customTV wasn't found by slug directly, but tmdbId was resolved,
+  // check if there is an existing custom markdown TV show with this tmdb_id!
+  if (!customTV && tmdbId && tmdbId > 0) {
+    customTV = await getCustomTVShowBySlug(tmdbId);
   }
 
   if (tmdbId === null || isNaN(tmdbId)) {

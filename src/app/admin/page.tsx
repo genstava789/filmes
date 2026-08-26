@@ -3,6 +3,7 @@
 import React, { useState, useEffect, useCallback, useMemo } from 'react';
 import Image from 'next/image';
 import Link from 'next/link';
+import { getMovieUrl, getTVUrl } from '@/lib/urls';
 import {
   Film,
   Tv,
@@ -944,7 +945,13 @@ export default function AdminPage() {
                     {/* Action Buttons */}
                     <div className="flex items-center justify-between pt-3 border-t border-white/5">
                       <Link
-                        href={`/movie/${movie.slug}`}
+                        href={getMovieUrl({
+                          id: movie.frontmatter.tmdb_id,
+                          tmdbId: movie.frontmatter.tmdb_id,
+                          title: movie.displayTitle || movie.frontmatter.title,
+                          year: movie.year,
+                          customSlug: movie.slug,
+                        })}
                         target="_blank"
                         className="inline-flex items-center gap-1.5 text-xs font-semibold text-cyan-400 hover:text-cyan-300 hover:underline"
                       >
@@ -1060,7 +1067,13 @@ export default function AdminPage() {
 
                       <div className="flex items-center gap-2 flex-wrap">
                         <Link
-                          href={`/tv/${show.showSlug}`}
+                          href={getTVUrl({
+                            id: show.frontmatter.tmdb_id,
+                            tmdbId: show.frontmatter.tmdb_id,
+                            name: show.displayTitle || show.frontmatter.title,
+                            year: show.year,
+                            customSlug: show.showSlug,
+                          })}
                           target="_blank"
                           className="inline-flex items-center gap-1.5 px-3 py-1.5 rounded-lg text-xs font-semibold bg-white/5 hover:bg-white/10 text-cyan-400 transition-all"
                         >
@@ -1123,9 +1136,16 @@ export default function AdminPage() {
                             const epTitle = ep.displayTitle || ep.frontmatter.title || ep.slug;
                             const epVideo = ep.frontmatter.videourl || ep.frontmatter.video_url;
                             const seasonLabel = ep.seasonFolder ? ep.seasonFolder.toUpperCase() : 'Flat';
+                            const baseTVUrl = getTVUrl({
+                              id: show.frontmatter.tmdb_id,
+                              tmdbId: show.frontmatter.tmdb_id,
+                              name: show.displayTitle || show.frontmatter.title,
+                              year: show.year,
+                              customSlug: show.showSlug,
+                            });
                             const linkPath = ep.seasonFolder
-                              ? `/tv/${show.showSlug}/${ep.seasonFolder}/${ep.slug}`
-                              : `/tv/${show.showSlug}/${ep.slug}`;
+                              ? `${baseTVUrl}/${ep.seasonFolder}/${ep.slug}`
+                              : `${baseTVUrl}/${ep.slug}`;
 
                             return (
                               <div

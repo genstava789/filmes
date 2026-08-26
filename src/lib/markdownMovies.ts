@@ -4,7 +4,7 @@ import matter from 'gray-matter';
 import { marked } from 'marked';
 import { MovieDetail } from '@/types/tmdb';
 import { getMovieDetails, getImageUrl, searchMovies } from '@/lib/tmdb';
-import { FeaturedItem } from '@/config';
+import siteConfig, { FeaturedItem } from '@/config';
 
 export interface CustomMovieFrontmatter {
   title?: string;
@@ -124,6 +124,24 @@ export function getAllCustomMovieSlugs(): string[] {
     }
   });
 
+  // Include featured items from siteConfig to ensure instant static/ISR generation
+  if (siteConfig.featuredItems && Array.isArray(siteConfig.featuredItems)) {
+    siteConfig.featuredItems.forEach((item) => {
+      if (item.type === 'movie' || !item.type) {
+        if (item.tmdbId) slugs.push(String(item.tmdbId));
+        if (item.title) {
+          const tSlug = cleanSlug(item.title);
+          if (tSlug) {
+            slugs.push(tSlug);
+            const year = item.year || '2026';
+            slugs.push(`${tSlug}-${year}`);
+            if (item.tmdbId) slugs.push(`${tSlug}-${item.tmdbId}`);
+          }
+        }
+      }
+    });
+  }
+
   return Array.from(new Set(slugs));
 }
 
@@ -167,19 +185,25 @@ export async function getCustomMovieBySlug(slugOrId: string | number): Promise<C
   let matchedFile: string | null = null;
   let fileContent = '';
 
-  // 1. Direct filename match (e.g. movie.md or movie)
+  // 1. Direct filename exact match (e.g. movie-94.md, movie.md, movie-94, movie)
   for (const file of files) {
     const fileWithoutExt = file.replace(/\.(md|markdown)$/i, '').toLowerCase();
     const fullFileName = file.toLowerCase();
 
-    if (fullFileName === searchKey || fileWithoutExt === cleanKey || fileWithoutExt === cleanWithoutSuffix) {
+    if (fullFileName === searchKey || fileWithoutExt === cleanKey) {
       matchedFile = file;
+      try {
+        const filePath = path.join(CONTENT_DIR, file);
+        fileContent = fs.readFileSync(filePath, 'utf8');
+      } catch (err) {
+        console.error(`Error reading ${file}:`, err);
+      }
       break;
     }
   }
 
   // 2. Match by frontmatter tmdb_id, title slug, title-year slug, or trailing ID
-  if (!matchedFile) {
+  if (!matchedFile || !fileContent) {
     for (const file of files) {
       try {
         const filePath = path.join(CONTENT_DIR, file);
@@ -191,8 +215,8 @@ export async function getCustomMovieBySlug(slugOrId: string | number): Promise<C
           const tmdbIdStr = String(data.tmdb_id || '').trim();
           const titleSlug = cleanSlug(data.title);
 
-          // Direct TMDB ID match
-          if (tmdbIdStr && (tmdbIdStr === cleanKey || tmdbIdStr === trailingId)) {
+          // Direct TMDB ID match (e.g. "1288445" or "94") or trailing ID match (e.g. "mutiny-1288445")
+          if (tmdbIdStr && (tmdbIdStr === cleanKey || (trailingId && tmdbIdStr === trailingId))) {
             matchedFile = file;
             fileContent = content;
             break;
@@ -217,8 +241,25 @@ export async function getCustomMovieBySlug(slugOrId: string | number): Promise<C
     }
   }
 
-  // 3. Fallback: Check GitHub Raw live if file was just created/updated via CMS before Vercel build
-  if (!matchedFile) {
+  // 3. Filename match with stripped year/ID suffix (e.g. "movie-2026" matching "movie.md")
+  if (!matchedFile || !fileContent) {
+    for (const file of files) {
+      const fileWithoutExt = file.replace(/\.(md|markdown)$/i, '').toLowerCase();
+      if (fileWithoutExt === cleanWithoutSuffix) {
+        matchedFile = file;
+        try {
+          const filePath = path.join(CONTENT_DIR, file);
+          fileContent = fs.readFileSync(filePath, 'utf8');
+        } catch (err) {
+          console.error(`Error reading ${file}:`, err);
+        }
+        break;
+      }
+    }
+  }
+
+  // 4. Fallback: Check GitHub Raw live if file was just created/updated via CMS before Vercel build
+  if (!matchedFile || !fileContent) {
     const candidates = [
       `${cleanKey}.md`,
       `${cleanWithoutSuffix}.md`,
@@ -269,13 +310,54 @@ export async function getCustomMovieBySlug(slugOrId: string | number): Promise<C
 export async function getMovieDetailsWithCustomOverride(
   slugOrId: string | number
 ): Promise<MergedMovieDetail | null> {
-  const customMovie = await getCustomMovieBySlug(slugOrId);
+  let customMovie = await getCustomMovieBySlug(slugOrId);
 
   let tmdbId: number | null = null;
 
-  if (customMovie) {
-    tmdbId = Number(customMovie.frontmatter.tmdb_id);
-    if (!tmdbId || isNaN(tmdbId)) {
+  if (customMovie && customMovie.frontmatter.tmdb_id) {
+    const parsedId = Number(customMovie.frontmatter.tmdb_id);
+    if (!isNaN(parsedId) && parsedId > 0) {
+      tmdbId = parsedId;
+    }
+  }
+
+  // If no tmdbId from direct custom movie match, resolve tmdbId from slugOrId
+  if (!tmdbId || isNaN(tmdbId)) {
+    const str = String(slugOrId).trim();
+    if (/^\d+$/.test(str)) {
+      tmdbId = Number(str);
+    } else {
+      const yearMatch = str.match(/-(19\d{2}|20\d{2})$/);
+      const idMatch = str.match(/-(\d{4,})$/);
+
+      if (idMatch) {
+        tmdbId = Number(idMatch[1]);
+      } else {
+        const cleanSearch = (yearMatch ? str.slice(0, yearMatch.index) : str).replace(/-/g, ' ');
+        const searchYear = yearMatch ? yearMatch[1] : undefined;
+        try {
+          const searchRes = await searchMovies(cleanSearch);
+          if (searchRes.results && searchRes.results.length > 0) {
+            const matched = searchYear
+              ? searchRes.results.find((m) => m.release_date && m.release_date.startsWith(searchYear)) || searchRes.results[0]
+              : searchRes.results[0];
+            tmdbId = matched ? matched.id : null;
+          }
+        } catch (e) {
+          console.warn(`Error searching TMDB for movie slug ${str}:`, e);
+        }
+      }
+    }
+  }
+
+  // If customMovie wasn't found by slug directly, but tmdbId was resolved,
+  // check if there is an existing custom markdown movie with this tmdb_id!
+  if (!customMovie && tmdbId) {
+    customMovie = await getCustomMovieBySlug(tmdbId);
+  }
+
+  if (!tmdbId || isNaN(tmdbId)) {
+    if (customMovie) {
       const { frontmatter, contentHtml } = customMovie;
       return {
         id: 0,
@@ -300,39 +382,10 @@ export async function getMovieDetailsWithCustomOverride(
         customContentHtml: contentHtml && contentHtml.trim().length > 0 ? contentHtml : null,
       } as any;
     }
-  } else {
-    const str = String(slugOrId).trim();
-    if (/^\d+$/.test(str)) {
-      tmdbId = Number(str);
-    } else {
-      const yearMatch = str.match(/-(19\d{2}|20\d{2})$/);
-      const idMatch = str.match(/-(\d{5,})$/);
-
-      if (idMatch) {
-        tmdbId = Number(idMatch[1]);
-      } else {
-        const cleanSearch = (yearMatch ? str.slice(0, yearMatch.index) : str).replace(/-/g, ' ');
-        const searchYear = yearMatch ? yearMatch[1] : undefined;
-        try {
-          const searchRes = await searchMovies(cleanSearch);
-          if (searchRes.results && searchRes.results.length > 0) {
-            const matched = searchYear
-              ? searchRes.results.find((m) => m.release_date && m.release_date.startsWith(searchYear)) || searchRes.results[0]
-              : searchRes.results[0];
-            tmdbId = matched ? matched.id : null;
-          }
-        } catch (e) {
-          console.warn(`Error searching TMDB for movie slug ${str}:`, e);
-        }
-      }
-    }
-  }
-
-  if (!tmdbId || isNaN(tmdbId)) {
     return null;
   }
 
-  // Fetch full data from TMDB API
+  // Fetch full baseline data from TMDB API
   const tmdbMovie = await getMovieDetails(tmdbId);
   if (!tmdbMovie) {
     if (customMovie) {
@@ -417,10 +470,10 @@ export async function getAllFeaturedCustomMovies(): Promise<FeaturedItem[]> {
   for (const file of files) {
     try {
       const baseSlug = file.replace(/\.(md|markdown)$/i, '');
-      const detail = await getMovieDetailsWithCustomOverride(baseSlug);
       const customData = await getCustomMovieBySlug(baseSlug);
 
       if (customData && (customData.frontmatter.featured === true || customData.frontmatter.featured === 'true')) {
+        const detail = await getMovieDetailsWithCustomOverride(baseSlug);
         if (detail) {
           const backdrop = detail.customImageUrl || (detail.backdrop_path ? getImageUrl(detail.backdrop_path, 'w1280') : (detail.poster_path ? getImageUrl(detail.poster_path, 'w780') : '/placeholder-poster.svg'));
           const poster = detail.customImageUrl || (detail.poster_path ? getImageUrl(detail.poster_path, 'w500') : (detail.backdrop_path ? getImageUrl(detail.backdrop_path, 'w780') : '/placeholder-poster.svg'));
@@ -434,7 +487,7 @@ export async function getAllFeaturedCustomMovies(): Promise<FeaturedItem[]> {
             backdropUrl: backdrop,
             posterUrl: poster,
             rating: Math.round(detail.vote_average * 10) / 10,
-            year: detail.release_date ? new Date(detail.release_date).getFullYear() : '2025',
+            year: detail.release_date ? new Date(detail.release_date).getFullYear() : '2026',
             duration: detail.runtime ? `${Math.floor(detail.runtime / 60)}h ${detail.runtime % 60}m` : undefined,
             type: 'movie' as const,
             genres: detail.genres?.map((g) => g.name) || [],
