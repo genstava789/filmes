@@ -337,10 +337,10 @@ export async function getMovieDetailsWithCustomOverride(
       tmdbId = Number(str);
     } else {
       const yearMatch = str.match(/-(19\d{2}|20\d{2})$/);
-      const idMatch = str.match(/-(\d{4,})$/);
+      const explicitIdMatch = str.match(/-tmdb-(\d+)$/i) || str.match(/-(\d{5,})$/);
 
-      if (idMatch) {
-        tmdbId = Number(idMatch[1]);
+      if (explicitIdMatch && !yearMatch) {
+        tmdbId = Number(explicitIdMatch[1]);
       } else {
         const cleanSearch = (yearMatch ? str.slice(0, yearMatch.index) : str).replace(/-/g, ' ');
         const searchYear = yearMatch ? yearMatch[1] : undefined;
