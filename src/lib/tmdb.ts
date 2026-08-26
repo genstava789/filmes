@@ -167,6 +167,25 @@ export async function searchTVShows(query: string, page: number = 1): Promise<TM
   }
 }
 
+export async function searchMulti(query: string, page: number = 1): Promise<TMDBResponse<Movie | TVShow>> {
+  try {
+    const data = await fetchTMDB<TMDBResponse<any>>('/search/multi', {
+      query,
+      page: String(page),
+      include_adult: 'false',
+    });
+    const filtered = (data.results || []).filter(
+      (item: any) => item.media_type === 'movie' || item.media_type === 'tv'
+    );
+    return {
+      ...data,
+      results: filtered,
+    };
+  } catch {
+    return { page: 1, results: [], total_pages: 0, total_results: 0 };
+  }
+}
+
 export async function discoverMovies(
   page: number = 1,
   sortBy: string = 'popularity.desc',

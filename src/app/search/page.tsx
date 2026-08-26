@@ -11,18 +11,19 @@ import {
   Tv,
   X,
   Sparkles,
+  Layers,
 } from 'lucide-react';
 import { Movie, TVShow } from '@/types/tmdb';
-import { searchMovies, searchTVShows, getTrending } from '@/lib/tmdb';
+import { searchMovies, searchTVShows, searchMulti, getTrending } from '@/lib/tmdb';
 import MovieCard, { MovieCardSkeleton } from '@/components/MovieCard';
 
 function SearchContent() {
   const searchParams = useSearchParams();
   const router = useRouter();
   const query = searchParams.get('q') || '';
-  const typeParam = (searchParams.get('type') as 'movie' | 'tv') || 'movie';
+  const typeParam = (searchParams.get('type') as 'all' | 'movie' | 'tv') || 'all';
 
-  const [searchType, setSearchType] = useState<'movie' | 'tv'>(typeParam);
+  const [searchType, setSearchType] = useState<'all' | 'movie' | 'tv'>(typeParam);
   const [results, setResults] = useState<(Movie | TVShow)[]>([]);
   const [loading, setLoading] = useState(false);
   const [page, setPage] = useState(1);
@@ -46,9 +47,9 @@ function SearchContent() {
     }
   }, [trendingTab, query]);
 
-  // Search function for Movies or TV Shows
+  // Search function for All, Movies, or TV Shows
   const doSearch = useCallback(
-    async (q: string, p: number, type: 'movie' | 'tv') => {
+    async (q: string, p: number, type: 'all' | 'movie' | 'tv') => {
       if (!q.trim()) {
         setResults([]);
         setTotalPages(0);
@@ -57,10 +58,14 @@ function SearchContent() {
       }
       setLoading(true);
       try {
-        const data =
-          type === 'movie'
-            ? await searchMovies(q, p)
-            : await searchTVShows(q, p);
+        let data;
+        if (type === 'movie') {
+          data = await searchMovies(q, p);
+        } else if (type === 'tv') {
+          data = await searchTVShows(q, p);
+        } else {
+          data = await searchMulti(q, p);
+        }
         setResults(data.results);
         setTotalPages(Math.min(data.total_pages, 20));
         setTotalResults(data.total_results);
@@ -98,7 +103,7 @@ function SearchContent() {
     }
   };
 
-  const handleTypeSwitch = (newType: 'movie' | 'tv') => {
+  const handleTypeSwitch = (newType: 'all' | 'movie' | 'tv') => {
     setSearchType(newType);
     if (query.trim()) {
       router.push(
@@ -162,12 +167,12 @@ function SearchContent() {
               ? loading
                 ? 'Searching database...'
                 : totalResults > 0
-                ? `Found ${totalResults.toLocaleString()} ${searchType === 'movie' ? 'movies' : 'series'} matching your search`
+                ? `Found ${totalResults.toLocaleString()} ${searchType === 'movie' ? 'movies' : searchType === 'tv' ? 'series' : 'titles'} matching your search`
                 : 'No results found'
               : 'Find your favorite movies, series, and cast members'}
           </p>
 
-          {/* ── Search Input Bar (Bug-Free, 100% Inside Container on all Mobile Devices) ── */}
+          {/* ── Search Input Bar (100% Inside Container on all Mobile Devices) ── */}
           <form onSubmit={handleSearchSubmit} className="w-full max-w-2xl mx-auto mb-4">
             <div
               className="flex items-center p-1.5 sm:p-2 pl-3.5 sm:pl-4 rounded-2xl w-full transition-all duration-300 focus-within:border-cyan-500/60 focus-within:shadow-[0_0_25px_rgba(6,182,212,0.25)]"
@@ -215,52 +220,76 @@ function SearchContent() {
             </div>
           </form>
 
-          {/* ── Compact Segmented Movie / TV Tab Switcher (Snug Fit Width) ── */}
-          <div className="flex justify-center items-center">
-            <div
-              className="inline-flex items-center gap-1 p-1 rounded-xl"
-              style={{
-                background: 'rgba(255, 255, 255, 0.05)',
-                border: '1px solid rgba(255, 255, 255, 0.08)',
-              }}
-            >
-              <button
-                type="button"
-                onClick={() => handleTypeSwitch('movie')}
-                className="flex items-center gap-1.5 px-3.5 py-1.5 rounded-lg text-xs font-bold transition-all duration-200"
-                style={
-                  searchType === 'movie'
-                    ? {
-                        background: 'linear-gradient(135deg, #06b6d4, #7c3aed)',
-                        color: 'white',
-                        boxShadow: '0 0 12px rgba(6,182,212,0.3)',
-                      }
-                    : { color: '#94a3b8' }
-                }
+          {/* ── Segmented All / Movies / TV Tabs: Hidden when default, shown only when user has entered query ── */}
+          {Boolean(query.trim()) && (
+            <div className="flex justify-center items-center mt-2 animate-fadeIn">
+              <div
+                className="inline-flex items-center gap-1 p-1 rounded-xl sm:rounded-2xl"
+                style={{
+                  background: 'rgba(255, 255, 255, 0.06)',
+                  border: '1px solid rgba(255, 255, 255, 0.1)',
+                  boxShadow: '0 4px 20px rgba(0,0,0,0.4)',
+                }}
               >
-                <Film size={13} />
-                <span>Movies</span>
-              </button>
+                {/* All Tab */}
+                <button
+                  type="button"
+                  onClick={() => handleTypeSwitch('all')}
+                  className="flex items-center gap-1.5 px-3.5 sm:px-4 py-1.5 sm:py-2 rounded-lg sm:rounded-xl text-xs sm:text-sm font-bold transition-all duration-200"
+                  style={
+                    searchType === 'all'
+                      ? {
+                          background: 'linear-gradient(135deg, #06b6d4, #7c3aed)',
+                          color: 'white',
+                          boxShadow: '0 0 14px rgba(6,182,212,0.35)',
+                        }
+                      : { color: '#94a3b8' }
+                  }
+                >
+                  <Layers size={13} className={searchType === 'all' ? 'text-white' : 'text-cyan-400'} />
+                  <span>All</span>
+                </button>
 
-              <button
-                type="button"
-                onClick={() => handleTypeSwitch('tv')}
-                className="flex items-center gap-1.5 px-3.5 py-1.5 rounded-lg text-xs font-bold transition-all duration-200"
-                style={
-                  searchType === 'tv'
-                    ? {
-                        background: 'linear-gradient(135deg, #ec4899, #7c3aed)',
-                        color: 'white',
-                        boxShadow: '0 0 12px rgba(236,72,153,0.3)',
-                      }
-                    : { color: '#94a3b8' }
-                }
-              >
-                <Tv size={13} />
-                <span>TV Shows</span>
-              </button>
+                {/* Movies Tab */}
+                <button
+                  type="button"
+                  onClick={() => handleTypeSwitch('movie')}
+                  className="flex items-center gap-1.5 px-3.5 sm:px-4 py-1.5 sm:py-2 rounded-lg sm:rounded-xl text-xs sm:text-sm font-bold transition-all duration-200"
+                  style={
+                    searchType === 'movie'
+                      ? {
+                          background: 'linear-gradient(135deg, #06b6d4, #3b82f6)',
+                          color: 'white',
+                          boxShadow: '0 0 14px rgba(6,182,212,0.35)',
+                        }
+                      : { color: '#94a3b8' }
+                  }
+                >
+                  <Film size={13} className={searchType === 'movie' ? 'text-white' : 'text-cyan-400'} />
+                  <span>Movies</span>
+                </button>
+
+                {/* TV Shows Tab */}
+                <button
+                  type="button"
+                  onClick={() => handleTypeSwitch('tv')}
+                  className="flex items-center gap-1.5 px-3.5 sm:px-4 py-1.5 sm:py-2 rounded-lg sm:rounded-xl text-xs sm:text-sm font-bold transition-all duration-200"
+                  style={
+                    searchType === 'tv'
+                      ? {
+                          background: 'linear-gradient(135deg, #ec4899, #7c3aed)',
+                          color: 'white',
+                          boxShadow: '0 0 14px rgba(236,72,153,0.35)',
+                        }
+                      : { color: '#94a3b8' }
+                  }
+                >
+                  <Tv size={13} className={searchType === 'tv' ? 'text-white' : 'text-pink-400'} />
+                  <span>TV Shows</span>
+                </button>
+              </div>
             </div>
-          </div>
+          )}
         </div>
       </div>
 
@@ -279,13 +308,17 @@ function SearchContent() {
         {!loading && results.length > 0 && (
           <>
             <div className="grid grid-cols-2 xs:grid-cols-2 sm:grid-cols-3 md:grid-cols-4 lg:grid-cols-5 xl:grid-cols-6 gap-3.5 sm:gap-4.5 md:gap-5">
-              {results.map((item) => (
-                <MovieCard
-                  key={item.id}
-                  item={item}
-                  type={searchType}
-                />
-              ))}
+              {results.map((item) => {
+                const itemType =
+                  (item as any).media_type === 'tv' || !('title' in item) ? 'tv' : 'movie';
+                return (
+                  <MovieCard
+                    key={`${(item as any).media_type || searchType}_${item.id}`}
+                    item={item}
+                    type={itemType}
+                  />
+                );
+              })}
             </div>
 
             {/* Pagination */}
@@ -369,7 +402,7 @@ function SearchContent() {
             </div>
             <h3 className="text-xl font-bold text-white">No results found</h3>
             <p className="text-center text-sm max-w-sm text-slate-400">
-              We couldn&apos;t find any {searchType === 'movie' ? 'movies' : 'series'} matching &ldquo;{query}&rdquo;. Try another title or switch category.
+              We couldn&apos;t find any {searchType === 'movie' ? 'movies' : searchType === 'tv' ? 'series' : 'titles'} matching &ldquo;{query}&rdquo;. Try another title or switch category.
             </p>
           </div>
         )}
@@ -401,8 +434,8 @@ function SearchContent() {
               <div
                 className="inline-flex items-center gap-1 p-1 rounded-xl"
                 style={{
-                  background: 'rgba(255,255,255,0.05)',
-                  border: '1px solid rgba(255,255,255,0.08)',
+                  background: 'rgba(255, 255, 255, 0.05)',
+                  border: '1px solid rgba(255, 255, 255, 0.08)',
                 }}
               >
                 <button
@@ -445,25 +478,24 @@ function SearchContent() {
 
             {/* Trending Grid */}
             {trendingLoading ? (
-              <div className="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-4 lg:grid-cols-5 xl:grid-cols-6 2xl:grid-cols-7 3xl:grid-cols-8 gap-4">
-                {Array.from({ length: 20 }).map((_, i) => (
+              <div className="grid grid-cols-2 xs:grid-cols-2 sm:grid-cols-3 md:grid-cols-4 lg:grid-cols-5 xl:grid-cols-6 gap-3.5 sm:gap-4.5 md:gap-5">
+                {Array.from({ length: 18 }).map((_, i) => (
                   <MovieCardSkeleton key={i} />
                 ))}
               </div>
             ) : trending.length > 0 ? (
-              <div className="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-4 lg:grid-cols-5 xl:grid-cols-6 2xl:grid-cols-7 3xl:grid-cols-8 gap-4">
+              <div className="grid grid-cols-2 xs:grid-cols-2 sm:grid-cols-3 md:grid-cols-4 lg:grid-cols-5 xl:grid-cols-6 gap-3.5 sm:gap-4.5 md:gap-5">
                 {trending.map((item) => (
                   <MovieCard
                     key={item.id}
                     item={item}
-                    type={trendingTab}
+                    type={trendingTab === 'tv' ? 'tv' : 'movie'}
                   />
                 ))}
               </div>
             ) : (
-              <div className="flex flex-col items-center justify-center py-16 gap-3">
-                <Film size={40} style={{ color: '#475569' }} />
-                <p className="text-slate-400 text-sm">Unable to load trending content.</p>
+              <div className="py-12 text-center text-slate-500 text-sm">
+                No trending titles available.
               </div>
             )}
           </div>

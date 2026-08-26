@@ -321,9 +321,9 @@ export default function Hero({
               )}
             </div>
 
-            {/* Overview / Deskripsi (Hanya tampil pada monitor / layar Extra Large Desktop xl: 1280px+, disembunyikan di bawahnya) */}
+            {/* Overview / Deskripsi */}
             {currentItem.overview && (
-              <p className="hidden xl:block text-xs sm:text-sm leading-relaxed text-slate-300 mb-4 sm:mb-6 line-clamp-2 max-w-xl">
+              <p className="text-xs sm:text-sm leading-relaxed text-slate-300 mb-3 sm:mb-5 line-clamp-2 sm:line-clamp-3 md:line-clamp-4 max-w-xl">
                 {currentItem.overview}
               </p>
             )}

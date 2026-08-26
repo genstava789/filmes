@@ -6,6 +6,7 @@ import React, { useState, useEffect, useCallback, useMemo } from 'react';
 import Image from 'next/image';
 import Link from 'next/link';
 import { getMovieUrl, getTVUrl, slugify, cleanVideoUrl, extractTmdbIdAndType } from '@/lib/urls';
+import { getImageUrl } from '@/lib/tmdb';
 import {
   Film,
   Tv,
@@ -40,6 +41,14 @@ import {
   Copy,
   CheckSquare,
   Square,
+  SlidersHorizontal,
+  Settings,
+  Eye,
+  Calendar,
+  Clock,
+  Globe,
+  Sliders,
+  Check,
 } from 'lucide-react';
 
 interface MovieItem {
@@ -50,6 +59,7 @@ interface MovieItem {
     tmdb_id?: number | string;
     title?: string;
     image_url?: string;
+    poster_path?: string;
     rating?: number;
     featured?: boolean;
     videourl?: string;
@@ -177,24 +187,35 @@ function SafeAdminImage({
   sizes?: string;
   fill?: boolean;
 }) {
-  const [currentSrc, setCurrentSrc] = useState<string>(src || fallbackSrc || '');
-  const [hasError, setHasError] = useState(false);
+  const resolveUrl = (raw?: string | null) => {
+    if (!raw || typeof raw !== 'string') return '';
+    const trimmed = raw.trim();
+    if (!trimmed) return '';
+    return getImageUrl(trimmed, 'w500');
+  };
+
+  const initial = resolveUrl(src) || resolveUrl(fallbackSrc);
+  const [currentSrc, setCurrentSrc] = useState<string>(initial);
+  const [hasError, setHasError] = useState(!initial || initial === '/placeholder-poster.svg');
 
   useEffect(() => {
-    setCurrentSrc(src || fallbackSrc || '');
-    setHasError(false);
+    const resolved = resolveUrl(src) || resolveUrl(fallbackSrc);
+    setCurrentSrc(resolved);
+    setHasError(!resolved || resolved === '/placeholder-poster.svg');
   }, [src, fallbackSrc]);
 
   const isValid = Boolean(
     currentSrc &&
+      currentSrc !== '/placeholder-poster.svg' &&
       (currentSrc.startsWith('http://') || currentSrc.startsWith('https://') || currentSrc.startsWith('/')) &&
       !hasError
   );
 
   if (!isValid) {
     return (
-      <div className="w-full h-full flex flex-col items-center justify-center bg-slate-900 text-slate-600">
-        <Film size={14} className="text-slate-600 mb-0.5" />
+      <div className="w-full h-full flex flex-col items-center justify-center bg-slate-900/80 text-slate-500 p-1 text-center">
+        <Film size={18} className="text-slate-500 mb-0.5" />
+        <span className="text-[8px] line-clamp-1 leading-tight text-slate-500">{alt}</span>
       </div>
     );
   }
@@ -208,12 +229,9 @@ function SafeAdminImage({
       sizes={sizes}
       unoptimized
       onError={() => {
-        if (
-          fallbackSrc &&
-          currentSrc !== fallbackSrc &&
-          (fallbackSrc.startsWith('http://') || fallbackSrc.startsWith('https://') || fallbackSrc.startsWith('/'))
-        ) {
-          setCurrentSrc(fallbackSrc);
+        const fb = resolveUrl(fallbackSrc);
+        if (fb && currentSrc !== fb && fb !== '/placeholder-poster.svg') {
+          setCurrentSrc(fb);
         } else {
           setHasError(true);
         }
@@ -1861,7 +1879,7 @@ export default function AdminPage() {
               {paginatedMovies.map((movie) => {
                 const title = movie.displayTitle || movie.frontmatter.title || movie.slug;
                 const tmdbId = movie.frontmatter.tmdb_id;
-                const poster = movie.posterUrl || movie.frontmatter.image_url;
+                const poster = movie.posterUrl || movie.frontmatter.image_url || movie.frontmatter.poster_path;
                 const isFeatured = Boolean(movie.frontmatter.featured);
                 const rating = movie.rating || movie.frontmatter.rating;
 
