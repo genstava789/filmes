@@ -14,6 +14,10 @@ const nextConfig = {
     formats: ['image/avif', 'image/webp'],
   },
 
+  // Kompresi Brotli/Gzip & SWC Minification
+  compress: true,
+  swcMinify: true,
+
   // Tree-shaking lucide-react agar bundle lebih kecil
   experimental: {
     optimizePackageImports: ['lucide-react'],

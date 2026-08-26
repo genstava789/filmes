@@ -12,24 +12,35 @@ const API_KEY = process.env.NEXT_PUBLIC_TMDB_API_KEY || 'ea0c8bc1b7235d9e19b457c
 const BASE_URL = process.env.NEXT_PUBLIC_TMDB_BASE_URL || 'https://api.themoviedb.org/3';
 const IMAGE_BASE_URL = process.env.NEXT_PUBLIC_TMDB_IMAGE_BASE_URL || 'https://image.tmdb.org/t/p';
 
-type ImageSize = 'w200' | 'w300' | 'w400' | 'w500' | 'w780' | 'w1280' | 'original';
+import { memoryCache } from '@/lib/cache';
+
+export type ImageSize = 'w200' | 'w300' | 'w400' | 'w500' | 'w780' | 'w1280' | 'original';
 
 async function fetchTMDB<T>(endpoint: string, params: Record<string, string> = {}): Promise<T> {
-  const url = new URL(`${BASE_URL}${endpoint}`);
-  url.searchParams.set('api_key', API_KEY);
-  Object.entries(params).forEach(([key, value]) => {
-    url.searchParams.set(key, value);
-  });
+  const cacheKey = `tmdb_${endpoint}_${JSON.stringify(params)}`;
 
-  const response = await fetch(url.toString(), {
-    next: { revalidate: 3600 },
-  });
+  return memoryCache.getOrFetch<T>(
+    cacheKey,
+    async () => {
+      const url = new URL(`${BASE_URL}${endpoint}`);
+      url.searchParams.set('api_key', API_KEY);
+      Object.entries(params).forEach(([key, value]) => {
+        url.searchParams.set(key, value);
+      });
 
-  if (!response.ok) {
-    throw new Error(`TMDB API error: ${response.status} ${response.statusText} for ${endpoint}`);
-  }
+      const response = await fetch(url.toString(), {
+        next: { revalidate: 3600 },
+      });
 
-  return response.json() as Promise<T>;
+      if (!response.ok) {
+        throw new Error(`TMDB API error: ${response.status} ${response.statusText} for ${endpoint}`);
+      }
+
+      return (await response.json()) as T;
+    },
+    600_000, // 10 min hard TTL
+    120_000  // 2 min SWR background revalidate
+  );
 }
 
 export function getImageUrl(path: string | null | undefined, size: ImageSize = 'w500'): string {

@@ -181,17 +181,23 @@ export interface GetFeaturedOptions {
  * 3. siteConfig.featuredItems (with automatic TMDB API fallback for missing fields when tmdbId is given)
  * 4. Dynamic TMDB items (e.g. trending movies) as fallback/fillers if needed, ensuring zero duplicates!
  */
+import { memoryCache } from '@/lib/cache';
+
 export async function getEnrichedFeaturedItems(options: GetFeaturedOptions = {}): Promise<FeaturedItem[]> {
   const { dynamicFallbackMovies = [], dynamicFallbackTV = [], maxItems = 5 } = options;
+  const cacheKey = `featured_enriched_items_${maxItems}_${dynamicFallbackMovies.length}_${dynamicFallbackTV.length}`;
 
-  // 1. Fetch custom markdown featured movies and TV shows concurrently
-  const [customMoviesRes, customTVRes] = await Promise.allSettled([
-    getAllFeaturedCustomMovies(),
-    getAllFeaturedCustomTV(),
-  ]);
+  return memoryCache.getOrFetch<FeaturedItem[]>(
+    cacheKey,
+    async () => {
+      // 1. Fetch custom markdown featured movies and TV shows concurrently
+      const [customMoviesRes, customTVRes] = await Promise.allSettled([
+        getAllFeaturedCustomMovies(),
+        getAllFeaturedCustomTV(),
+      ]);
 
-  const customMovies = customMoviesRes.status === 'fulfilled' ? customMoviesRes.value : [];
-  const customTV = customTVRes.status === 'fulfilled' ? customTVRes.value : [];
+      const customMovies = customMoviesRes.status === 'fulfilled' ? customMoviesRes.value : [];
+      const customTV = customTVRes.status === 'fulfilled' ? customTVRes.value : [];
 
   // 2. Enrich configured featured items from siteConfig concurrently
   const rawConfigItems = siteConfig.featuredItems || [];
@@ -303,5 +309,9 @@ export async function getEnrichedFeaturedItems(options: GetFeaturedOptions = {})
     }
   }
 
-  return featuredList.slice(0, maxItems);
+      return featuredList.slice(0, maxItems);
+    },
+    60_000, // 60s hard TTL
+    30_000  // 30s SWR
+  );
 }

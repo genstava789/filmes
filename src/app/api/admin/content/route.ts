@@ -6,6 +6,8 @@ import { revalidatePath } from 'next/cache';
 import { slugify, cleanVideoUrl, extractTmdbIdAndType } from '@/lib/urls';
 import { saveGitHubFile, deleteGitHubFile } from '@/lib/githubStorage';
 import { getMovieDetails, getTVShowDetails, getImageUrl } from '@/lib/tmdb';
+import { memoryCache } from '@/lib/cache';
+import { getContentProvider } from '@/lib/content';
 
 const VIDEO_DIR = path.join(process.cwd(), 'video');
 const TV_DIR = path.join(process.cwd(), 'tv');
@@ -37,6 +39,8 @@ export const revalidate = 0;
 
 function revalidateAll() {
   try {
+    memoryCache.clear();
+    getContentProvider().invalidateCache();
     revalidatePath('/', 'layout');
     revalidatePath('/', 'page');
     revalidatePath('/movie', 'page');
