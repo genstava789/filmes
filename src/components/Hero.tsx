@@ -243,13 +243,6 @@ export default function Hero({
               {currentItem.title}
             </h1>
 
-            {/* Tagline (Only on large desktop screens lg+) */}
-            {currentItem.tagline && (
-              <p className="hidden lg:block text-xs sm:text-sm md:text-base italic text-purple-300 mb-2 font-medium">
-                &ldquo;{currentItem.tagline}&rdquo;
-              </p>
-            )}
-
             {/* Meta row with Designed Badges: Featured badge placed side-by-side with HD badge */}
             <div className="flex flex-wrap items-center gap-1.5 xs:gap-2 sm:gap-3 mb-3 sm:mb-5 text-xs sm:text-sm">
               {/* Featured Badge */}
@@ -327,9 +320,9 @@ export default function Hero({
               )}
             </div>
 
-            {/* Overview / Deskripsi (Completely hidden on all small & tablet screens, only visible on large desktop lg+) */}
+            {/* Overview / Deskripsi (Hanya tampil pada monitor / layar Extra Large Desktop xl: 1280px+, disembunyikan di bawahnya) */}
             {currentItem.overview && (
-              <p className="hidden lg:block text-xs sm:text-sm md:text-base leading-relaxed text-slate-300 mb-4 sm:mb-6 line-clamp-2 md:line-clamp-3 max-w-2xl">
+              <p className="hidden xl:block text-xs sm:text-sm leading-relaxed text-slate-300 mb-4 sm:mb-6 line-clamp-2 max-w-xl">
                 {currentItem.overview}
               </p>
             )}

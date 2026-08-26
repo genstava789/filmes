@@ -17,14 +17,18 @@ import { memoryCache } from '@/lib/cache';
 export type ImageSize = 'w200' | 'w300' | 'w400' | 'w500' | 'w780' | 'w1280' | 'original';
 
 async function fetchTMDB<T>(endpoint: string, params: Record<string, string> = {}): Promise<T> {
-  const cacheKey = `tmdb_${endpoint}_${JSON.stringify(params)}`;
+  const mergedParams: Record<string, string> = {
+    language: 'id-ID',
+    ...params,
+  };
+  const cacheKey = `tmdb_${endpoint}_${JSON.stringify(mergedParams)}`;
 
   return memoryCache.getOrFetch<T>(
     cacheKey,
     async () => {
       const url = new URL(`${BASE_URL}${endpoint}`);
       url.searchParams.set('api_key', API_KEY);
-      Object.entries(params).forEach(([key, value]) => {
+      Object.entries(mergedParams).forEach(([key, value]) => {
         url.searchParams.set(key, value);
       });
 
@@ -97,9 +101,20 @@ export async function getTopRatedMovies(page: number = 1): Promise<TMDBResponse<
 
 export async function getMovieDetails(id: number): Promise<MovieDetail | null> {
   try {
-    return await fetchTMDB<MovieDetail>(`/movie/${id}`, {
+    const movie = await fetchTMDB<MovieDetail>(`/movie/${id}`, {
       append_to_response: 'videos,credits,similar',
+      language: 'id-ID',
     });
+    // Fallback overview to en-US if id-ID overview is empty
+    if (movie && (!movie.overview || movie.overview.trim() === '')) {
+      const enMovie = await fetchTMDB<MovieDetail>(`/movie/${id}`, {
+        language: 'en-US',
+      }).catch(() => null);
+      if (enMovie?.overview) {
+        movie.overview = enMovie.overview;
+      }
+    }
+    return movie;
   } catch (e) {
     console.warn(`TMDB getMovieDetails error for ${id}:`, e);
     return null;
@@ -108,9 +123,20 @@ export async function getMovieDetails(id: number): Promise<MovieDetail | null> {
 
 export async function getTVShowDetails(id: number): Promise<TVShowDetail | null> {
   try {
-    return await fetchTMDB<TVShowDetail>(`/tv/${id}`, {
+    const show = await fetchTMDB<TVShowDetail>(`/tv/${id}`, {
       append_to_response: 'videos,credits,similar',
+      language: 'id-ID',
     });
+    // Fallback overview to en-US if id-ID overview is empty
+    if (show && (!show.overview || show.overview.trim() === '')) {
+      const enShow = await fetchTMDB<TVShowDetail>(`/tv/${id}`, {
+        language: 'en-US',
+      }).catch(() => null);
+      if (enShow?.overview) {
+        show.overview = enShow.overview;
+      }
+    }
+    return show;
   } catch (e) {
     console.warn(`TMDB getTVShowDetails error for ${id}:`, e);
     return null;
