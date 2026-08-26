@@ -107,6 +107,7 @@ export async function saveGitHubFile(
       'Content-Type': 'application/json',
       'User-Agent': 'LeviStream-CMS',
     },
+    body: JSON.stringify(bodyPayload),
   });
 
   if (!res.ok) {
