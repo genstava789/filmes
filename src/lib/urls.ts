@@ -116,3 +116,73 @@ export function getTVUrl(show: {
   }
   return id ? `/tv/${id}` : (customSlug ? `/tv/${customSlug}` : '/tv');
 }
+
+/**
+ * Sanitizes and normalizes a video URL:
+ * - Strips enclosing quotes, stray backticks, whitespace, and YAML scalar artifacts.
+ * - Auto-corrects common URL protocol typos (e.g. "https//:", "https:/", "http//:").
+ */
+export function cleanVideoUrl(url?: string | null): string | null {
+  if (!url || typeof url !== 'string') return null;
+  let clean = url.trim();
+
+  // Strip wrapping/stray quotes (single quotes, double quotes, backticks)
+  clean = clean.replace(/^["'`]+|["'`]+$/g, '').trim();
+
+  // Fix typo protocol https//: or http//: -> https:// or http://
+  clean = clean.replace(/^(https?)\/\/:(.*)$/i, '$1://$2');
+  clean = clean.replace(/^(https?):\/\/:(.*)$/i, '$1://$2');
+
+  // Fix typo protocol https:/ or http:/ with single slash (not followed by /)
+  clean = clean.replace(/^(https?):\/(?!\/)(.*)$/i, '$1://$2');
+
+  // Fix 3+ slashes: https:/// -> https://
+  clean = clean.replace(/^(https?):\/{3,}(.*)$/i, '$1://$2');
+
+  // Strip any remaining quotes at ends
+  clean = clean.replace(/^["'`]+|["'`]+$/g, '').trim();
+
+  if (!clean || clean === 'null' || clean === 'undefined') return null;
+  return clean;
+}
+
+/**
+ * Parses user input which can be either a numeric TMDB ID or a full TMDB URL
+ * (e.g. "https://www.themoviedb.org/movie/1084244-toy-story-5?language=id").
+ * Returns the extracted numeric ID and media type if detected.
+ */
+export function extractTmdbIdAndType(input?: string | null): { id: string | null; type?: 'movie' | 'tv' } {
+  if (!input || typeof input !== 'string') return { id: null };
+  const trimmed = input.trim();
+
+  // Pure numeric ID
+  if (/^\d+$/.test(trimmed)) {
+    return { id: trimmed };
+  }
+
+  // Matches themoviedb.org/movie/1084244... or themoviedb.org/tv/95350...
+  const urlMatch = trimmed.match(/(?:themoviedb\.org|api\.themoviedb\.org)(?:\/3)?\/(movie|tv)\/(\d+)/i);
+  if (urlMatch) {
+    return {
+      type: urlMatch[1].toLowerCase() === 'tv' ? 'tv' : 'movie',
+      id: urlMatch[2],
+    };
+  }
+
+  // Any generic URL path with /movie/123 or /tv/123
+  const genericMatch = trimmed.match(/\/(movie|tv)\/(\d+)/i);
+  if (genericMatch) {
+    return {
+      type: genericMatch[1].toLowerCase() === 'tv' ? 'tv' : 'movie',
+      id: genericMatch[2],
+    };
+  }
+
+  // Fallback: extract standalone numeric sequence of 2 or more digits
+  const digitMatch = trimmed.match(/(\d{2,})/);
+  if (digitMatch) {
+    return { id: digitMatch[1] };
+  }
+
+  return { id: null };
+}

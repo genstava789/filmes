@@ -11,6 +11,7 @@ import {
   ChevronRight,
   Loader2,
 } from 'lucide-react';
+import { cleanVideoUrl } from '@/lib/urls';
 import 'plyr/dist/plyr.css';
 
 export interface SubtitleTrackItem {
@@ -160,12 +161,13 @@ export default function VideoPlayer({
   const lastSavedTimeRef = useRef<number>(0);
   const countdownTimerRef = useRef<NodeJS.Timeout | null>(null);
 
-  const youtubeId = getYouTubeId(videoUrl);
-  const vimeoId = getVimeoId(videoUrl);
+  const effectiveVideoUrl = cleanVideoUrl(videoUrl) || videoUrl || '';
+  const youtubeId = getYouTubeId(effectiveVideoUrl);
+  const vimeoId = getVimeoId(effectiveVideoUrl);
 
   const storageKey =
-    typeof window !== 'undefined' && videoUrl
-      ? `filmes_progress_${encodeURIComponent(videoUrl.split('?')[0])}`
+    typeof window !== 'undefined' && effectiveVideoUrl
+      ? `filmes_progress_${encodeURIComponent(effectiveVideoUrl.split('?')[0])}`
       : null;
 
   // Helper to normalize subtitle prop into array
@@ -192,8 +194,8 @@ export default function VideoPlayer({
   }, [subtitles]);
 
   const extSubs = normalizeSubtitles();
-  const isHls = videoUrl.includes('.m3u8');
-  const isMkv = videoUrl.toLowerCase().includes('.mkv') || videoUrl.includes('matroska');
+  const isHls = effectiveVideoUrl.includes('.m3u8');
+  const isMkv = effectiveVideoUrl.toLowerCase().includes('.mkv') || effectiveVideoUrl.includes('matroska');
 
   // Main video player initialization effect
   useEffect(() => {
@@ -402,7 +404,7 @@ export default function VideoPlayer({
         });
 
         // Fetch streaming chunks from MKV file
-        const res = await fetch(videoUrl, {
+        const res = await fetch(effectiveVideoUrl, {
           signal: abortController.signal,
         });
 
@@ -433,7 +435,7 @@ export default function VideoPlayer({
               lowLatencyMode: true,
               backBufferLength: 90,
             });
-            hls.loadSource(videoUrl);
+            hls.loadSource(effectiveVideoUrl);
             hls.attachMedia(videoElement);
 
             hls.on(HlsModule.Events.SUBTITLE_TRACKS_UPDATED, () => {
@@ -588,7 +590,7 @@ export default function VideoPlayer({
         videoElement.removeEventListener('loadedmetadata', onLoadedMetadata);
       }
     };
-  }, [videoUrl, youtubeId, vimeoId, storageKey, isHls, isMkv, onNextEpisode]);
+  }, [effectiveVideoUrl, youtubeId, vimeoId, storageKey, isHls, isMkv, onNextEpisode]);
 
   // Next episode countdown timer
   useEffect(() => {
@@ -897,22 +899,22 @@ export default function VideoPlayer({
             ) : (
               /* Declarative <video> tag in JSX isolated with key */
               <div
-                key={videoUrl}
+                key={effectiveVideoUrl}
                 className="w-full h-full flex items-center justify-center plyr-custom-wrapper"
               >
                 <video
                   ref={videoRef}
-                  src={isMounted ? videoUrl : undefined}
+                  src={isMounted ? effectiveVideoUrl : undefined}
                   className="plyr-react plyr w-full h-full"
                   playsInline
                   crossOrigin="anonymous"
                   poster={poster}
                 >
                   <source
-                    src={isMounted ? videoUrl : ''}
-                    type={videoUrl.includes('.m3u8') ? 'application/x-mpegURL' : 'video/mp4'}
+                    src={isMounted ? effectiveVideoUrl : ''}
+                    type={effectiveVideoUrl.includes('.m3u8') ? 'application/x-mpegURL' : 'video/mp4'}
                   />
-                  {isMounted && isMkv && <source src={videoUrl} type="video/x-matroska" />}
+                  {isMounted && isMkv && <source src={effectiveVideoUrl} type="video/x-matroska" />}
 
                   {isMounted &&
                     extSubs.map((sub, idx) => (

@@ -5,6 +5,7 @@ import { marked } from 'marked';
 import { MovieDetail } from '@/types/tmdb';
 import { getMovieDetails, getImageUrl, searchMovies } from '@/lib/tmdb';
 import siteConfig, { FeaturedItem } from '@/config';
+import { cleanVideoUrl } from '@/lib/urls';
 
 export interface CustomMovieFrontmatter {
   title?: string;
@@ -376,7 +377,7 @@ export async function getMovieDetailsWithCustomOverride(
         similar: { page: 1, results: [], total_pages: 0, total_results: 0 },
         isCustomMarkdown: true,
         customSlug: customMovie.slug,
-        customVideoUrl: frontmatter.videourl || frontmatter.video_url || null,
+        customVideoUrl: cleanVideoUrl(frontmatter.videourl || frontmatter.video_url),
         customImageUrl: frontmatter.image_url || null,
         customSubtitles: frontmatter.subtitles || null,
         customContentHtml: contentHtml && contentHtml.trim().length > 0 ? contentHtml : null,
@@ -407,7 +408,7 @@ export async function getMovieDetailsWithCustomOverride(
         similar: { page: 1, results: [], total_pages: 0, total_results: 0 },
         isCustomMarkdown: true,
         customSlug: customMovie.slug,
-        customVideoUrl: frontmatter.videourl || frontmatter.video_url || null,
+        customVideoUrl: cleanVideoUrl(frontmatter.videourl || frontmatter.video_url),
         customImageUrl: frontmatter.image_url || null,
         customSubtitles: frontmatter.subtitles || null,
         customContentHtml: contentHtml && contentHtml.trim().length > 0 ? contentHtml : null,
@@ -441,7 +442,7 @@ export async function getMovieDetailsWithCustomOverride(
 
   const overriddenTagline = frontmatter.tagline?.trim() || tmdbMovie.tagline;
 
-  const videoUrl = frontmatter.videourl || frontmatter.video_url || null;
+  const videoUrl = cleanVideoUrl(frontmatter.videourl || frontmatter.video_url);
   const imageUrl = frontmatter.image_url || null;
   const subtitles = frontmatter.subtitles || frontmatter.subtitle || frontmatter.subtitle_url || frontmatter.sub_url || frontmatter.caption_url || null;
 

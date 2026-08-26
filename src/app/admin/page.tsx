@@ -3,7 +3,7 @@
 import React, { useState, useEffect, useCallback, useMemo } from 'react';
 import Image from 'next/image';
 import Link from 'next/link';
-import { getMovieUrl, getTVUrl } from '@/lib/urls';
+import { getMovieUrl, getTVUrl, slugify, cleanVideoUrl, extractTmdbIdAndType } from '@/lib/urls';
 import {
   Film,
   Tv,
@@ -263,22 +263,37 @@ export default function AdminPage() {
     setCurrentPage(1);
   }, [activeTab, searchQuery, sortBy, filterBy]);
 
-  // TMDB Autofetch preview
-  const handleFetchTmdbPreview = async (id: string, type: 'movie' | 'tv') => {
-    if (!id || !/^\d+$/.test(id.trim())) {
-      setFormErrors((prev) => ({ ...prev, tmdb_id: 'Masukkan TMDB ID berupa angka' }));
+  // TMDB Autofetch preview with support for pure IDs and full TMDB URLs
+  const handleFetchTmdbPreview = async (idOrUrl: string, type: 'movie' | 'tv') => {
+    const extracted = extractTmdbIdAndType(idOrUrl);
+    if (!extracted.id) {
+      setFormErrors((prev) => ({ ...prev, tmdb_id: 'Masukkan TMDB ID angka atau URL TMDB yang valid' }));
       return;
     }
+    const cleanId = extracted.id;
+    const targetType = extracted.type || type;
+    if (extracted.type && extracted.type === 'tv' && contentType === 'movie') {
+      setContentType('tv_show');
+    } else if (extracted.type && extracted.type === 'movie' && contentType === 'tv_show') {
+      setContentType('movie');
+    }
+
+    setFormTmdbId(cleanId);
     setFetchingTmdb(true);
     try {
-      const res = await fetch(`/api/admin/tmdb-preview?id=${id.trim()}&type=${type}`);
+      const res = await fetch(`/api/admin/tmdb-preview?id=${cleanId}&type=${targetType}`);
       const data = await res.json();
       if (res.ok) {
         setTmdbPreview(data);
-        if (!formTitle && data.title) setFormTitle(data.title);
-        if (!formDesc && data.overview) setFormDesc(data.overview);
-        if (!formPoster && data.posterUrl) setFormPoster(data.posterUrl);
-        if (!formRating && data.rating) setFormRating(String(data.rating));
+        if (!formTitle || formTitle === formTmdbId) setFormTitle(data.title);
+        if (!formDesc) setFormDesc(data.overview);
+        if (!formPoster) setFormPoster(data.posterUrl);
+        if (!formRating) setFormRating(String(data.rating || ''));
+        if (data.title && !formSlug) {
+          const autoSlug = slugify(data.title);
+          if (data.year) setFormSlug(`${autoSlug}-${data.year}`);
+          else setFormSlug(autoSlug);
+        }
         setFormErrors((prev) => {
           const next = { ...prev };
           delete next.tmdb_id;
@@ -293,6 +308,32 @@ export default function AdminPage() {
       showToast('Gagal menghubungi TMDB API', 'error');
     } finally {
       setFetchingTmdb(false);
+    }
+  };
+
+  // Handler for typing or pasting into TMDB ID input
+  const handleTmdbIdInputChange = (val: string) => {
+    const extracted = extractTmdbIdAndType(val);
+    if (val.includes('themoviedb.org') || val.includes('/movie/') || val.includes('/tv/')) {
+      if (extracted.id) {
+        setFormTmdbId(extracted.id);
+        const targetType = extracted.type || (contentType === 'movie' ? 'movie' : 'tv');
+        if (extracted.type && extracted.type === 'tv' && contentType === 'movie') {
+          setContentType('tv_show');
+        } else if (extracted.type && extracted.type === 'movie' && contentType === 'tv_show') {
+          setContentType('movie');
+        }
+        handleFetchTmdbPreview(extracted.id, targetType);
+        return;
+      }
+    }
+    setFormTmdbId(val);
+    if (val) {
+      setFormErrors((prev) => {
+        const next = { ...prev };
+        delete next.tmdb_id;
+        return next;
+      });
     }
   };
 
@@ -319,10 +360,11 @@ export default function AdminPage() {
     const errors: Record<string, string> = {};
 
     if (contentType === 'movie' || contentType === 'tv_show') {
+      const extracted = extractTmdbIdAndType(formTmdbId);
       if (!formTmdbId.trim()) {
         errors.tmdb_id = 'TMDB ID wajib diisi!';
-      } else if (!/^\d+$/.test(formTmdbId.trim())) {
-        errors.tmdb_id = 'TMDB ID harus berupa angka!';
+      } else if (!extracted.id) {
+        errors.tmdb_id = 'TMDB ID harus berupa angka atau URL TMDB yang valid!';
       }
     }
 
@@ -356,10 +398,14 @@ export default function AdminPage() {
 
     if (!requireToken('membuat konten')) return;
 
+    const extracted = extractTmdbIdAndType(formTmdbId);
+    const tmdbIdNum = extracted.id ? Number(extracted.id) : undefined;
+    const cleanVideo = cleanVideoUrl(formVideoUrl) || formVideoUrl.trim();
+
     const payload: any = {
       contentType,
-      tmdb_id: formTmdbId ? Number(formTmdbId) : undefined,
-      videourl: formVideoUrl.trim(),
+      tmdb_id: tmdbIdNum,
+      videourl: cleanVideo,
       title: formTitle.trim() || undefined,
       desc: formDesc.trim() || undefined,
       poster: formPoster.trim() || undefined,
@@ -432,10 +478,11 @@ export default function AdminPage() {
 
     if (editingItem.type !== 'tv_episode') {
       const id = String(editingItem.frontmatter.tmdb_id || '').trim();
+      const ext = extractTmdbIdAndType(id);
       if (!id) {
         errors.tmdb_id = 'TMDB ID wajib diisi!';
-      } else if (!/^\d+$/.test(id)) {
-        errors.tmdb_id = 'TMDB ID harus berupa angka!';
+      } else if (!ext.id) {
+        errors.tmdb_id = 'TMDB ID harus berupa angka atau URL TMDB yang valid!';
       }
     }
 
@@ -1423,7 +1470,7 @@ export default function AdminPage() {
                 <div>
                   <div className="flex items-center justify-between mb-1">
                     <label className="text-xs font-bold text-slate-300">
-                      TMDB ID <span className="text-red-400 font-extrabold">* (Wajib)</span>
+                      TMDB ID atau URL <span className="text-red-400 font-extrabold">* (Wajib)</span>
                     </label>
                     {formErrors.tmdb_id && (
                       <span className="text-[11px] font-bold text-red-400 flex items-center gap-1">
@@ -1431,22 +1478,13 @@ export default function AdminPage() {
                       </span>
                     )}
                   </div>
-                  <div className="flex gap-2">
+                  <div className="flex flex-col sm:flex-row gap-2 w-full">
                     <input
-                      type="number"
+                      type="text"
                       value={formTmdbId}
-                      onChange={(e) => {
-                        setFormTmdbId(e.target.value);
-                        if (e.target.value) {
-                          setFormErrors((prev) => {
-                            const next = { ...prev };
-                            delete next.tmdb_id;
-                            return next;
-                          });
-                        }
-                      }}
-                      placeholder="Contoh: 1288445"
-                      className={`flex-1 px-3.5 py-2.5 bg-black/40 rounded-xl text-sm text-white transition-all focus:outline-none ${
+                      onChange={(e) => handleTmdbIdInputChange(e.target.value)}
+                      placeholder="Contoh: 1084244 atau paste URL TMDB"
+                      className={`w-full flex-1 min-w-0 px-3.5 py-2.5 bg-black/40 rounded-xl text-sm text-white transition-all focus:outline-none ${
                         formErrors.tmdb_id
                           ? 'border-2 border-red-500 ring-2 ring-red-500/20 bg-red-950/20'
                           : 'border border-white/10 focus:border-cyan-400'
@@ -1456,10 +1494,10 @@ export default function AdminPage() {
                       type="button"
                       onClick={() => handleFetchTmdbPreview(formTmdbId, contentType === 'movie' ? 'movie' : 'tv')}
                       disabled={fetchingTmdb || !formTmdbId}
-                      className="px-4 py-2.5 bg-cyan-500/20 text-cyan-300 border border-cyan-500/40 rounded-xl text-xs font-bold hover:bg-cyan-500/30 transition-all flex items-center gap-1.5 disabled:opacity-50"
+                      className="w-full sm:w-auto px-4 py-2.5 bg-cyan-500/20 text-cyan-300 border border-cyan-500/40 rounded-xl text-xs font-bold hover:bg-cyan-500/30 transition-all flex items-center justify-center gap-1.5 disabled:opacity-50 flex-shrink-0"
                     >
                       <Sparkles size={14} className={fetchingTmdb ? 'animate-spin' : ''} />
-                      <span>{fetchingTmdb ? 'Fetching...' : 'Auto-Fetch TMDB'}</span>
+                      <span>{fetchingTmdb ? 'Mengambil Data...' : 'Auto-Fetch TMDB'}</span>
                     </button>
                   </div>
                 </div>
@@ -1731,7 +1769,7 @@ export default function AdminPage() {
                 <div>
                   <div className="flex items-center justify-between mb-1">
                     <label className="text-xs font-bold text-slate-300">
-                      TMDB ID <span className="text-red-400 font-extrabold">* (Wajib)</span>
+                      TMDB ID atau URL <span className="text-red-400 font-extrabold">* (Wajib)</span>
                     </label>
                     {editErrors.tmdb_id && (
                       <span className="text-[11px] font-bold text-red-400 flex items-center gap-1">
@@ -1740,14 +1778,17 @@ export default function AdminPage() {
                     )}
                   </div>
                   <input
-                    type="number"
+                    type="text"
                     value={editingItem.frontmatter.tmdb_id || ''}
                     onChange={(e) => {
+                      const val = e.target.value;
+                      const ext = extractTmdbIdAndType(val);
+                      const cleanId = (val.includes('themoviedb.org') || val.includes('/movie/') || val.includes('/tv/')) && ext.id ? ext.id : val;
                       setEditingItem({
                         ...editingItem,
-                        frontmatter: { ...editingItem.frontmatter, tmdb_id: e.target.value },
+                        frontmatter: { ...editingItem.frontmatter, tmdb_id: cleanId },
                       });
-                      if (e.target.value) {
+                      if (val) {
                         setEditErrors((prev) => {
                           const next = { ...prev };
                           delete next.tmdb_id;
@@ -1755,6 +1796,7 @@ export default function AdminPage() {
                         });
                       }
                     }}
+                    placeholder="Contoh: 1084244 atau paste URL TMDB"
                     className={`w-full px-3.5 py-2.5 bg-black/40 rounded-xl text-sm text-white transition-all focus:outline-none ${
                       editErrors.tmdb_id
                         ? 'border-2 border-red-500 ring-2 ring-red-500/20 bg-red-950/20'

@@ -1,16 +1,19 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { getMovieDetails, getTVShowDetails, getImageUrl } from '@/lib/tmdb';
+import { extractTmdbIdAndType } from '@/lib/urls';
 
 export async function GET(request: NextRequest) {
   const { searchParams } = new URL(request.url);
   const idStr = searchParams.get('id');
-  const type = searchParams.get('type') || 'movie'; // 'movie' or 'tv'
+  const queryType = searchParams.get('type') || 'movie'; // 'movie' or 'tv'
 
-  if (!idStr || !/^\d+$/.test(idStr)) {
-    return NextResponse.json({ error: 'Valid numeric TMDB ID is required' }, { status: 400 });
+  const extracted = extractTmdbIdAndType(idStr);
+  if (!extracted.id) {
+    return NextResponse.json({ error: 'Valid numeric TMDB ID or TMDB URL is required' }, { status: 400 });
   }
 
-  const tmdbId = Number(idStr);
+  const tmdbId = Number(extracted.id);
+  const type = extracted.type || queryType;
 
   try {
     if (type === 'tv') {

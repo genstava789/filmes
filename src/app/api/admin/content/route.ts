@@ -3,7 +3,7 @@ import fs from 'fs';
 import path from 'path';
 import matter from 'gray-matter';
 import { revalidatePath } from 'next/cache';
-import { slugify } from '@/lib/urls';
+import { slugify, cleanVideoUrl, extractTmdbIdAndType } from '@/lib/urls';
 import { saveGitHubFile, deleteGitHubFile } from '@/lib/githubStorage';
 import { getMovieDetails, getTVShowDetails, getImageUrl } from '@/lib/tmdb';
 
@@ -270,14 +270,19 @@ export async function POST(request: NextRequest) {
     if (contentType === 'movie') {
       let { tmdb_id, videourl, title, desc, poster, rating, featured, subtitles, content = '', slug } = body;
 
-      if (!tmdb_id) {
-        return NextResponse.json({ error: 'tmdb_id is required' }, { status: 400 });
+      const extracted = extractTmdbIdAndType(String(tmdb_id || ''));
+      const parsedId = extracted.id ? Number(extracted.id) : Number(tmdb_id);
+
+      if (!parsedId || isNaN(parsedId)) {
+        return NextResponse.json({ error: 'tmdb_id is required and must be a valid numeric ID or TMDB URL' }, { status: 400 });
       }
-      if (!videourl) {
+
+      const cleanVideo = cleanVideoUrl(videourl);
+      if (!cleanVideo) {
         return NextResponse.json({ error: 'videourl (url_video) is required' }, { status: 400 });
       }
 
-      const tmdbIdNum = Number(tmdb_id);
+      const tmdbIdNum = parsedId;
 
       // If title or metadata is missing, fetch from TMDB API to enrich the markdown file
       if (!title || !desc || !poster) {
@@ -294,13 +299,13 @@ export async function POST(request: NextRequest) {
         }
       }
 
-      const fileSlug = slug ? slugify(slug) : title ? slugify(title) : `movie-${tmdb_id}`;
+      const fileSlug = slug ? slugify(slug) : title ? slugify(title) : `movie-${tmdbIdNum}`;
       const filename = `${fileSlug}.md`;
       relativePath = `video/${filename}`;
 
       const frontmatterData: Record<string, any> = {
         tmdb_id: tmdbIdNum,
-        videourl: videourl.trim(),
+        videourl: cleanVideo,
       };
 
       if (title && title.trim()) frontmatterData.title = title.trim();
@@ -314,11 +319,14 @@ export async function POST(request: NextRequest) {
     } else if (contentType === 'tv_show') {
       let { tmdb_id, title, desc, poster, rating, featured, showSlug, content = '' } = body;
 
-      if (!tmdb_id) {
-        return NextResponse.json({ error: 'tmdb_id is required' }, { status: 400 });
+      const extracted = extractTmdbIdAndType(String(tmdb_id || ''));
+      const parsedId = extracted.id ? Number(extracted.id) : Number(tmdb_id);
+
+      if (!parsedId || isNaN(parsedId)) {
+        return NextResponse.json({ error: 'tmdb_id is required and must be a valid numeric ID or TMDB URL' }, { status: 400 });
       }
 
-      const tmdbIdNum = Number(tmdb_id);
+      const tmdbIdNum = parsedId;
 
       // If title or metadata is missing, fetch from TMDB API
       if (!title || !desc || !poster) {
@@ -355,7 +363,8 @@ export async function POST(request: NextRequest) {
       if (!showSlug) {
         return NextResponse.json({ error: 'showSlug is required for TV episode' }, { status: 400 });
       }
-      if (!videourl) {
+      const cleanVideo = cleanVideoUrl(videourl);
+      if (!cleanVideo) {
         return NextResponse.json({ error: 'videourl (url_video) is required for TV episode' }, { status: 400 });
       }
 
@@ -369,7 +378,7 @@ export async function POST(request: NextRequest) {
         : `tv/${cleanShowSlug}/${filename}`;
 
       const frontmatterData: Record<string, any> = {
-        videourl: videourl.trim(),
+        videourl: cleanVideo,
       };
 
       if (title && title.trim()) frontmatterData.title = title.trim();
@@ -443,11 +452,16 @@ export async function PUT(request: NextRequest) {
       return NextResponse.json({ error: 'Access denied outside content directories' }, { status: 403 });
     }
 
-    // Clean empty values from frontmatter
+    // Clean empty values and sanitize frontmatter
     const cleanFrontmatter: Record<string, any> = {};
     for (const [key, val] of Object.entries(newFrontmatter || {})) {
       if (val !== undefined && val !== null && val !== '') {
-        if (key === 'tmdb_id' || key === 'rating' || key === 'episode_number' || key === 'season_number') {
+        if (key === 'tmdb_id') {
+          const ext = extractTmdbIdAndType(String(val));
+          cleanFrontmatter[key] = ext.id ? Number(ext.id) : (isNaN(Number(val)) ? val : Number(val));
+        } else if (key === 'videourl' || key === 'video_url') {
+          cleanFrontmatter[key] = cleanVideoUrl(String(val)) || String(val).trim();
+        } else if (key === 'rating' || key === 'episode_number' || key === 'season_number') {
           cleanFrontmatter[key] = isNaN(Number(val)) ? val : Number(val);
         } else {
           cleanFrontmatter[key] = val;

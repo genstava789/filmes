@@ -5,6 +5,7 @@ import { marked } from 'marked';
 import { TVShowDetail } from '@/types/tmdb';
 import { getTVShowDetails, getImageUrl, searchTVShows } from '@/lib/tmdb';
 import { FeaturedItem } from '@/config';
+import { cleanVideoUrl } from '@/lib/urls';
 
 export interface CustomTVFrontmatter {
   title?: string;
@@ -377,7 +378,7 @@ export async function getCustomTVShowBySlug(showSlugOrTmdbId: string | number): 
             const baseName = file.replace(/\.(md|markdown)$/i, '');
             const epLabel = seasonNum !== null ? `S${seasonNum}:E${epNum}` : `EP ${epNum < 10 ? '0' + epNum : epNum}`;
             const title = frontmatter.title?.trim() || `Episode ${epNum}`;
-            const videoUrl = frontmatter.videourl || frontmatter.video_url || null;
+            const videoUrl = cleanVideoUrl(frontmatter.videourl || frontmatter.video_url);
             const imageUrl = frontmatter.image_url || null;
             const subtitles = frontmatter.subtitles || frontmatter.subtitle || frontmatter.subtitle_url || frontmatter.sub_url || frontmatter.caption_url || null;
             const overview = (frontmatter.deskripsi || frontmatter.description || '').trim();
@@ -446,7 +447,7 @@ export async function getCustomTVShowBySlug(showSlugOrTmdbId: string | number): 
           const baseName = file.replace(/\.(md|markdown)$/i, '');
           const epLabel = `EP ${epNum < 10 ? '0' + epNum : epNum}`;
           const title = frontmatter.title?.trim() || `Episode ${epNum}`;
-          const videoUrl = frontmatter.videourl || frontmatter.video_url || null;
+          const videoUrl = cleanVideoUrl(frontmatter.videourl || frontmatter.video_url);
           const imageUrl = frontmatter.image_url || null;
           const subtitles = frontmatter.subtitles || frontmatter.subtitle || frontmatter.subtitle_url || frontmatter.sub_url || frontmatter.caption_url || null;
           const overview = (frontmatter.deskripsi || frontmatter.description || '').trim();
