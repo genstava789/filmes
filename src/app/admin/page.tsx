@@ -240,6 +240,15 @@ function parseEpisodeNumber(slugOrFilename?: string | null): number | null {
 }
 
 /**
+ * Formats clean Episode Badge (e.g. "Season 1 • Ep 1")
+ */
+function formatEpisodeBadge(season?: string | null, slugOrFilename?: string | null): string {
+  const sNum = season ? parseInt(season.replace(/\D/g, '') || '1', 10) : 1;
+  const epNum = parseEpisodeNumber(slugOrFilename) || 1;
+  return `Season ${sNum} • Ep ${epNum}`;
+}
+
+/**
  * Calculates the next episode number for a given show and season.
  */
 function getNextEpisodeNumber(show: TVShowItem | undefined, seasonSlug: string): number {
@@ -1891,7 +1900,7 @@ export default function AdminPage() {
                               TMDB {tmdbId}
                             </span>
                             <span className="px-1.5 py-0.2 rounded text-[9px] font-bold bg-purple-500/10 text-purple-400 border border-purple-500/30">
-                              {show.episodes.length} Ep
+                              {show.episodes.length} Episode
                             </span>
                           </div>
                           <h3 className="font-bold text-white text-xs sm:text-sm leading-snug">
@@ -1911,7 +1920,7 @@ export default function AdminPage() {
                             customSlug: show.showSlug,
                           })}
                           target="_blank"
-                          className="inline-flex items-center gap-1 px-2 py-1 rounded text-[11px] font-semibold bg-white/5 hover:bg-white/10 text-cyan-400 transition-all"
+                          className="inline-flex items-center gap-1 px-2.5 py-1 rounded text-[11px] font-semibold bg-white/5 hover:bg-white/10 text-cyan-400 transition-all"
                         >
                           <ExternalLink size={11} />
                           <span>Show</span>
@@ -1943,7 +1952,7 @@ export default function AdminPage() {
                       </div>
                     </div>
 
-                    {/* Episodes Grid */}
+                    {/* Episodes Grid with Clean Horizontal Preview Cards */}
                     <div className="mt-2.5 w-full">
                       {show.episodes.length === 0 ? (
                         <div className="p-3 text-center bg-black/20 rounded-lg border border-white/5">
@@ -1965,9 +1974,8 @@ export default function AdminPage() {
                           </button>
                         </div>
                       ) : (
-                        <div className="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-3 lg:grid-cols-4 gap-2 w-full">
+                        <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-2 w-full">
                           {show.episodes.map((ep) => {
-                            const seasonLabel = formatSeasonLabel(ep.seasonFolder);
                             const epTitle = ep.displayTitle || ep.frontmatter.title || ep.slug;
                             const epVideo = ep.frontmatter.videourl || ep.frontmatter.video_url;
                             const epPoster = ep.posterUrl || ep.frontmatter.image_url;
@@ -1985,61 +1993,60 @@ export default function AdminPage() {
                             return (
                               <div
                                 key={ep.relativePath}
-                                className="p-2 rounded-lg bg-black/40 border border-white/5 flex flex-col justify-between w-full hover:border-white/20 transition-all"
+                                className="p-1.5 rounded-lg bg-black/50 border border-white/10 flex items-center gap-2.5 w-full hover:border-purple-500/40 transition-all shadow-sm"
                               >
-                                <div>
-                                  {/* Episode Thumbnail with Safe Fallback */}
-                                  <div className="relative w-full aspect-video rounded overflow-hidden mb-1.5 bg-slate-900 border border-white/5">
-                                    <SafeAdminImage src={epPoster} fallbackSrc={poster} alt={epTitle} sizes="(max-width: 640px) 100vw, 25vw" />
-                                    <span className="absolute top-1 left-1 px-1 py-0.2 rounded text-[8px] font-extrabold bg-black/80 text-purple-300 backdrop-blur-sm">
-                                      {seasonLabel} • {ep.slug.toUpperCase()}
-                                    </span>
-                                  </div>
+                                {/* Left: Compact 16:9 Thumbnail (w-16 h-10) */}
+                                <div className="relative w-16 h-10 rounded-md overflow-hidden bg-slate-900 border border-white/10 flex-shrink-0">
+                                  <SafeAdminImage src={epPoster} fallbackSrc={poster} alt={epTitle} sizes="64px" />
+                                </div>
 
-                                  <div className="flex items-center justify-between gap-1 mb-0.5">
-                                    <h5 className="font-semibold text-white text-xs truncate flex-1" title={epTitle}>
+                                {/* Center & Right: Episode Info & Badges */}
+                                <div className="flex-1 min-w-0">
+                                  <div className="flex items-center gap-1.5 mb-0.5">
+                                    <span className="px-1.5 py-0.2 rounded text-[9px] font-extrabold bg-purple-500/20 text-purple-300 border border-purple-500/30 whitespace-nowrap">
+                                      {formatEpisodeBadge(ep.seasonFolder, ep.slug)}
+                                    </span>
+                                    <h5 className="font-semibold text-white text-[11px] truncate flex-1" title={epTitle}>
                                       {epTitle}
                                     </h5>
-                                    <div className="flex items-center gap-0.5 flex-shrink-0">
-                                      <button
-                                        onClick={() => {
-                                          if (!requireToken('mengedit episode')) return;
-                                          openEditModal({
-                                            type: 'tv_episode',
-                                            relativePath: ep.relativePath,
-                                            frontmatter: { ...ep.frontmatter },
-                                            content: ep.content,
-                                          });
-                                        }}
-                                        className="p-1 rounded text-slate-400 hover:text-white"
-                                        title="Edit Episode"
-                                      >
-                                        <Edit2 size={11} />
-                                      </button>
-                                      <button
-                                        onClick={() => handleDelete(ep.relativePath, epTitle)}
-                                        className="p-1 rounded text-red-400 hover:text-red-300"
-                                        title="Hapus Episode"
-                                      >
-                                        <Trash2 size={11} />
-                                      </button>
-                                    </div>
                                   </div>
-
-                                  <p className="text-[10px] text-slate-400 font-mono truncate" title={epVideo}>
+                                  <p className="text-[9px] text-slate-400 font-mono truncate" title={epVideo}>
                                     {epVideo || <span className="text-red-400 font-bold">Video belum ada</span>}
                                   </p>
                                 </div>
 
-                                <div className="mt-1 pt-1 border-t border-white/5 flex justify-end">
+                                {/* Actions */}
+                                <div className="flex items-center gap-0.5 flex-shrink-0">
                                   <Link
                                     href={linkPath}
                                     target="_blank"
-                                    className="inline-flex items-center gap-1 text-[10px] text-cyan-400 hover:underline"
+                                    className="p-1 rounded text-cyan-400 hover:text-cyan-300 hover:bg-cyan-500/10 transition-colors"
+                                    title="Tonton"
                                   >
-                                    <Play size={10} />
-                                    <span>Tonton</span>
+                                    <Play size={11} />
                                   </Link>
+                                  <button
+                                    onClick={() => {
+                                      if (!requireToken('mengedit episode')) return;
+                                      openEditModal({
+                                        type: 'tv_episode',
+                                        relativePath: ep.relativePath,
+                                        frontmatter: { ...ep.frontmatter },
+                                        content: ep.content,
+                                      });
+                                    }}
+                                    className="p-1 rounded text-slate-400 hover:text-white transition-colors"
+                                    title="Edit Episode"
+                                  >
+                                    <Edit2 size={11} />
+                                  </button>
+                                  <button
+                                    onClick={() => handleDelete(ep.relativePath, epTitle)}
+                                    className="p-1 rounded text-red-400 hover:text-red-300 transition-colors"
+                                    title="Hapus Episode"
+                                  >
+                                    <Trash2 size={11} />
+                                  </button>
                                 </div>
                               </div>
                             );
@@ -2543,7 +2550,7 @@ export default function AdminPage() {
                     </div>
                   )}
 
-                  {/* Ultra-Compact Season Tabs */}
+                  {/* Ultra-Compact Season Tabs with Clean Stacked Badges */}
                   <div className="flex items-center gap-1.5 overflow-x-auto pb-1">
                     {formSeasons.map((s) => {
                       const isActive = activeSeasonTab === s.season;
@@ -2552,17 +2559,17 @@ export default function AdminPage() {
                           <button
                             type="button"
                             onClick={() => setActiveSeasonTab(s.season)}
-                            className={`px-2 py-1 rounded text-left transition-all flex flex-col items-start min-w-[65px] sm:min-w-[72px] ${
+                            className={`px-3 py-1.5 rounded-lg text-center transition-all flex flex-col items-center justify-center min-w-[75px] sm:min-w-[85px] gap-0.5 ${
                               isActive
-                                ? 'bg-purple-700 text-white shadow-sm ring-1 ring-purple-400'
-                                : 'bg-black/40 text-slate-400 hover:text-white hover:bg-white/5 border border-white/10'
+                                ? 'bg-purple-700 text-white shadow-sm ring-1 ring-purple-400 border border-purple-400/40'
+                                : 'bg-black/40 text-slate-300 hover:text-white hover:bg-white/5 border border-white/10'
                             }`}
                           >
-                            <span className="text-[10px] font-bold tracking-tight">{s.name}</span>
-                            <span className={`text-[8px] font-semibold px-1 py-0.2 mt-0.5 rounded ${
-                              isActive ? 'bg-black/40 text-purple-200' : 'bg-white/5 text-slate-400'
+                            <span className="text-[11px] font-bold tracking-tight">{s.name}</span>
+                            <span className={`text-[9px] font-semibold px-1.5 py-0.2 rounded-full border ${
+                              isActive ? 'bg-black/50 text-purple-200 border-purple-400/30' : 'bg-white/5 text-slate-400 border-white/5'
                             }`}>
-                              {s.episodes.length} Ep
+                              {s.episodes.length} Episode
                             </span>
                           </button>
 
@@ -2719,8 +2726,8 @@ export default function AdminPage() {
                                     )}
                                   </button>
 
-                                  <span className="w-9 text-center py-0.2 rounded text-[9px] font-extrabold bg-purple-500/20 text-purple-300 border border-purple-500/30">
-                                    EP {ep.episode}
+                                  <span className="px-1.5 py-0.2 rounded text-[9px] font-extrabold bg-purple-500/20 text-purple-300 border border-purple-500/30 whitespace-nowrap">
+                                    Episode {ep.episode}
                                   </span>
                                 </div>
 
@@ -2980,17 +2987,17 @@ export default function AdminPage() {
                               setEditActiveSeasonTab(s);
                               setSelectedEditEpPaths([]);
                             }}
-                            className={`px-2 py-1 rounded text-left transition-all flex flex-col items-start min-w-[65px] sm:min-w-[72px] ${
+                            className={`px-3 py-1.5 rounded-lg text-center transition-all flex flex-col items-center justify-center min-w-[75px] sm:min-w-[85px] gap-0.5 ${
                               isActive
-                                ? 'bg-purple-700 text-white shadow-sm ring-1 ring-purple-400'
-                                : 'bg-black/40 text-slate-400 hover:text-white hover:bg-white/5 border border-white/10'
+                                ? 'bg-purple-700 text-white shadow-sm ring-1 ring-purple-400 border border-purple-400/40'
+                                : 'bg-black/40 text-slate-300 hover:text-white hover:bg-white/5 border border-white/10'
                             }`}
                           >
-                            <span className="text-[10px] font-bold tracking-tight">{formatSeasonLabel(s)}</span>
-                            <span className={`text-[8px] font-semibold px-1 py-0.2 mt-0.5 rounded ${
-                              isActive ? 'bg-black/40 text-purple-200' : 'bg-white/5 text-slate-400'
+                            <span className="text-[11px] font-bold tracking-tight">{formatSeasonLabel(s)}</span>
+                            <span className={`text-[9px] font-semibold px-1.5 py-0.2 rounded-full border ${
+                              isActive ? 'bg-black/50 text-purple-200 border-purple-400/30' : 'bg-white/5 text-slate-400 border-white/5'
                             }`}>
-                              {count} Ep
+                              {count} Episode
                             </span>
                           </button>
                         );
@@ -3081,14 +3088,14 @@ export default function AdminPage() {
                                     )}
                                   </button>
 
-                                  <div className="relative w-11 h-7 rounded overflow-hidden bg-slate-900 border border-white/10 flex-shrink-0 shadow-sm">
-                                    <SafeAdminImage src={epPoster} fallbackSrc={currentEditingShow.posterUrl} alt="Thumbnail" sizes="44px" />
+                                  <div className="relative w-12 h-7 rounded overflow-hidden bg-slate-900 border border-white/10 flex-shrink-0 shadow-sm">
+                                    <SafeAdminImage src={epPoster} fallbackSrc={currentEditingShow.posterUrl} alt="Thumbnail" sizes="48px" />
                                   </div>
 
                                   <div className="flex-1 min-w-0">
                                     <div className="flex items-center gap-1 mb-0.5">
-                                      <span className="px-1 py-0.2 rounded text-[8px] font-extrabold bg-purple-500/20 text-purple-300">
-                                        {ep.slug.toUpperCase()}
+                                      <span className="px-1.5 py-0.2 rounded text-[8px] font-extrabold bg-purple-500/20 text-purple-300 border border-purple-500/30 whitespace-nowrap">
+                                        {formatEpisodeBadge(ep.seasonFolder, ep.slug)}
                                       </span>
                                       <h5 className="font-bold text-[11px] text-white truncate">
                                         {ep.displayTitle || ep.frontmatter.title || ep.slug}
