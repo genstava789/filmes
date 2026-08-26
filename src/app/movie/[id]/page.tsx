@@ -1,4 +1,5 @@
 import React from 'react';
+import Image from 'next/image';
 import Link from 'next/link';
 import { Metadata } from 'next';
 import { Calendar, Clock, Globe, Clapperboard, Users, ChevronLeft } from 'lucide-react';
@@ -186,6 +187,18 @@ export default async function MovieDetailPage({ params }: PageProps) {
   const pageUrl = `${siteUrl}/movie/${params.id}`;
   const embedUrl = `${siteUrl}/embed/movie/${params.id}`;
 
+  const posterImage = movie.customImageUrl
+    ? getImageUrl(movie.customImageUrl, 'w780')
+    : movie.poster_path
+    ? getImageUrl(movie.poster_path, 'w500')
+    : (movie.backdrop_path ? getImageUrl(movie.backdrop_path, 'w780') : '/placeholder-poster.svg');
+
+  const heroBackdrop = movie.customImageUrl
+    ? getImageUrl(movie.customImageUrl, 'w1280')
+    : movie.backdrop_path
+    ? getImageUrl(movie.backdrop_path, 'original')
+    : posterImage;
+
   const defaultBackdrop = movie.customImageUrl
     ? getImageUrl(movie.customImageUrl, 'w1280')
     : movie.backdrop_path
@@ -193,7 +206,7 @@ export default async function MovieDetailPage({ params }: PageProps) {
     : undefined;
   const thumbnailImage = movie.customImageUrl
     ? getImageUrl(movie.customImageUrl, 'w1280')
-    : defaultBackdrop || (movie.poster_path ? getImageUrl(movie.poster_path, 'w500') : '');
+    : defaultBackdrop || posterImage;
 
   const yearStr = year ? ` (${year})` : '';
   const creditSuffix = siteConfig.useCreditTitleForRave && siteConfig.name ? ` | ${siteConfig.name}` : '';
@@ -258,99 +271,217 @@ export default async function MovieDetailPage({ params }: PageProps) {
         </>
       )}
 
-      {/* ── 1. FULL-VIEW VIDEO PLAYER (Fit all body) ── */}
-      {videoUrl && (
-        <div className="w-full bg-black mb-5">
-          <VideoPlayer
-            videoUrl={videoUrl}
-            title={videoTitle}
-            poster={thumbnailImage}
-            subtitles={movie.customSubtitles}
-          />
-        </div>
-      )}
+      {/* ── 1. CUSTOM VIDEO PLAYER (IF CUSTOM CONTENT) OR CINEMATIC POSTER HERO BANNER ── */}
+      {videoUrl ? (
+        <>
+          <div className="w-full bg-black mb-5">
+            <VideoPlayer
+              videoUrl={videoUrl}
+              title={videoTitle}
+              poster={thumbnailImage}
+              subtitles={movie.customSubtitles}
+            />
+          </div>
 
-      {/* ── 2. MOVIE METADATA & ACTIONS ── */}
-      <div className={`w-full px-4 sm:px-6 md:px-8 lg:px-10 xl:px-12 2xl:px-14 ${videoUrl ? 'pt-2' : 'pt-6'}`}>
-        {/* Title above rating/HD badges */}
-        <h1 className="text-2xl sm:text-3xl lg:text-4xl font-black leading-tight mb-3 tracking-tight text-white">
-          {movie.title}
-        </h1>
+          {/* Metadata Section below Player */}
+          <div className="w-full px-4 sm:px-6 md:px-8 lg:px-10 xl:px-12 2xl:px-14 pt-2">
+            <h1 className="text-2xl sm:text-3xl lg:text-4xl font-black leading-tight mb-3 tracking-tight text-white">
+              {movie.title}
+            </h1>
 
-        {/* Meta Badges Row */}
-        <div className="flex flex-wrap items-center gap-3 mb-4">
-          <RatingBadge rating={movie.vote_average} size="md" />
-          <span
-            className="px-2 py-0.5 rounded-md text-[11px] font-black tracking-wider"
-            style={{
-              background: 'rgba(6, 182, 212, 0.15)',
-              border: '1px solid rgba(6, 182, 212, 0.4)',
-              color: '#06b6d4',
-            }}
-          >
-            HD
-          </span>
-          {year && (
-            <div className="flex items-center gap-1.5 text-xs sm:text-sm text-slate-400">
-              <Calendar size={14} />
-              {year}
-            </div>
-          )}
-          {runtime && (
-            <div className="flex items-center gap-1.5 text-xs sm:text-sm text-slate-400">
-              <Clock size={14} />
-              {runtime}
-            </div>
-          )}
-          {movie.original_language && (
-            <div className="flex items-center gap-1.5 text-xs sm:text-sm text-slate-400">
-              <Globe size={14} />
-              {movie.original_language.toUpperCase()}
-            </div>
-          )}
-        </div>
-
-        {/* Genres */}
-        {movie.genres && movie.genres.length > 0 && (
-          <div className="flex flex-wrap gap-2 mb-4">
-            {movie.genres.map((genre) => (
-              <Link
-                key={genre.id}
-                href={`/genre/${genre.id}`}
-                className="px-3 py-1 rounded-full text-xs font-semibold transition-all duration-200 hover:scale-105"
+            <div className="flex flex-wrap items-center gap-3 mb-4">
+              <RatingBadge rating={movie.vote_average} size="md" />
+              <span
+                className="px-2 py-0.5 rounded-md text-[11px] font-black tracking-wider"
                 style={{
-                  background: 'rgba(124,58,237,0.15)',
-                  border: '1px solid rgba(124,58,237,0.35)',
-                  color: '#a78bfa',
+                  background: 'rgba(6, 182, 212, 0.15)',
+                  border: '1px solid rgba(6, 182, 212, 0.4)',
+                  color: '#06b6d4',
                 }}
               >
-                {genre.name}
-              </Link>
-            ))}
+                HD
+              </span>
+              {year && (
+                <div className="flex items-center gap-1.5 text-xs sm:text-sm text-slate-400">
+                  <Calendar size={14} />
+                  {year}
+                </div>
+              )}
+              {runtime && (
+                <div className="flex items-center gap-1.5 text-xs sm:text-sm text-slate-400">
+                  <Clock size={14} />
+                  {runtime}
+                </div>
+              )}
+              {movie.original_language && (
+                <div className="flex items-center gap-1.5 text-xs sm:text-sm text-slate-400">
+                  <Globe size={14} />
+                  {movie.original_language.toUpperCase()}
+                </div>
+              )}
+            </div>
+
+            {movie.genres && movie.genres.length > 0 && (
+              <div className="flex flex-wrap gap-2 mb-4">
+                {movie.genres.map((genre) => (
+                  <Link
+                    key={genre.id}
+                    href={`/genre/${genre.id}`}
+                    className="px-3 py-1 rounded-full text-xs font-semibold transition-all duration-200 hover:scale-105"
+                    style={{
+                      background: 'rgba(124,58,237,0.15)',
+                      border: '1px solid rgba(124,58,237,0.35)',
+                      color: '#a78bfa',
+                    }}
+                  >
+                    {genre.name}
+                  </Link>
+                ))}
+              </div>
+            )}
+
+            <p className="text-xs sm:text-sm sm:leading-relaxed leading-normal mb-5 max-w-4xl text-slate-300">
+              {movie.overview}
+            </p>
+
+            {director && (
+              <p className="text-xs sm:text-sm mb-5 text-slate-400">
+                <span className="text-white font-semibold">Director: </span>
+                {director.name}
+              </p>
+            )}
+
+            <MovieDetailClient
+              movieTitle={movie.title}
+              trailerKey={trailerKey}
+              homepage={movie.homepage}
+              hasCustomVideo={Boolean(movie.customVideoUrl)}
+            />
           </div>
-        )}
+        </>
+      ) : (
+        /* Non-Custom Movie: Replace Player with Cinematic Poster Hero Banner */
+        <div className="relative w-full overflow-hidden bg-[#050816] border-b border-white/10 mb-6">
+          {/* Ambient Blurred Backdrop Background */}
+          <div className="absolute inset-0 z-0 overflow-hidden opacity-35 pointer-events-none">
+            <Image
+              src={heroBackdrop}
+              alt={movie.title}
+              fill
+              priority
+              className="object-cover object-center blur-2xl scale-110"
+              sizes="100vw"
+            />
+            <div
+              className="absolute inset-0"
+              style={{
+                background: 'linear-gradient(to top, #050816 0%, rgba(5,8,22,0.85) 50%, rgba(5,8,22,0.65) 100%)',
+              }}
+            />
+          </div>
 
-        {/* Overview / Sinopsis */}
-        <p className="text-xs sm:text-sm sm:leading-relaxed leading-normal mb-5 max-w-4xl text-slate-300">
-          {movie.overview}
-        </p>
+          {/* Hero Content with Poster + Details Grid */}
+          <div className="relative z-10 max-w-7xl mx-auto px-4 sm:px-6 md:px-8 lg:px-10 xl:px-12 2xl:px-14 py-8 sm:py-12">
+            <div className="flex flex-col md:flex-row items-center md:items-start gap-6 sm:gap-8">
+              {/* Poster Image Card */}
+              <div className="relative w-44 sm:w-56 md:w-64 rounded-2xl overflow-hidden shadow-2xl border border-white/20 flex-shrink-0 aspect-[2/3] bg-slate-900 group">
+                <Image
+                  src={posterImage}
+                  alt={movie.title}
+                  fill
+                  priority
+                  className="object-cover object-center transition-transform duration-500 group-hover:scale-105"
+                  sizes="(max-width: 768px) 176px, 256px"
+                />
+                <div className="absolute inset-0 bg-gradient-to-t from-black/60 via-transparent to-transparent opacity-0 group-hover:opacity-100 transition-opacity" />
+              </div>
 
-        {/* Director */}
-        {director && (
-          <p className="text-xs sm:text-sm mb-5 text-slate-400">
-            <span className="text-white font-semibold">Director: </span>
-            {director.name}
-          </p>
-        )}
+              {/* Metadata & Actions */}
+              <div className="flex-1 min-w-0 text-center md:text-left">
+                <h1 className="text-2xl sm:text-3xl lg:text-4xl font-black leading-tight mb-3 tracking-tight text-white">
+                  {movie.title}
+                </h1>
 
-        {/* Action Buttons (Watch Trailer, Watchlist, Share) */}
-        <MovieDetailClient
-          movieTitle={movie.title}
-          trailerKey={trailerKey}
-          homepage={movie.homepage}
-          hasCustomVideo={Boolean(movie.customVideoUrl)}
-        />
-      </div>
+                {/* Badges Row */}
+                <div className="flex flex-wrap items-center justify-center md:justify-start gap-2.5 sm:gap-3 mb-4">
+                  <RatingBadge rating={movie.vote_average} size="md" />
+                  <span
+                    className="px-2 py-0.5 rounded-md text-[11px] font-black tracking-wider"
+                    style={{
+                      background: 'rgba(6, 182, 212, 0.15)',
+                      border: '1px solid rgba(6, 182, 212, 0.4)',
+                      color: '#06b6d4',
+                    }}
+                  >
+                    HD
+                  </span>
+                  {year && (
+                    <div className="flex items-center gap-1.5 text-xs sm:text-sm text-slate-300">
+                      <Calendar size={14} />
+                      {year}
+                    </div>
+                  )}
+                  {runtime && (
+                    <div className="flex items-center gap-1.5 text-xs sm:text-sm text-slate-300">
+                      <Clock size={14} />
+                      {runtime}
+                    </div>
+                  )}
+                  {movie.original_language && (
+                    <div className="flex items-center gap-1.5 text-xs sm:text-sm text-slate-300">
+                      <Globe size={14} />
+                      {movie.original_language.toUpperCase()}
+                    </div>
+                  )}
+                </div>
+
+                {/* Genres */}
+                {movie.genres && movie.genres.length > 0 && (
+                  <div className="flex flex-wrap justify-center md:justify-start gap-2 mb-4">
+                    {movie.genres.map((genre) => (
+                      <Link
+                        key={genre.id}
+                        href={`/genre/${genre.id}`}
+                        className="px-3 py-1 rounded-full text-xs font-semibold transition-all duration-200 hover:scale-105"
+                        style={{
+                          background: 'rgba(124,58,237,0.15)',
+                          border: '1px solid rgba(124,58,237,0.35)',
+                          color: '#a78bfa',
+                        }}
+                      >
+                        {genre.name}
+                      </Link>
+                    ))}
+                  </div>
+                )}
+
+                {/* Overview / Sinopsis */}
+                <p className="text-xs sm:text-sm sm:leading-relaxed leading-normal mb-5 text-slate-300 max-w-3xl">
+                  {movie.overview}
+                </p>
+
+                {/* Director */}
+                {director && (
+                  <p className="text-xs sm:text-sm mb-5 text-slate-400">
+                    <span className="text-white font-semibold">Director: </span>
+                    {director.name}
+                  </p>
+                )}
+
+                {/* Action Buttons */}
+                <div className="flex justify-center md:justify-start">
+                  <MovieDetailClient
+                    movieTitle={movie.title}
+                    trailerKey={trailerKey}
+                    homepage={movie.homepage}
+                    hasCustomVideo={Boolean(movie.customVideoUrl)}
+                  />
+                </div>
+              </div>
+            </div>
+          </div>
+        </div>
+      )}
 
       {/* ── 3. CUSTOM MARKDOWN BODY CONTENT ── */}
       {movie.customContentHtml && (

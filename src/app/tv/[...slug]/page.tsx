@@ -1,4 +1,5 @@
 import React from 'react';
+import Image from 'next/image';
 import Link from 'next/link';
 import { Metadata } from 'next';
 import { Calendar, Clock, Sparkles, Users, Folder, ChevronLeft } from 'lucide-react';
@@ -192,6 +193,18 @@ export default async function TVShowPage({ params }: PageProps) {
     data.videos?.results?.[0];
   const trailerKey = trailer?.key || null;
 
+  const posterImage = data.customImageUrl
+    ? getImageUrl(data.customImageUrl, 'w780')
+    : data.poster_path
+    ? getImageUrl(data.poster_path, 'w500')
+    : (data.backdrop_path ? getImageUrl(data.backdrop_path, 'w780') : '/placeholder-poster.svg');
+
+  const heroBackdrop = data.customImageUrl
+    ? getImageUrl(data.customImageUrl, 'w1280')
+    : data.backdrop_path
+    ? getImageUrl(data.backdrop_path, 'original')
+    : posterImage;
+
   const defaultBackdrop = data.customImageUrl
     ? getImageUrl(data.customImageUrl, 'w1280')
     : data.backdrop_path
@@ -200,7 +213,7 @@ export default async function TVShowPage({ params }: PageProps) {
   const thumbnailImage =
     (activeEpisode?.imageUrl ? getImageUrl(activeEpisode.imageUrl, 'w1280') : null) ||
     defaultBackdrop ||
-    (data.poster_path ? getImageUrl(data.poster_path, 'w500') : '');
+    posterImage;
 
   const creditSuffix = siteConfig.useCreditTitleForRave && siteConfig.name ? ` | ${siteConfig.name}` : '';
   const videoTitle = isEpisodePage && activeEpisode
@@ -313,101 +326,140 @@ export default async function TVShowPage({ params }: PageProps) {
           )}
         </>
       ) : (
-        /* ── CASE B: TV OVERVIEW PAGE (slug.length === 1, NO PLAYER) ── */
+        /* ── CASE B: TV OVERVIEW PAGE (slug.length === 1, NO PLAYER) WITH POSTER ── */
         <>
-          {/* Header Metadata Section */}
-          <div className="w-full px-4 sm:px-6 md:px-8 lg:px-10 xl:px-12 2xl:px-14 pt-6">
-            {/* Title above rating/HD badges */}
-            <h1 className="text-2xl sm:text-3xl lg:text-4xl font-black leading-tight mb-3 tracking-tight text-white">
-              {data.name}
-            </h1>
-
-            {/* Meta Badges Row */}
-            <div className="flex flex-wrap items-center gap-3 mb-4">
-              <RatingBadge rating={data.vote_average} size="md" />
-              <span
-                className="px-2 py-0.5 rounded-md text-[11px] font-black tracking-wider"
+          <div className="relative w-full overflow-hidden bg-[#050816] border-b border-white/10 mb-6">
+            {/* Ambient Blurred Backdrop Background */}
+            <div className="absolute inset-0 z-0 overflow-hidden opacity-35 pointer-events-none">
+              <Image
+                src={heroBackdrop}
+                alt={data.name}
+                fill
+                priority
+                className="object-cover object-center blur-2xl scale-110"
+                sizes="100vw"
+              />
+              <div
+                className="absolute inset-0"
                 style={{
-                  background: 'rgba(6, 182, 212, 0.15)',
-                  border: '1px solid rgba(6, 182, 212, 0.4)',
-                  color: '#06b6d4',
+                  background: 'linear-gradient(to top, #050816 0%, rgba(5,8,22,0.85) 50%, rgba(5,8,22,0.65) 100%)',
                 }}
-              >
-                HD
-              </span>
-              {year && (
-                <div className="flex items-center gap-1.5 text-xs sm:text-sm text-slate-400">
-                  <Calendar size={14} />
-                  {year}
-                </div>
-              )}
-              {runtime && (
-                <div className="flex items-center gap-1.5 text-xs sm:text-sm text-slate-400">
-                  <Clock size={14} />
-                  {runtime}
-                </div>
-              )}
-              {data.hasSeasons && data.number_of_seasons ? (
-                <div
-                  className="flex items-center gap-1.5 px-3 py-1 rounded-lg text-xs font-bold uppercase tracking-wider"
-                  style={{
-                    background: 'rgba(6,182,212,0.12)',
-                    border: '1px solid rgba(6,182,212,0.35)',
-                    color: '#06b6d4',
-                  }}
-                >
-                  <Folder size={13} />
-                  <span>{data.number_of_seasons} Season{data.number_of_seasons > 1 ? 's' : ''}</span>
-                </div>
-              ) : null}
-              {data.number_of_episodes ? (
-                <div
-                  className="px-3 py-1 rounded-lg text-xs font-bold uppercase tracking-wider"
-                  style={{
-                    background: 'rgba(124,58,237,0.12)',
-                    border: '1px solid rgba(124,58,237,0.35)',
-                    color: '#a78bfa',
-                  }}
-                >
-                  {data.number_of_episodes} Episodes
-                </div>
-              ) : null}
+              />
             </div>
 
-            {/* Genres */}
-            {data.genres && data.genres.length > 0 && (
-              <div className="flex flex-wrap gap-2 mb-4">
-                {data.genres.map((genre) => (
-                  <Link
-                    key={genre.id}
-                    href={`/genre/${genre.id}`}
-                    className="px-3 py-1 rounded-full text-xs font-semibold transition-all duration-200 hover:scale-105"
-                    style={{
-                      background: 'rgba(124,58,237,0.15)',
-                      border: '1px solid rgba(124,58,237,0.35)',
-                      color: '#a78bfa',
-                    }}
-                  >
-                    {genre.name}
-                  </Link>
-                ))}
+            {/* Hero Content with Poster + Details Grid */}
+            <div className="relative z-10 max-w-7xl mx-auto px-4 sm:px-6 md:px-8 lg:px-10 xl:px-12 2xl:px-14 py-8 sm:py-12">
+              <div className="flex flex-col md:flex-row items-center md:items-start gap-6 sm:gap-8">
+                {/* Poster Image Card */}
+                <div className="relative w-44 sm:w-56 md:w-64 rounded-2xl overflow-hidden shadow-2xl border border-white/20 flex-shrink-0 aspect-[2/3] bg-slate-900 group">
+                  <Image
+                    src={posterImage}
+                    alt={data.name}
+                    fill
+                    priority
+                    className="object-cover object-center transition-transform duration-500 group-hover:scale-105"
+                    sizes="(max-width: 768px) 176px, 256px"
+                  />
+                  <div className="absolute inset-0 bg-gradient-to-t from-black/60 via-transparent to-transparent opacity-0 group-hover:opacity-100 transition-opacity" />
+                </div>
+
+                {/* Metadata & Actions */}
+                <div className="flex-1 min-w-0 text-center md:text-left">
+                  <h1 className="text-2xl sm:text-3xl lg:text-4xl font-black leading-tight mb-3 tracking-tight text-white">
+                    {data.name}
+                  </h1>
+
+                  {/* Badges Row */}
+                  <div className="flex flex-wrap items-center justify-center md:justify-start gap-2.5 sm:gap-3 mb-4">
+                    <RatingBadge rating={data.vote_average} size="md" />
+                    <span
+                      className="px-2 py-0.5 rounded-md text-[11px] font-black tracking-wider"
+                      style={{
+                        background: 'rgba(6, 182, 212, 0.15)',
+                        border: '1px solid rgba(6, 182, 212, 0.4)',
+                        color: '#06b6d4',
+                      }}
+                    >
+                      HD
+                    </span>
+                    {year && (
+                      <div className="flex items-center gap-1.5 text-xs sm:text-sm text-slate-300">
+                        <Calendar size={14} />
+                        {year}
+                      </div>
+                    )}
+                    {runtime && (
+                      <div className="flex items-center gap-1.5 text-xs sm:text-sm text-slate-300">
+                        <Clock size={14} />
+                        {runtime}
+                      </div>
+                    )}
+                    {data.hasSeasons && data.number_of_seasons ? (
+                      <div
+                        className="flex items-center gap-1.5 px-2.5 py-0.5 rounded-lg text-xs font-bold uppercase tracking-wider"
+                        style={{
+                          background: 'rgba(6,182,212,0.12)',
+                          border: '1px solid rgba(6,182,212,0.35)',
+                          color: '#06b6d4',
+                        }}
+                      >
+                        <Folder size={13} />
+                        <span>{data.number_of_seasons} Season{data.number_of_seasons > 1 ? 's' : ''}</span>
+                      </div>
+                    ) : null}
+                    {data.number_of_episodes ? (
+                      <div
+                        className="px-2.5 py-0.5 rounded-lg text-xs font-bold uppercase tracking-wider"
+                        style={{
+                          background: 'rgba(124,58,237,0.12)',
+                          border: '1px solid rgba(124,58,237,0.35)',
+                          color: '#a78bfa',
+                        }}
+                      >
+                        {data.number_of_episodes} Episodes
+                      </div>
+                    ) : null}
+                  </div>
+
+                  {/* Genres */}
+                  {data.genres && data.genres.length > 0 && (
+                    <div className="flex flex-wrap justify-center md:justify-start gap-2 mb-4">
+                      {data.genres.map((genre) => (
+                        <Link
+                          key={genre.id}
+                          href={`/genre/${genre.id}`}
+                          className="px-3 py-1 rounded-full text-xs font-semibold transition-all duration-200 hover:scale-105"
+                          style={{
+                            background: 'rgba(124,58,237,0.15)',
+                            border: '1px solid rgba(124,58,237,0.35)',
+                            color: '#a78bfa',
+                          }}
+                        >
+                          {genre.name}
+                        </Link>
+                      ))}
+                    </div>
+                  )}
+
+                  {/* Overview / Sinopsis */}
+                  <p className="text-xs sm:text-sm sm:leading-relaxed leading-normal mb-6 text-slate-300 max-w-3xl">
+                    {data.overview}
+                  </p>
+
+                  {/* Action Buttons */}
+                  <div className="flex justify-center md:justify-start">
+                    <TVDetailHeaderActions
+                      activeEpisodeLabel={data.activeEpisode?.episodeLabel}
+                      activeEpisodeTitle={data.activeEpisode?.title}
+                      hasVideo={Boolean(data.activeEpisode?.videoUrl)}
+                      trailerKey={trailerKey}
+                      homepage={data.homepage}
+                      showTitle={data.name}
+                    />
+                  </div>
+                </div>
               </div>
-            )}
-
-            {/* Overview / Sinopsis */}
-            <p className="text-xs sm:text-sm sm:leading-relaxed leading-normal mb-5 max-w-4xl text-slate-300">
-              {data.overview}
-            </p>
-
-            {/* Action Buttons (Watch Trailer, Watchlist, Share) */}
-            <TVDetailHeaderActions
-              activeEpisodeLabel={data.activeEpisode?.episodeLabel}
-              activeEpisodeTitle={data.activeEpisode?.title}
-              hasVideo={Boolean(data.activeEpisode?.videoUrl)}
-              trailerKey={trailerKey}
-              homepage={data.homepage}
-              showTitle={data.name}
-            />
+            </div>
           </div>
 
           {/* Show Overview Markdown Content */}
