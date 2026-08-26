@@ -8,6 +8,7 @@ import {
   Film,
   Tv,
   Plus,
+  Minus,
   Edit2,
   Trash2,
   ExternalLink,
@@ -30,6 +31,9 @@ import {
   ChevronRight,
   ChevronsLeft,
   ChevronsRight,
+  ChevronUp,
+  ChevronDown,
+  FolderPlus,
   ImageIcon,
 } from 'lucide-react';
 
@@ -106,7 +110,7 @@ interface TVShowItem {
   episodes: TVEpisodeItem[];
 }
 
-export interface TMDBBackdropItem {
+interface TMDBBackdropItem {
   filePath: string;
   url: string;
   thumbUrl: string;
@@ -137,6 +141,73 @@ interface TMDBPreviewData {
 
 type SortOption = 'newest' | 'oldest' | 'title_asc' | 'title_desc' | 'rating_desc';
 type FilterOption = 'all' | 'featured' | 'non_featured';
+
+/**
+ * Formats a season slug (e.g. "s1", "s02", "season-3") into a clean display label (e.g. "Season 1", "Season 2", "Season 3").
+ */
+function formatSeasonLabel(season?: string | null): string {
+  if (!season) return 'Season 1';
+  const num = season.replace(/\D/g, '');
+  return num ? `Season ${parseInt(num, 10)}` : `Season ${season}`;
+}
+
+/**
+ * Parses episode number from filename or slug (e.g. "e1.md" -> 1, "e02" -> 2, "episode-3" -> 3).
+ */
+function parseEpisodeNumber(slugOrFilename?: string | null): number | null {
+  if (!slugOrFilename) return null;
+  const match = slugOrFilename.match(/(?:e|ep|episode|\b)(\d+)/i);
+  if (match && match[1]) {
+    return parseInt(match[1], 10);
+  }
+  const digits = slugOrFilename.replace(/\D/g, '');
+  return digits ? parseInt(digits, 10) : null;
+}
+
+/**
+ * Calculates the next episode number for a given show and season.
+ */
+function getNextEpisodeNumber(show: TVShowItem | undefined, seasonSlug: string): number {
+  if (!show || !show.episodes || show.episodes.length === 0) return 1;
+  const targetSeason = seasonSlug.toLowerCase().trim();
+  const seasonEps = show.episodes.filter((ep) => {
+    const epSeason = (ep.seasonFolder || 's1').toLowerCase().trim();
+    return epSeason === targetSeason || epSeason.replace(/\D/g, '') === targetSeason.replace(/\D/g, '');
+  });
+  if (seasonEps.length === 0) return 1;
+
+  let maxEp = 0;
+  for (const ep of seasonEps) {
+    const num = parseEpisodeNumber(ep.slug) || parseEpisodeNumber(ep.filename);
+    if (num && num > maxEp) {
+      maxEp = num;
+    }
+  }
+  return maxEp + 1;
+}
+
+/**
+ * Gets all unique season slugs for a given show (e.g. ["s1", "s2"]), sorted.
+ */
+function getShowSeasons(show: TVShowItem | undefined): string[] {
+  if (!show || !show.episodes || show.episodes.length === 0) return ['s1'];
+  const seasonsSet = new Set<string>();
+  show.episodes.forEach((ep) => {
+    if (ep.seasonFolder) {
+      seasonsSet.add(ep.seasonFolder.toLowerCase());
+    } else {
+      seasonsSet.add('s1');
+    }
+  });
+  const seasons = Array.from(seasonsSet);
+  if (seasons.length === 0) return ['s1'];
+  seasons.sort((a, b) => {
+    const numA = parseInt(a.replace(/\D/g, '') || '0', 10);
+    const numB = parseInt(b.replace(/\D/g, '') || '0', 10);
+    return numA - numB;
+  });
+  return seasons;
+}
 
 export default function AdminPage() {
   const [activeTab, setActiveTab] = useState<'movies' | 'tv'>('movies');
@@ -230,16 +301,19 @@ export default function AdminPage() {
     }
     if (contentType === 'tv_episode') {
       const cleanShow = formShowSlug.trim() ? slugify(formShowSlug) : null;
-      const cleanSeason = formSeason.trim() ? slugify(formSeason) : null;
-      const cleanEp = formEpisode.trim() ? slugify(formEpisode) : null;
-      if (!cleanShow || !cleanEp) return null;
+      const rawSeason = formSeason.trim();
+      const cleanSeason = rawSeason ? (rawSeason.toLowerCase().startsWith('s') ? rawSeason.toLowerCase() : `s${rawSeason.replace(/\D/g, '') || '1'}`) : 's1';
+      const epNum = formEpisode.replace(/\D/g, '') || '1';
+      if (!cleanShow || !epNum) return null;
       const show = tvShows.find((s) => s.showSlug === cleanShow);
       if (!show) return null;
       return (
         show.episodes.find((ep) => {
-          const sameSeason = (ep.seasonFolder || null) === (cleanSeason || null);
-          const sameEp = ep.slug === cleanEp || ep.filename === `${cleanEp}.md` || ep.slug.endsWith(cleanEp);
-          return sameSeason && sameEp;
+          const epSeason = (ep.seasonFolder || 's1').toLowerCase();
+          const epNumParsed = parseEpisodeNumber(ep.slug) || parseEpisodeNumber(ep.filename);
+          const isSameSeason = epSeason === cleanSeason || epSeason.replace(/\D/g, '') === cleanSeason.replace(/\D/g, '');
+          const isSameEp = epNumParsed === parseInt(epNum, 10);
+          return isSameSeason && isSameEp;
         }) || null
       );
     }
@@ -342,7 +416,7 @@ export default function AdminPage() {
     }
   };
 
-  // Open Edit Modal with fresh state
+  // Open Edit Modal with fresh state (with TV show TMDB ID lookup for episodes)
   const openEditModal = (item: {
     type: 'movie' | 'tv_show' | 'tv_episode';
     relativePath: string;
@@ -355,8 +429,80 @@ export default function AdminPage() {
     setShowEditBackdropPicker(false);
     setEditSelectedBackdropLang('all');
     setIsEditModalOpen(true);
-    if (item.frontmatter.tmdb_id) {
-      handleFetchEditTmdbPreview(String(item.frontmatter.tmdb_id), item.type === 'movie' ? 'movie' : 'tv');
+
+    let tmdbIdToFetch = item.frontmatter.tmdb_id;
+    if (!tmdbIdToFetch && item.type === 'tv_episode') {
+      const showSlug = item.relativePath.split('/')[1];
+      const show = tvShows.find((s) => s.showSlug === showSlug);
+      tmdbIdToFetch = show?.frontmatter.tmdb_id;
+    }
+
+    if (tmdbIdToFetch) {
+      handleFetchEditTmdbPreview(String(tmdbIdToFetch), item.type === 'movie' ? 'movie' : 'tv');
+    }
+  };
+
+  // Open Create Episode Modal with smart auto-filling of next episode number
+  const openCreateEpisodeModal = (initialShowSlug?: string) => {
+    resetCreateForm();
+    setContentType('tv_episode');
+    const targetShowSlug = initialShowSlug || formShowSlug || (tvShows[0]?.showSlug || '');
+    setFormShowSlug(targetShowSlug);
+    const show = tvShows.find((s) => s.showSlug === targetShowSlug);
+    const seasons = getShowSeasons(show);
+    const latestSeason = seasons[seasons.length - 1] || 's1';
+    setFormSeason(latestSeason);
+    const nextEp = getNextEpisodeNumber(show, latestSeason);
+    setFormEpisode(String(nextEp));
+    setIsCreateModalOpen(true);
+    if (show?.frontmatter.tmdb_id) {
+      handleFetchTmdbPreview(String(show.frontmatter.tmdb_id), 'tv');
+    }
+  };
+
+  const handleShowSlugChange = (slug: string) => {
+    setFormShowSlug(slug);
+    const show = tvShows.find((s) => s.showSlug === slug);
+    const seasons = getShowSeasons(show);
+    const latestSeason = seasons[seasons.length - 1] || 's1';
+    setFormSeason(latestSeason);
+    const nextEp = getNextEpisodeNumber(show, latestSeason);
+    setFormEpisode(String(nextEp));
+    if (show?.frontmatter.tmdb_id) {
+      handleFetchTmdbPreview(String(show.frontmatter.tmdb_id), 'tv');
+    }
+  };
+
+  const handleSeasonChange = (season: string) => {
+    setFormSeason(season);
+    const show = tvShows.find((s) => s.showSlug === formShowSlug);
+    const nextEp = getNextEpisodeNumber(show, season);
+    setFormEpisode(String(nextEp));
+  };
+
+  const handleSmartAddSeason = () => {
+    const show = tvShows.find((s) => s.showSlug === formShowSlug);
+    const seasons = getShowSeasons(show);
+    let maxSeasonNum = 0;
+    seasons.forEach((s) => {
+      const num = parseInt(s.replace(/\D/g, '') || '0', 10);
+      if (num > maxSeasonNum) maxSeasonNum = num;
+    });
+    const newSeasonSlug = `s${maxSeasonNum + 1}`;
+    setFormSeason(newSeasonSlug);
+    setFormEpisode('1');
+    showToast(`Season baru (${formatSeasonLabel(newSeasonSlug)}) dipilih. Episode otomatis diset ke 1.`, 'success');
+  };
+
+  const incrementEpisode = () => {
+    const current = parseInt(formEpisode.replace(/\D/g, '') || '1', 10);
+    setFormEpisode(String(current + 1));
+  };
+
+  const decrementEpisode = () => {
+    const current = parseInt(formEpisode.replace(/\D/g, '') || '1', 10);
+    if (current > 1) {
+      setFormEpisode(String(current - 1));
     }
   };
 
@@ -514,6 +660,11 @@ export default function AdminPage() {
     const tmdbIdNum = extracted.id ? Number(extracted.id) : undefined;
     const cleanVideo = cleanVideoUrl(formVideoUrl) || formVideoUrl.trim();
 
+    const epNum = formEpisode.replace(/\D/g, '') || '1';
+    const rawSeason = formSeason.trim();
+    const cleanSeason = rawSeason ? (rawSeason.toLowerCase().startsWith('s') ? rawSeason.toLowerCase() : `s${rawSeason.replace(/\D/g, '') || '1'}`) : 's1';
+    const cleanEp = `e${epNum}`;
+
     const payload: any = {
       contentType,
       tmdb_id: tmdbIdNum,
@@ -527,8 +678,8 @@ export default function AdminPage() {
       slug: formSlug.trim() || undefined,
       duration: formDuration.trim() || undefined,
       showSlug: formShowSlug.trim() || undefined,
-      season: formSeason.trim() || undefined,
-      episode: formEpisode.trim() || undefined,
+      season: cleanSeason,
+      episode: cleanEp,
     };
 
     // 1. Instant update in local state - Place at the very top (index 0)
@@ -555,6 +706,40 @@ export default function AdminPage() {
         updatedAt: Date.now(),
       };
       setMovies((prev) => [optimisticMovie, ...prev.filter((m) => m.relativePath !== optimisticMovie.relativePath)]);
+    } else if (contentType === 'tv_episode') {
+      setTvShows((prev) => {
+        const targetShow = prev.find((s) => s.showSlug === formShowSlug.trim());
+        if (!targetShow) return prev;
+        const posterImg = payload.poster || tmdbPreview?.posterUrl || null;
+        const formattedPoster = posterImg ? (posterImg.startsWith('http') ? posterImg : `https://image.tmdb.org/t/p/w500${posterImg}`) : null;
+        const newEp: TVEpisodeItem = {
+          showSlug: formShowSlug.trim(),
+          seasonFolder: cleanSeason,
+          filename: `${cleanEp}.md`,
+          slug: cleanEp,
+          relativePath: `tv/${formShowSlug.trim()}/${cleanSeason}/${cleanEp}.md`,
+          frontmatter: {
+            title: payload.title,
+            videourl: payload.videourl,
+            image_url: payload.poster,
+            rating: payload.rating,
+            duration: payload.duration,
+            subtitles: payload.subtitles,
+            deskripsi: payload.desc,
+          },
+          content: '',
+          displayTitle: payload.title || `Episode ${epNum}`,
+          posterUrl: formattedPoster,
+          updatedAt: Date.now(),
+        };
+        const updatedEpisodes = [...targetShow.episodes.filter((ep) => ep.relativePath !== newEp.relativePath), newEp];
+        const updatedShow: TVShowItem = {
+          ...targetShow,
+          episodes: updatedEpisodes,
+          updatedAt: Date.now(),
+        };
+        return [updatedShow, ...prev.filter((s) => s.showSlug !== targetShow.showSlug)];
+      });
     }
 
     setIsCreateModalOpen(false);
@@ -1303,9 +1488,7 @@ export default function AdminPage() {
                         <button
                           onClick={() => {
                             if (!requireToken('menambah episode')) return;
-                            setFormShowSlug(show.showSlug);
-                            setContentType('tv_episode');
-                            setIsCreateModalOpen(true);
+                            openCreateEpisodeModal(show.showSlug);
                           }}
                           className="inline-flex items-center gap-1.5 px-3 py-1.5 rounded-lg text-xs font-bold bg-pink-500/20 hover:bg-pink-500/30 text-pink-300 border border-pink-500/40 transition-all"
                         >
@@ -1756,72 +1939,138 @@ export default function AdminPage() {
 
               {/* TV Episode specifics */}
               {contentType === 'tv_episode' && (
-                <div className="grid grid-cols-1 sm:grid-cols-3 gap-3">
+                <div className="space-y-3.5 p-4 bg-purple-950/20 border border-purple-500/30 rounded-2xl">
+                  <div className="flex items-center justify-between">
+                    <span className="text-xs font-extrabold text-purple-300 flex items-center gap-1.5">
+                      <Tv size={14} /> Pengaturan TV Show & Episode
+                    </span>
+                    <span className="text-[11px] text-purple-300/80 font-mono">
+                      tv/{formShowSlug || 'show'}/{formSeason || 's1'}/e{formEpisode.replace(/\D/g, '') || '1'}.md
+                    </span>
+                  </div>
+
+                  {/* Show Selection */}
                   <div>
                     <div className="flex items-center justify-between mb-1">
                       <label className="text-xs font-bold text-slate-300">
-                        Show Slug <span className="text-red-400 font-extrabold">*</span>
+                        Pilih TV Series <span className="text-red-400 font-extrabold">*</span>
                       </label>
                       {formErrors.showSlug && <span className="text-[10px] text-red-400 font-bold">Wajib</span>}
                     </div>
-                    <input
-                      type="text"
-                      value={formShowSlug}
-                      onChange={(e) => {
-                        setFormShowSlug(e.target.value);
-                        if (e.target.value) {
-                          setFormErrors((prev) => {
-                            const next = { ...prev };
-                            delete next.showSlug;
-                            return next;
-                          });
-                        }
-                      }}
-                      placeholder="lanterns"
-                      className={`w-full px-3.5 py-2.5 bg-black/40 rounded-xl text-sm text-white focus:outline-none ${
-                        formErrors.showSlug
-                          ? 'border-2 border-red-500 ring-2 ring-red-500/20 bg-red-950/20'
-                          : 'border border-white/10 focus:border-purple-400'
-                      }`}
-                    />
+
+                    {tvShows.length > 0 ? (
+                      <select
+                        value={formShowSlug}
+                        onChange={(e) => handleShowSlugChange(e.target.value)}
+                        className={`w-full px-3.5 py-2.5 bg-black/50 rounded-xl text-sm font-semibold text-white focus:outline-none cursor-pointer ${
+                          formErrors.showSlug
+                            ? 'border-2 border-red-500 ring-2 ring-red-500/20 bg-red-950/20'
+                            : 'border border-white/15 focus:border-purple-400'
+                        }`}
+                      >
+                        <option value="" disabled>-- Pilih TV Series --</option>
+                        {tvShows.map((s) => (
+                          <option key={s.showSlug} value={s.showSlug} className="bg-[#0c1224] text-white">
+                            {s.displayTitle || s.frontmatter.title || s.showSlug} ({s.episodes.length} Episodes)
+                          </option>
+                        ))}
+                      </select>
+                    ) : (
+                      <input
+                        type="text"
+                        value={formShowSlug}
+                        onChange={(e) => handleShowSlugChange(e.target.value)}
+                        placeholder="Contoh: lanterns"
+                        className="w-full px-3.5 py-2.5 bg-black/40 border border-white/10 rounded-xl text-sm text-white focus:outline-none focus:border-purple-400"
+                      />
+                    )}
                   </div>
-                  <div>
-                    <label className="block text-xs font-bold text-slate-300 mb-1">Season</label>
-                    <input
-                      type="text"
-                      value={formSeason}
-                      onChange={(e) => setFormSeason(e.target.value)}
-                      placeholder="s1 (kosongkan jika flat)"
-                      className="w-full px-3.5 py-2.5 bg-black/40 border border-white/10 rounded-xl text-sm text-white focus:outline-none focus:border-purple-400"
-                    />
-                  </div>
-                  <div>
-                    <div className="flex items-center justify-between mb-1">
-                      <label className="text-xs font-bold text-slate-300">
-                        Episode <span className="text-red-400 font-extrabold">*</span>
-                      </label>
-                      {formErrors.episode && <span className="text-[10px] text-red-400 font-bold">Wajib</span>}
+
+                  {/* Season and Episode Stepper Row */}
+                  <div className="grid grid-cols-1 sm:grid-cols-2 gap-3 pt-1">
+                    {/* Season Dropdown with Smart Add (+) */}
+                    <div>
+                      <div className="flex items-center justify-between mb-1">
+                        <label className="text-xs font-bold text-slate-300">Pilih Season</label>
+                        <button
+                          type="button"
+                          onClick={handleSmartAddSeason}
+                          className="text-[11px] font-bold text-purple-400 hover:text-purple-300 flex items-center gap-1 transition-all"
+                          title="Tambah Season Baru (Auto Episode 1)"
+                        >
+                          <FolderPlus size={12} />
+                          <span>+ Season Baru</span>
+                        </button>
+                      </div>
+                      <select
+                        value={formSeason}
+                        onChange={(e) => handleSeasonChange(e.target.value)}
+                        className="w-full px-3.5 py-2.5 bg-black/50 border border-white/15 rounded-xl text-sm font-semibold text-white focus:outline-none focus:border-purple-400 cursor-pointer"
+                      >
+                        {(() => {
+                          const currentShow = tvShows.find((s) => s.showSlug === formShowSlug);
+                          const seasons = getShowSeasons(currentShow);
+                          if (!seasons.includes(formSeason) && formSeason) {
+                            seasons.push(formSeason);
+                          }
+                          return seasons.map((s) => (
+                            <option key={s} value={s} className="bg-[#0c1224] text-white">
+                              {formatSeasonLabel(s)} ({s})
+                            </option>
+                          ));
+                        })()}
+                      </select>
                     </div>
-                    <input
-                      type="text"
-                      value={formEpisode}
-                      onChange={(e) => {
-                        setFormEpisode(e.target.value);
-                        if (e.target.value) {
-                          setFormErrors((prev) => {
-                            const next = { ...prev };
-                            delete next.episode;
-                            return next;
-                          });
-                        }
-                      }}
-                      placeholder="e1"
-                      className={`w-full px-3.5 py-2.5 bg-black/40 rounded-xl text-sm text-white focus:outline-none ${
-                        formErrors.episode
-                          ? 'border-2 border-red-500 ring-2 ring-red-500/20 bg-red-950/20'
-                          : 'border border-white/10 focus:border-purple-400'
-                      }`}
-                    />
+
+                    {/* Episode Number with Stepper Arrows */}
+                    <div>
+                      <div className="flex items-center justify-between mb-1">
+                        <label className="text-xs font-bold text-slate-300">
+                          Nomor Episode <span className="text-red-400 font-extrabold">*</span>
+                        </label>
+                        {formErrors.episode && <span className="text-[10px] text-red-400 font-bold">Wajib</span>}
+                      </div>
+
+                      <div className="flex items-center">
+                        <button
+                          type="button"
+                          onClick={decrementEpisode}
+                          className="px-3.5 py-2.5 bg-white/10 hover:bg-white/20 text-slate-200 border border-white/15 rounded-l-xl transition-all flex items-center justify-center select-none active:scale-95"
+                          title="Kurangi Nomor Episode"
+                        >
+                          <Minus size={15} />
+                        </button>
+
+                        <div className="relative flex-1">
+                          <input
+                            type="number"
+                            min="1"
+                            value={formEpisode.replace(/\D/g, '') || '1'}
+                            onChange={(e) => {
+                              const digits = e.target.value.replace(/\D/g, '');
+                              setFormEpisode(digits || '1');
+                              if (digits) {
+                                setFormErrors((prev) => {
+                                  const next = { ...prev };
+                                  delete next.episode;
+                                  return next;
+                                });
+                              }
+                            }}
+                            className="w-full text-center py-2.5 bg-black/60 border-y border-white/15 text-sm font-bold text-white focus:outline-none focus:border-purple-400"
+                          />
+                        </div>
+
+                        <button
+                          type="button"
+                          onClick={incrementEpisode}
+                          className="px-3.5 py-2.5 bg-white/10 hover:bg-white/20 text-slate-200 border border-white/15 rounded-r-xl transition-all flex items-center justify-center select-none active:scale-95"
+                          title="Tambah Nomor Episode"
+                        >
+                          <Plus size={15} />
+                        </button>
+                      </div>
+                    </div>
                   </div>
                 </div>
               )}
@@ -1860,25 +2109,35 @@ export default function AdminPage() {
                   <label className="text-xs font-medium text-slate-400">
                     Poster / Backdrop Image URL (Opsional)
                   </label>
-                  {formTmdbId && (
-                    <button
-                      type="button"
-                      onClick={() => {
-                        if (!tmdbPreview) {
-                          handleFetchTmdbPreview(formTmdbId, contentType === 'movie' ? 'movie' : 'tv');
-                        }
-                        setShowBackdropPicker(!showBackdropPicker);
-                      }}
-                      className="text-[11px] font-bold text-cyan-400 hover:text-cyan-300 flex items-center gap-1 transition-all"
-                    >
-                      <ImageIcon size={12} />
-                      <span>
-                        {tmdbPreview?.backdrops && tmdbPreview.backdrops.length > 0
-                          ? `${showBackdropPicker ? 'Tutup Galeri' : 'Pilih Backdrop TMDB'} (${tmdbPreview.backdrops.length})`
-                          : 'Cari Backdrop TMDB'}
-                      </span>
-                    </button>
-                  )}
+                  {(() => {
+                    let idToFetch = formTmdbId;
+                    if (!idToFetch && contentType === 'tv_episode' && formShowSlug) {
+                      const show = tvShows.find((s) => s.showSlug === formShowSlug);
+                      idToFetch = String(show?.frontmatter.tmdb_id || '');
+                    }
+                    if (!idToFetch) return null;
+                    return (
+                      <button
+                        type="button"
+                        onClick={() => {
+                          if (!tmdbPreview) {
+                            handleFetchTmdbPreview(idToFetch, contentType === 'movie' ? 'movie' : 'tv');
+                          }
+                          setShowBackdropPicker(!showBackdropPicker);
+                        }}
+                        className="text-[11px] font-bold text-cyan-400 hover:text-cyan-300 flex items-center gap-1 transition-all"
+                      >
+                        <ImageIcon size={12} />
+                        <span>
+                          {tmdbPreview?.backdrops && tmdbPreview.backdrops.length > 0
+                            ? `${showBackdropPicker ? 'Tutup Galeri' : 'Pilih Backdrop TMDB'} (${tmdbPreview.backdrops.length})`
+                            : fetchingTmdb
+                            ? 'Mengambil Galeri...'
+                            : 'Cari Backdrop TMDB'}
+                        </span>
+                      </button>
+                    );
+                  })()}
                 </div>
                 <input
                   type="text"
@@ -2216,30 +2475,39 @@ export default function AdminPage() {
               <div>
                 <div className="flex items-center justify-between mb-1">
                   <label className="text-xs font-medium text-slate-400">Poster / Image URL</label>
-                  {editingItem.frontmatter.tmdb_id && (
-                    <button
-                      type="button"
-                      onClick={() => {
-                        if (!editTmdbPreview) {
-                          handleFetchEditTmdbPreview(
-                            String(editingItem.frontmatter.tmdb_id),
-                            editingItem.type === 'movie' ? 'movie' : 'tv'
-                          );
-                        }
-                        setShowEditBackdropPicker(!showEditBackdropPicker);
-                      }}
-                      className="text-[11px] font-bold text-cyan-400 hover:text-cyan-300 flex items-center gap-1 transition-all"
-                    >
-                      <ImageIcon size={12} />
-                      <span>
-                        {editTmdbPreview?.backdrops && editTmdbPreview.backdrops.length > 0
-                          ? `${showEditBackdropPicker ? 'Tutup Galeri' : 'Pilih Backdrop TMDB'} (${editTmdbPreview.backdrops.length})`
-                          : fetchingEditTmdb
-                          ? 'Mengambil Galeri...'
-                          : 'Cari Backdrop TMDB'}
-                      </span>
-                    </button>
-                  )}
+                  {(() => {
+                    let tmdbIdNum = editingItem.frontmatter.tmdb_id;
+                    if (!tmdbIdNum && editingItem.type === 'tv_episode') {
+                      const showSlug = editingItem.relativePath.split('/')[1];
+                      const show = tvShows.find((s) => s.showSlug === showSlug);
+                      tmdbIdNum = show?.frontmatter.tmdb_id;
+                    }
+                    if (!tmdbIdNum) return null;
+                    return (
+                      <button
+                        type="button"
+                        onClick={() => {
+                          if (!editTmdbPreview) {
+                            handleFetchEditTmdbPreview(
+                              String(tmdbIdNum),
+                              editingItem.type === 'movie' ? 'movie' : 'tv'
+                            );
+                          }
+                          setShowEditBackdropPicker(!showEditBackdropPicker);
+                        }}
+                        className="text-[11px] font-bold text-cyan-400 hover:text-cyan-300 flex items-center gap-1 transition-all"
+                      >
+                        <ImageIcon size={12} />
+                        <span>
+                          {editTmdbPreview?.backdrops && editTmdbPreview.backdrops.length > 0
+                            ? `${showEditBackdropPicker ? 'Tutup Galeri' : 'Pilih Backdrop TMDB'} (${editTmdbPreview.backdrops.length})`
+                            : fetchingEditTmdb
+                            ? 'Mengambil Galeri...'
+                            : 'Cari Backdrop TMDB'}
+                        </span>
+                      </button>
+                    );
+                  })()}
                 </div>
                 <input
                   type="text"
