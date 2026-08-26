@@ -636,11 +636,6 @@ export async function getTVShowDetailsWithCustomOverride(
       ) || null;
   }
 
-  // If on overview page without episode path, default activeEpisode to first episode if available
-  if (!activeEpisode && allEpisodes.length > 0) {
-    activeEpisode = allEpisodes[0];
-  }
-
   const overriddenPoster = customImageUrl || tmdbShow?.poster_path || null;
   const overriddenBackdrop = customImageUrl || tmdbShow?.backdrop_path || null;
 
@@ -653,8 +648,8 @@ export async function getTVShowDetailsWithCustomOverride(
     overview: overriddenOverview,
     tagline: overriddenTagline,
     first_air_date: tmdbShow?.first_air_date || (frontmatter.year ? `${frontmatter.year}-01-01` : '2026-01-01'),
-    poster_path: activeEpisode?.imageUrl || overriddenPoster,
-    backdrop_path: activeEpisode?.imageUrl || overriddenBackdrop,
+    poster_path: overriddenPoster,
+    backdrop_path: overriddenBackdrop,
     genres: tmdbShow?.genres || [],
     number_of_seasons: hasSeasons ? seasons.length : (tmdbShow?.number_of_seasons || 1),
     number_of_episodes: allEpisodes.length > 0 ? allEpisodes.length : (tmdbShow?.number_of_episodes || 0),

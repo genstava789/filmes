@@ -177,22 +177,26 @@ export async function getCustomMovieBySlug(slugOrId: string | number): Promise<C
   ensureContentDirExists();
   const searchKey = String(slugOrId).trim().toLowerCase();
   const cleanKey = searchKey.replace(/\.(md|markdown)$/i, '');
+  const isNumeric = /^\d+$/.test(cleanKey);
 
   // Check if searchKey has trailing ID or 4-digit year (e.g. "mutiny-2026" or "mutiny-1288445")
-  const idMatch = cleanKey.match(/-(\d+)$/);
+  const idMatch = cleanKey.match(/-(\d{4,})$/);
   const trailingId = idMatch ? idMatch[1] : null;
-  const cleanWithoutSuffix = cleanKey.replace(/-(19\d{2}|20\d{2}|\d+)$/, '');
+  const cleanWithoutSuffix = cleanKey.replace(/-(19\d{2}|20\d{2}|\d{4,})$/, '');
 
   const files = getAllCustomMovieFiles();
   let matchedFile: string | null = null;
   let fileContent = '';
 
-  // 1. Direct filename exact match (e.g. movie-94.md, movie.md, movie-94, movie)
+  // 1. Direct filename exact match (e.g. "toy-story-5-2026.md", "movie.md")
   for (const file of files) {
     const fileWithoutExt = file.replace(/\.(md|markdown)$/i, '').toLowerCase();
     const fullFileName = file.toLowerCase();
 
     if (fullFileName === searchKey || fileWithoutExt === cleanKey) {
+      if (isNumeric && fileWithoutExt !== cleanKey) {
+        continue;
+      }
       matchedFile = file;
       try {
         const filePath = path.join(CONTENT_DIR, file);
@@ -204,7 +208,7 @@ export async function getCustomMovieBySlug(slugOrId: string | number): Promise<C
     }
   }
 
-  // 2. Match by frontmatter tmdb_id, title slug, title-year slug, or trailing ID
+  // 2. Match by frontmatter tmdb_id, exact title slug, or title-year slug
   if (!matchedFile || !fileContent) {
     for (const file of files) {
       try {
@@ -217,45 +221,40 @@ export async function getCustomMovieBySlug(slugOrId: string | number): Promise<C
           const tmdbIdStr = String(data.tmdb_id || '').trim();
           const titleSlug = cleanSlug(data.title);
 
-          // Direct TMDB ID match (e.g. "1288445" or "94") or trailing ID match (e.g. "mutiny-1288445")
+          // If searchKey is a numeric TMDB ID (e.g. "533535" or "94")
+          if (isNumeric) {
+            if (tmdbIdStr === cleanKey) {
+              matchedFile = file;
+              fileContent = content;
+              break;
+            }
+            continue;
+          }
+
+          // Direct TMDB ID match or trailing ID match (e.g. "mutiny-1288445" -> tmdb_id 1288445)
           if (tmdbIdStr && (tmdbIdStr === cleanKey || (trailingId && tmdbIdStr === trailingId))) {
             matchedFile = file;
             fileContent = content;
             break;
           }
 
-          // Title slug match (e.g. "mutiny" === "mutiny" or "mutiny-2026" starts with "mutiny")
-          if (
-            titleSlug &&
-            (titleSlug === cleanKey ||
+          // Exact title slug match (e.g. "mutiny" === "mutiny" or "mutiny-2026" === "mutiny-2026")
+          if (titleSlug) {
+            const year = data.year || (data.release_date ? data.release_date.slice(0, 4) : undefined);
+            if (
+              titleSlug === cleanKey ||
               titleSlug === cleanWithoutSuffix ||
-              cleanKey === `${titleSlug}-${data.year || '2026'}` ||
-              cleanKey.startsWith(titleSlug))
-          ) {
-            matchedFile = file;
-            fileContent = content;
-            break;
+              (year && cleanKey === `${titleSlug}-${year}`) ||
+              (tmdbIdStr && cleanKey === `${titleSlug}-${tmdbIdStr}`)
+            ) {
+              matchedFile = file;
+              fileContent = content;
+              break;
+            }
           }
         }
       } catch (err) {
         console.error(`Error reading ${file}:`, err);
-      }
-    }
-  }
-
-  // 3. Filename match with stripped year/ID suffix (e.g. "movie-2026" matching "movie.md")
-  if (!matchedFile || !fileContent) {
-    for (const file of files) {
-      const fileWithoutExt = file.replace(/\.(md|markdown)$/i, '').toLowerCase();
-      if (fileWithoutExt === cleanWithoutSuffix) {
-        matchedFile = file;
-        try {
-          const filePath = path.join(CONTENT_DIR, file);
-          fileContent = fs.readFileSync(filePath, 'utf8');
-        } catch (err) {
-          console.error(`Error reading ${file}:`, err);
-        }
-        break;
       }
     }
   }

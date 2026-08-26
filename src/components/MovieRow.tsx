@@ -24,6 +24,8 @@ export default function MovieRow({
   const scrollRef = useRef<HTMLDivElement>(null);
   const [canScrollLeft, setCanScrollLeft] = useState(false);
   const [canScrollRight, setCanScrollRight] = useState(true);
+  const [isScrolling, setIsScrolling] = useState(false);
+  const scrollTimeoutRef = useRef<NodeJS.Timeout | null>(null);
 
   const scroll = (direction: 'left' | 'right') => {
     if (!scrollRef.current) return;
@@ -34,11 +36,20 @@ export default function MovieRow({
     });
   };
 
+  const triggerScrollState = () => {
+    setIsScrolling(true);
+    if (scrollTimeoutRef.current) clearTimeout(scrollTimeoutRef.current);
+    scrollTimeoutRef.current = setTimeout(() => {
+      setIsScrolling(false);
+    }, 2200);
+  };
+
   const handleScroll = () => {
     if (!scrollRef.current) return;
     const { scrollLeft, scrollWidth, clientWidth } = scrollRef.current;
     setCanScrollLeft(scrollLeft > 0);
     setCanScrollRight(scrollLeft < scrollWidth - clientWidth - 10);
+    triggerScrollState();
   };
 
   if (!items || items.length === 0) return null;
@@ -68,7 +79,11 @@ export default function MovieRow({
         {canScrollLeft && (
           <button
             onClick={() => scroll('left')}
-            className="absolute left-2 sm:left-4 md:left-6 top-1/2 -translate-y-1/2 z-20 w-10 h-10 rounded-xl flex items-center justify-center transition-all duration-200 opacity-0 group-hover:opacity-100 hover:scale-110 shadow-lg cursor-pointer"
+            className={`absolute left-2 sm:left-4 md:left-6 top-1/2 -translate-y-1/2 z-20 w-10 h-10 rounded-xl flex items-center justify-center transition-all duration-300 hover:scale-110 shadow-lg cursor-pointer ${
+              isScrolling
+                ? 'opacity-100 pointer-events-auto'
+                : 'opacity-0 group-hover:opacity-100 pointer-events-none group-hover:pointer-events-auto'
+            }`}
             style={{
               background: 'rgba(11, 16, 32, 0.9)',
               backdropFilter: 'blur(12px)',
@@ -85,7 +100,11 @@ export default function MovieRow({
         {canScrollRight && (
           <button
             onClick={() => scroll('right')}
-            className="absolute right-2 sm:right-4 md:right-6 top-1/2 -translate-y-1/2 z-20 w-10 h-10 rounded-xl flex items-center justify-center transition-all duration-200 opacity-0 group-hover:opacity-100 hover:scale-110 shadow-lg cursor-pointer"
+            className={`absolute right-2 sm:right-4 md:right-6 top-1/2 -translate-y-1/2 z-20 w-10 h-10 rounded-xl flex items-center justify-center transition-all duration-300 hover:scale-110 shadow-lg cursor-pointer ${
+              isScrolling
+                ? 'opacity-100 pointer-events-auto'
+                : 'opacity-0 group-hover:opacity-100 pointer-events-none group-hover:pointer-events-auto'
+            }`}
             style={{
               background: 'rgba(11, 16, 32, 0.9)',
               backdropFilter: 'blur(12px)',
@@ -121,6 +140,8 @@ export default function MovieRow({
         <div
           ref={scrollRef}
           onScroll={handleScroll}
+          onTouchStart={triggerScrollState}
+          onTouchMove={handleScroll}
           className={`flex gap-3 sm:gap-4 md:gap-5 overflow-x-auto hide-scrollbar ${noPadding ? 'px-0' : 'px-4 sm:px-6 md:px-8 lg:px-10 xl:px-12 2xl:px-14'} pb-3`}
         >
           {items.map((item) => (
