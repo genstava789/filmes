@@ -900,25 +900,28 @@ export default function VideoPlayer({
               >
                 <video
                   ref={videoRef}
+                  src={videoUrl}
+                  data-src={videoUrl}
                   className="plyr-react plyr w-full h-full"
                   playsInline
                   crossOrigin="anonymous"
                   poster={poster}
+                  itemProp="contentUrl"
                 >
-                  {!isHls && (
-                    <source
-                      src={videoUrl}
-                      type={
-                        videoUrl.includes('.mp4')
-                          ? 'video/mp4'
-                          : videoUrl.includes('.webm')
-                          ? 'video/webm'
-                          : isMkv
-                          ? 'video/x-matroska'
-                          : undefined
-                      }
-                    />
-                  )}
+                  <source
+                    src={videoUrl}
+                    type={
+                      videoUrl.includes('.m3u8')
+                        ? 'application/x-mpegURL'
+                        : videoUrl.includes('.mp4')
+                        ? 'video/mp4'
+                        : videoUrl.includes('.webm')
+                        ? 'video/webm'
+                        : isMkv
+                        ? 'video/x-matroska'
+                        : 'video/mp4'
+                    }
+                  />
 
                   {extSubs.map((sub, idx) => (
                     <track
@@ -930,6 +933,7 @@ export default function VideoPlayer({
                       default={sub.default || idx === 0}
                     />
                   ))}
+                  Your browser does not support the video tag.
                 </video>
               </div>
             )}

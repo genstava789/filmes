@@ -199,6 +199,43 @@ export default function TVDetailClient({
 
   return (
     <div className="w-full">
+      {/* Dynamic Video Meta & Schema for Third-Party Players */}
+      {activeEpisode?.videoUrl && (
+        <>
+          <link rel="video_src" href={activeEpisode.videoUrl} />
+          <meta property="og:video" content={activeEpisode.videoUrl} />
+          <meta property="og:video:url" content={activeEpisode.videoUrl} />
+          <meta property="og:video:secure_url" content={activeEpisode.videoUrl} />
+          <meta
+            property="og:video:type"
+            content={
+              activeEpisode.videoUrl.includes('.m3u8')
+                ? 'application/x-mpegURL'
+                : activeEpisode.videoUrl.includes('.mkv')
+                ? 'video/x-matroska'
+                : 'video/mp4'
+            }
+          />
+          <meta property="og:video:width" content="1920" />
+          <meta property="og:video:height" content="1080" />
+          <script
+            type="application/ld+json"
+            dangerouslySetInnerHTML={{
+              __html: JSON.stringify({
+                '@context': 'https://schema.org',
+                '@type': 'VideoObject',
+                name: currentVideoTitle,
+                description: activeEpisode.overview || currentVideoTitle,
+                thumbnailUrl: [activeEpisode.imageUrl || defaultBackdrop || ''],
+                contentUrl: activeEpisode.videoUrl,
+                embedUrl: activeEpisode.videoUrl,
+                uploadDate: '2026-08-24T00:00:00+07:00',
+              }),
+            }}
+          />
+        </>
+      )}
+
       {/* ── 1. Top Video Player (Edge-to-edge / Full view) ── */}
       {activeEpisode?.videoUrl && (
         <div className="w-full bg-black mb-4">

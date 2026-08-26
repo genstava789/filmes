@@ -1,7 +1,7 @@
 import React from 'react';
 import Link from 'next/link';
 import { Metadata } from 'next';
-import { Calendar, Clock, Sparkles, Users, Folder } from 'lucide-react';
+import { Calendar, Clock, Sparkles, Users, Folder, ChevronLeft } from 'lucide-react';
 import { getImageUrl } from '@/lib/tmdb';
 import {
   getTVShowDetailsWithCustomOverride,
@@ -58,14 +58,52 @@ export async function generateMetadata({ params }: PageProps): Promise<Metadata>
     : data.customImageUrl ||
       (data.backdrop_path ? getImageUrl(data.backdrop_path, 'w1280') : data.poster_path ? getImageUrl(data.poster_path, 'w500') : undefined);
 
+  const videoUrl = isEpisodePage && data.activeEpisode?.videoUrl ? data.activeEpisode.videoUrl : null;
+  const videoType = videoUrl
+    ? videoUrl.includes('.m3u8')
+      ? 'application/x-mpegURL'
+      : videoUrl.includes('.mkv')
+      ? 'video/x-matroska'
+      : 'video/mp4'
+    : 'video/mp4';
+
   return {
     title,
     description: description.slice(0, 160),
     openGraph: {
       title,
       description: description.slice(0, 160),
+      type: isEpisodePage ? 'video.episode' : 'video.tv_show',
       images: image ? [image] : [],
+      videos: videoUrl
+        ? [
+            {
+              url: videoUrl,
+              secureUrl: videoUrl,
+              type: videoType,
+              width: 1920,
+              height: 1080,
+            },
+          ]
+        : [],
     },
+    other: videoUrl
+      ? {
+          'og:video': videoUrl,
+          'og:video:url': videoUrl,
+          'og:video:secure_url': videoUrl,
+          'og:video:type': videoType,
+          'og:video:width': '1920',
+          'og:video:height': '1080',
+          'twitter:card': 'player',
+          'twitter:player': videoUrl,
+          'twitter:player:width': '1920',
+          'twitter:player:height': '1080',
+          'twitter:player:stream': videoUrl,
+          'twitter:player:stream:content_type': videoType,
+          'video_src': videoUrl,
+        }
+      : {},
   };
 }
 
@@ -100,17 +138,14 @@ export default async function TVShowPage({ params }: PageProps) {
         <div className="text-center px-4">
           <h2 className="text-2xl font-bold text-white mb-2">Serial TV Tidak Ditemukan</h2>
           <p className="text-neo-text-secondary text-sm mb-6">
-            Data untuk serial TV atau episode &ldquo;{params.slug.join('/')}&rdquo; tidak ditemukan.
+            Data untuk URL serial TV &ldquo;{params.slug.join('/')}&rdquo; tidak ditemukan.
           </p>
           <Link
             href="/tv"
-            className="inline-flex items-center gap-2 px-5 py-2.5 rounded-xl font-medium text-sm transition-all duration-200"
-            style={{
-              background: 'linear-gradient(135deg, #06b6d4, #7c3aed)',
-              color: 'white',
-            }}
+            className="inline-flex items-center gap-2 px-5 py-2.5 rounded-xl bg-cyan-500 hover:bg-cyan-400 text-slate-950 font-bold transition-all shadow-lg hover:shadow-cyan-500/25"
           >
-            Kembali ke TV Shows
+            <ChevronLeft size={18} />
+            <span>Kembali ke Katalog Serial TV</span>
           </Link>
         </div>
       </div>
@@ -118,34 +153,39 @@ export default async function TVShowPage({ params }: PageProps) {
   }
 
   const isEpisodePage = params.slug.length > 1;
+  const activeEpisode = data.activeEpisode || null;
   const showSlug = params.slug[0];
+  const videoUrl = activeEpisode?.videoUrl || null;
+  const videoType = videoUrl
+    ? videoUrl.includes('.m3u8')
+      ? 'application/x-mpegURL'
+      : videoUrl.includes('.mkv')
+      ? 'video/x-matroska'
+      : 'video/mp4'
+    : 'video/mp4';
 
   const cast = data.credits?.cast?.slice(0, 14) || [];
   const similarShows = data.similar?.results?.slice(0, 14) || [];
   const year = data.first_air_date ? new Date(data.first_air_date).getFullYear() : '';
   const runtime = data.episode_run_time?.[0] ? `${data.episode_run_time[0]}m / ep` : null;
 
-  // Extract official trailer if available
   const trailer =
     data.videos?.results?.find((v) => v.type === 'Trailer' && v.site === 'YouTube' && v.official) ||
     data.videos?.results?.find((v) => v.type === 'Trailer' && v.site === 'YouTube') ||
     data.videos?.results?.[0];
   const trailerKey = trailer?.key || null;
 
-  const defaultBackdrop = data.customImageUrl || (data.backdrop_path ? getImageUrl(data.backdrop_path, 'w1280') : undefined);
+  const defaultBackdrop = data.customImageUrl || (data.backdrop_path ? getImageUrl(data.backdrop_path, 'original') : undefined);
+  const thumbnailImage = activeEpisode?.imageUrl || defaultBackdrop || (data.poster_path ? getImageUrl(data.poster_path, 'w500') : '');
 
-  const videoUrl = isEpisodePage ? data.activeEpisode?.videoUrl || null : null;
-  const videoTitle = isEpisodePage && data.activeEpisode
-    ? `${data.name} - ${data.activeEpisode.episodeLabel}: ${data.activeEpisode.title}`
+  const videoTitle = isEpisodePage && activeEpisode
+    ? `${data.name} - ${activeEpisode.episodeLabel}: ${activeEpisode.title}`
     : data.name;
-  const videoDescription = isEpisodePage && data.activeEpisode?.overview
-    ? data.activeEpisode.overview
-    : data.overview || `Nonton streaming ${videoTitle} full episode kualitas HD sub indo.`;
+  const videoDescription = activeEpisode?.overview || data.overview || `Streaming serial TV ${data.name} full episode sub indo.`;
   const uploadDate = data.first_air_date ? `${data.first_air_date}T00:00:00+07:00` : '2026-08-24T00:00:00+07:00';
-  const durationIso = formatIsoDuration(data.activeEpisode?.duration || data.episode_run_time?.[0] || '50m');
-  const thumbnailImage = data.activeEpisode?.imageUrl || data.customImageUrl || (data.backdrop_path ? getImageUrl(data.backdrop_path, 'w1280') : data.poster_path ? getImageUrl(data.poster_path, 'w500') : '/placeholder-poster.jpg');
+  const durationIso = formatIsoDuration(activeEpisode?.duration || data.episode_run_time?.[0] || '45m');
 
-  const videoObjectSchema = videoUrl
+  const videoObjectSchema = isEpisodePage && videoUrl
     ? {
         '@context': 'https://schema.org',
         '@type': 'VideoObject',
@@ -172,8 +212,13 @@ export default async function TVShowPage({ params }: PageProps) {
       {/* OpenGraph Video & Schema.org VideoObject (Only on Episode page with video) */}
       {isEpisodePage && videoUrl && (
         <>
+          <link rel="video_src" href={videoUrl} />
+          <meta property="og:video" content={videoUrl} />
           <meta property="og:video:url" content={videoUrl} />
-          <meta property="og:video:type" content="video/mp4" />
+          <meta property="og:video:secure_url" content={videoUrl} />
+          <meta property="og:video:type" content={videoType} />
+          <meta property="og:video:width" content="1920" />
+          <meta property="og:video:height" content="1080" />
           {videoObjectSchema && (
             <script
               type="application/ld+json"

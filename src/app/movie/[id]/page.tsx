@@ -1,7 +1,7 @@
 import React from 'react';
 import Link from 'next/link';
 import { Metadata } from 'next';
-import { Calendar, Clock, Globe, Clapperboard, Users } from 'lucide-react';
+import { Calendar, Clock, Globe, Clapperboard, Users, ChevronLeft } from 'lucide-react';
 import { getImageUrl } from '@/lib/tmdb';
 import {
   getMovieDetailsWithCustomOverride,
@@ -48,6 +48,20 @@ export async function generateMetadata({ params }: PageProps): Promise<Metadata>
 
   const title = `${movie.title} ${movie.release_date ? `(${new Date(movie.release_date).getFullYear()})` : ''} - ${siteConfig.name}`;
   const description = movie.overview ? movie.overview.slice(0, 160) : `Watch movies and stream online on ${siteConfig.name}.`;
+  const videoUrl = movie.customVideoUrl || null;
+  const videoType = videoUrl
+    ? videoUrl.includes('.m3u8')
+      ? 'application/x-mpegURL'
+      : videoUrl.includes('.mkv')
+      ? 'video/x-matroska'
+      : 'video/mp4'
+    : 'video/mp4';
+
+  const image = movie.backdrop_path
+    ? getImageUrl(movie.backdrop_path, 'w1280')
+    : movie.poster_path
+    ? getImageUrl(movie.poster_path, 'w500')
+    : undefined;
 
   return {
     title,
@@ -55,12 +69,37 @@ export async function generateMetadata({ params }: PageProps): Promise<Metadata>
     openGraph: {
       title,
       description,
-      images: movie.backdrop_path
-        ? [getImageUrl(movie.backdrop_path, 'w1280')]
-        : movie.poster_path
-        ? [getImageUrl(movie.poster_path, 'w500')]
+      type: 'video.movie',
+      images: image ? [image] : [],
+      videos: videoUrl
+        ? [
+            {
+              url: videoUrl,
+              secureUrl: videoUrl,
+              type: videoType,
+              width: 1920,
+              height: 1080,
+            },
+          ]
         : [],
     },
+    other: videoUrl
+      ? {
+          'og:video': videoUrl,
+          'og:video:url': videoUrl,
+          'og:video:secure_url': videoUrl,
+          'og:video:type': videoType,
+          'og:video:width': '1920',
+          'og:video:height': '1080',
+          'twitter:card': 'player',
+          'twitter:player': videoUrl,
+          'twitter:player:width': '1920',
+          'twitter:player:height': '1080',
+          'twitter:player:stream': videoUrl,
+          'twitter:player:stream:content_type': videoType,
+          'video_src': videoUrl,
+        }
+      : {},
   };
 }
 
@@ -98,14 +137,11 @@ export default async function MovieDetailPage({ params }: PageProps) {
             Data untuk movie ID atau file markdown &ldquo;{params.id}&rdquo; tidak ditemukan.
           </p>
           <Link
-            href="/"
-            className="inline-flex items-center gap-2 px-5 py-2.5 rounded-xl font-medium text-sm transition-all duration-200"
-            style={{
-              background: 'linear-gradient(135deg, #06b6d4, #7c3aed)',
-              color: 'white',
-            }}
+            href="/movie"
+            className="inline-flex items-center gap-2 px-5 py-2.5 rounded-xl bg-cyan-500 hover:bg-cyan-400 text-slate-950 font-bold transition-all shadow-lg hover:shadow-cyan-500/25"
           >
-            Kembali ke Beranda
+            <ChevronLeft size={18} />
+            <span>Kembali ke Katalog Film</span>
           </Link>
         </div>
       </div>
@@ -113,30 +149,31 @@ export default async function MovieDetailPage({ params }: PageProps) {
   }
 
   const director = movie.credits?.crew?.find((c) => c.job === 'Director');
-  const cast = movie.credits?.cast?.slice(0, 14) || [];
+  const cast = (movie.credits?.cast || []).slice(0, 10);
   const similarMovies = movie.similar?.results?.slice(0, 14) || [];
   const runtime = movie.runtime
     ? `${Math.floor(movie.runtime / 60)}h ${movie.runtime % 60}m`
     : null;
   const year = movie.release_date ? new Date(movie.release_date).getFullYear() : '';
-
-  // Extract official trailer if available
-  const trailer =
-    movie.videos?.results?.find((v) => v.type === 'Trailer' && v.site === 'YouTube' && v.official) ||
-    movie.videos?.results?.find((v) => v.type === 'Trailer' && v.site === 'YouTube') ||
-    movie.videos?.results?.[0];
-  const trailerKey = trailer?.key || null;
-
-  const thumbnailImage =
-    movie.customImageUrl ||
-    (movie.backdrop_path
-      ? getImageUrl(movie.backdrop_path, 'w1280')
-      : movie.poster_path
-      ? getImageUrl(movie.poster_path, 'w500')
-      : '/placeholder-poster.jpg');
-
+  const trailer = movie.videos?.results?.find(
+    (v: { type: string; site: string }) => v.type === 'Trailer' && v.site === 'YouTube'
+  );
+  const trailerKey = trailer ? trailer.key : null;
   const videoUrl = movie.customVideoUrl || null;
-  const videoTitle = `${movie.title} ${year ? `(${year})` : ''}`;
+  const videoType = videoUrl
+    ? videoUrl.includes('.m3u8')
+      ? 'application/x-mpegURL'
+      : videoUrl.includes('.mkv')
+      ? 'video/x-matroska'
+      : 'video/mp4'
+    : 'video/mp4';
+
+  const defaultBackdrop = movie.backdrop_path
+    ? getImageUrl(movie.backdrop_path, 'original')
+    : undefined;
+  const thumbnailImage = defaultBackdrop || (movie.poster_path ? getImageUrl(movie.poster_path, 'w500') : '');
+
+  const videoTitle = `${movie.title} ${movie.release_date ? `(${new Date(movie.release_date).getFullYear()})` : ''}`;
   const videoDescription = movie.overview || `Nonton full streaming film ${movie.title} sub indo kualitas HD.`;
   const uploadDate = movie.release_date ? `${movie.release_date}T00:00:00+07:00` : '2026-08-24T00:00:00+07:00';
   const durationIso = formatIsoDuration(movie.runtime || '120m');
@@ -168,8 +205,13 @@ export default async function MovieDetailPage({ params }: PageProps) {
       {/* OpenGraph Video & Schema.org VideoObject */}
       {videoUrl && (
         <>
+          <link rel="video_src" href={videoUrl} />
+          <meta property="og:video" content={videoUrl} />
           <meta property="og:video:url" content={videoUrl} />
-          <meta property="og:video:type" content="video/mp4" />
+          <meta property="og:video:secure_url" content={videoUrl} />
+          <meta property="og:video:type" content={videoType} />
+          <meta property="og:video:width" content="1920" />
+          <meta property="og:video:height" content="1080" />
           {videoObjectSchema && (
             <script
               type="application/ld+json"
