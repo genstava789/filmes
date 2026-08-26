@@ -29,6 +29,7 @@ import {
   Filter,
   ChevronLeft,
   ChevronRight,
+  ChevronDown,
   ChevronsLeft,
   ChevronsRight,
   FolderPlus,
@@ -153,6 +154,8 @@ interface SeasonDraft {
 
 type SortOption = 'newest' | 'oldest' | 'title_asc' | 'title_desc' | 'rating_desc';
 type FilterOption = 'all' | 'featured' | 'non_featured';
+
+const EPISODES_PER_SEASON_PAGE = 6;
 
 /**
  * Safe Image Component that catches errors, unoptimizes external URLs to avoid server 404 logs, and provides placeholders.
@@ -303,9 +306,16 @@ export default function AdminPage() {
   const [filterBy, setFilterBy] = useState<FilterOption>('all');
   const [toastMessage, setToastMessage] = useState<{ text: string; type: 'success' | 'error' | 'warning' } | null>(null);
 
-  // Pagination State
+  // Pagination State for Main Lists
   const [currentPage, setCurrentPage] = useState(1);
   const itemsPerPage = 9;
+
+  // Season Dropdown Accordion & Mini-Pagination State per Show
+  const [expandedSeasons, setExpandedSeasons] = useState<Record<string, boolean>>({});
+  const [seasonPages, setSeasonPages] = useState<Record<string, number>>({});
+
+  // Edit Modal Mini-Pagination State
+  const [editModalSeasonPage, setEditModalSeasonPage] = useState<number>(1);
 
   // GitHub Token & Hydration Safety
   const [githubToken, setGithubToken] = useState<string>('');
@@ -375,6 +385,33 @@ export default function AdminPage() {
   const [fetchingEditTmdb, setFetchingEditTmdb] = useState(false);
   const [editSelectedBackdropLang, setEditSelectedBackdropLang] = useState<string>('all');
   const [showEditBackdropPicker, setShowEditBackdropPicker] = useState(false);
+
+  // Accordion Toggle helper for TV Dashboard
+  const toggleSeasonAccordion = (showSlug: string, seasonSlug: string) => {
+    const key = `${showSlug}_${seasonSlug}`;
+    setExpandedSeasons((prev) => ({
+      ...prev,
+      [key]: prev[key] === undefined ? false : !prev[key],
+    }));
+  };
+
+  const isSeasonExpanded = (showSlug: string, seasonSlug: string, isFirst: boolean) => {
+    const key = `${showSlug}_${seasonSlug}`;
+    if (expandedSeasons[key] !== undefined) {
+      return expandedSeasons[key];
+    }
+    return isFirst;
+  };
+
+  const getSeasonPagination = (showSlug: string, seasonSlug: string) => {
+    const key = `${showSlug}_${seasonSlug}`;
+    return seasonPages[key] || 1;
+  };
+
+  const setSeasonPagination = (showSlug: string, seasonSlug: string, page: number) => {
+    const key = `${showSlug}_${seasonSlug}`;
+    setSeasonPages((prev) => ({ ...prev, [key]: page }));
+  };
 
   // Detect duplicate existing post when creating
   const existingDuplicate = useMemo(() => {
@@ -526,6 +563,7 @@ export default function AdminPage() {
     setEditSelectedBackdropLang('all');
     setEditShowTab('info');
     setSelectedEditEpPaths([]);
+    setEditModalSeasonPage(1);
     setIsEditModalOpen(true);
 
     let tmdbIdToFetch = item.frontmatter.tmdb_id;
@@ -1543,7 +1581,7 @@ export default function AdminPage() {
     return result;
   }, [tvShows, searchQuery, filterBy, sortBy]);
 
-  // Pagination calculation
+  // Pagination calculation for main list
   const totalItems = activeTab === 'movies' ? filteredMovies.length : filteredTvShows.length;
   const totalPages = Math.ceil(totalItems / itemsPerPage) || 1;
   const paginatedMovies = useMemo(() => {
@@ -1602,9 +1640,9 @@ export default function AdminPage() {
             </div>
             <div>
               <h1 className="text-base sm:text-lg font-bold tracking-tight bg-gradient-to-r from-white via-slate-200 to-slate-400 bg-clip-text text-transparent">
-                Filmes Admin Panel
+                Levi Panel
               </h1>
-              <p className="text-[10px] text-slate-400 font-medium">Content Management & Live Post Publisher</p>
+              <p className="text-[10px] text-slate-400 font-medium">Content Menagment</p>
             </div>
           </div>
 
@@ -1881,6 +1919,7 @@ export default function AdminPage() {
                 const tmdbId = show.frontmatter.tmdb_id;
                 const poster = show.posterUrl || show.frontmatter.image_url;
                 const year = show.year;
+                const showSeasons = getShowSeasons(show);
 
                 return (
                   <div
@@ -1888,7 +1927,7 @@ export default function AdminPage() {
                     className="p-3.5 sm:p-4 rounded-xl bg-[#0c1224] border border-white/10 hover:border-pink-500/40 transition-all shadow-sm w-full"
                   >
                     {/* Show Main Header */}
-                    <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-2.5 pb-2.5 border-b border-white/10 w-full">
+                    <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-2.5 pb-3 border-b border-white/10 w-full">
                       <div className="flex items-center gap-2.5">
                         <div className="relative w-10 h-14 rounded overflow-hidden bg-slate-900 flex-shrink-0 border border-white/10 shadow-sm">
                           <SafeAdminImage src={poster} alt={title} sizes="40px" />
@@ -1901,6 +1940,9 @@ export default function AdminPage() {
                             </span>
                             <span className="px-1.5 py-0.2 rounded text-[9px] font-bold bg-purple-500/10 text-purple-400 border border-purple-500/30">
                               {show.episodes.length} Episode
+                            </span>
+                            <span className="px-1.5 py-0.2 rounded text-[9px] font-bold bg-white/5 text-slate-300 border border-white/10">
+                              {showSeasons.length} Season
                             </span>
                           </div>
                           <h3 className="font-bold text-white text-xs sm:text-sm leading-snug">
@@ -1952,9 +1994,11 @@ export default function AdminPage() {
                       </div>
                     </div>
 
-                    {/* Episodes Grid with Clean Horizontal Preview Cards */}
-                    <div className="mt-2.5 w-full">
-                      {show.episodes.length === 0 ? (
+                    {/* ════════════════════════════════════════════════════ */}
+                    {/* SEASON DROPDOWN ACCORDION & MINI-PAGINATION LIST */}
+                    {/* ════════════════════════════════════════════════════ */}
+                    <div className="mt-3 space-y-2 w-full">
+                      {showSeasons.length === 0 || show.episodes.length === 0 ? (
                         <div className="p-3 text-center bg-black/20 rounded-lg border border-white/5">
                           <p className="text-[11px] text-slate-400 mb-1">Belum ada episode di series ini.</p>
                           <button
@@ -1974,84 +2018,186 @@ export default function AdminPage() {
                           </button>
                         </div>
                       ) : (
-                        <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-2 w-full">
-                          {show.episodes.map((ep) => {
-                            const epTitle = ep.displayTitle || ep.frontmatter.title || ep.slug;
-                            const epVideo = ep.frontmatter.videourl || ep.frontmatter.video_url;
-                            const epPoster = ep.posterUrl || ep.frontmatter.image_url;
-                            const baseTVUrl = getTVUrl({
-                              id: show.frontmatter.tmdb_id,
-                              tmdbId: show.frontmatter.tmdb_id,
-                              name: show.displayTitle || show.frontmatter.title,
-                              year: show.year,
-                              customSlug: show.showSlug,
-                            });
-                            const linkPath = ep.seasonFolder
-                              ? `${baseTVUrl}/${ep.seasonFolder}/${ep.slug}`
-                              : `${baseTVUrl}/${ep.slug}`;
+                        showSeasons.map((seasonSlug, sIdx) => {
+                          const isExpanded = isSeasonExpanded(show.showSlug, seasonSlug, sIdx === 0);
+                          const seasonEps = show.episodes.filter(
+                            (ep) => (ep.seasonFolder || 's1').toLowerCase() === seasonSlug.toLowerCase()
+                          );
+                          const seasonPage = getSeasonPagination(show.showSlug, seasonSlug);
+                          const seasonTotalPages = Math.ceil(seasonEps.length / EPISODES_PER_SEASON_PAGE) || 1;
+                          const pagedEpisodes = seasonEps.slice(
+                            (seasonPage - 1) * EPISODES_PER_SEASON_PAGE,
+                            seasonPage * EPISODES_PER_SEASON_PAGE
+                          );
 
-                            return (
+                          return (
+                            <div
+                              key={seasonSlug}
+                              className="rounded-lg border border-white/10 bg-black/30 overflow-hidden transition-all shadow-sm"
+                            >
+                              {/* Season Dropdown Menu Header */}
                               <div
-                                key={ep.relativePath}
-                                className="p-1.5 rounded-lg bg-black/50 border border-white/10 flex items-center gap-2.5 w-full hover:border-purple-500/40 transition-all shadow-sm"
+                                onClick={() => toggleSeasonAccordion(show.showSlug, seasonSlug)}
+                                className="p-2 sm:p-2.5 flex items-center justify-between gap-2 cursor-pointer hover:bg-white/5 transition-all select-none"
                               >
-                                {/* Left: Compact 16:9 Thumbnail (w-16 h-10) */}
-                                <div className="relative w-16 h-10 rounded-md overflow-hidden bg-slate-900 border border-white/10 flex-shrink-0">
-                                  <SafeAdminImage src={epPoster} fallbackSrc={poster} alt={epTitle} sizes="64px" />
+                                <div className="flex items-center gap-2">
+                                  {isExpanded ? (
+                                    <ChevronDown size={14} className="text-pink-400 transition-transform" />
+                                  ) : (
+                                    <ChevronRight size={14} className="text-slate-400 transition-transform" />
+                                  )}
+                                  <span className="text-xs font-bold text-white tracking-tight">
+                                    {formatSeasonLabel(seasonSlug)}
+                                  </span>
+                                  <span className="px-1.5 py-0.2 rounded text-[9px] font-bold bg-purple-500/20 text-purple-300 border border-purple-500/30">
+                                    {seasonEps.length} Episode
+                                  </span>
                                 </div>
 
-                                {/* Center & Right: Episode Info & Badges */}
-                                <div className="flex-1 min-w-0">
-                                  <div className="flex items-center gap-1.5 mb-0.5">
-                                    <span className="px-1.5 py-0.2 rounded text-[9px] font-extrabold bg-purple-500/20 text-purple-300 border border-purple-500/30 whitespace-nowrap">
-                                      {formatEpisodeBadge(ep.seasonFolder, ep.slug)}
-                                    </span>
-                                    <h5 className="font-semibold text-white text-[11px] truncate flex-1" title={epTitle}>
-                                      {epTitle}
-                                    </h5>
-                                  </div>
-                                  <p className="text-[9px] text-slate-400 font-mono truncate" title={epVideo}>
-                                    {epVideo || <span className="text-red-400 font-bold">Video belum ada</span>}
-                                  </p>
-                                </div>
-
-                                {/* Actions */}
-                                <div className="flex items-center gap-0.5 flex-shrink-0">
-                                  <Link
-                                    href={linkPath}
-                                    target="_blank"
-                                    className="p-1 rounded text-cyan-400 hover:text-cyan-300 hover:bg-cyan-500/10 transition-colors"
-                                    title="Tonton"
-                                  >
-                                    <Play size={11} />
-                                  </Link>
+                                <div className="flex items-center gap-1.5" onClick={(e) => e.stopPropagation()}>
                                   <button
-                                    onClick={() => {
-                                      if (!requireToken('mengedit episode')) return;
-                                      openEditModal({
-                                        type: 'tv_episode',
-                                        relativePath: ep.relativePath,
-                                        frontmatter: { ...ep.frontmatter },
-                                        content: ep.content,
-                                      });
-                                    }}
-                                    className="p-1 rounded text-slate-400 hover:text-white transition-colors"
-                                    title="Edit Episode"
+                                    onClick={() => handleQuickAddEpisodeToEditShow(show, seasonSlug)}
+                                    className="px-2 py-0.5 rounded text-[10px] font-bold bg-purple-500/20 hover:bg-purple-500/30 text-purple-300 border border-purple-500/30 flex items-center gap-1 transition-all"
                                   >
-                                    <Edit2 size={11} />
-                                  </button>
-                                  <button
-                                    onClick={() => handleDelete(ep.relativePath, epTitle)}
-                                    className="p-1 rounded text-red-400 hover:text-red-300 transition-colors"
-                                    title="Hapus Episode"
-                                  >
-                                    <Trash2 size={11} />
+                                    <Plus size={10} />
+                                    <span>Tambah Ep</span>
                                   </button>
                                 </div>
                               </div>
-                            );
-                          })}
-                        </div>
+
+                              {/* Dropdown Content with Mini-Pagination */}
+                              {isExpanded && (
+                                <div className="p-2.5 pt-1.5 border-t border-white/5 space-y-2 bg-black/40">
+                                  {seasonEps.length === 0 ? (
+                                    <div className="p-3 text-center text-slate-500 text-[11px]">
+                                      Belum ada episode di {formatSeasonLabel(seasonSlug)}.
+                                    </div>
+                                  ) : (
+                                    <>
+                                      <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-2">
+                                        {pagedEpisodes.map((ep) => {
+                                          const epTitle = ep.displayTitle || ep.frontmatter.title || ep.slug;
+                                          const epVideo = ep.frontmatter.videourl || ep.frontmatter.video_url;
+                                          const epPoster = ep.posterUrl || ep.frontmatter.image_url;
+                                          const baseTVUrl = getTVUrl({
+                                            id: show.frontmatter.tmdb_id,
+                                            tmdbId: show.frontmatter.tmdb_id,
+                                            name: show.displayTitle || show.frontmatter.title,
+                                            year: show.year,
+                                            customSlug: show.showSlug,
+                                          });
+                                          const linkPath = ep.seasonFolder
+                                            ? `${baseTVUrl}/${ep.seasonFolder}/${ep.slug}`
+                                            : `${baseTVUrl}/${ep.slug}`;
+
+                                          return (
+                                            <div
+                                              key={ep.relativePath}
+                                              className="p-1.5 rounded-lg bg-black/50 border border-white/10 flex items-center gap-2.5 w-full hover:border-purple-500/40 transition-all shadow-sm"
+                                            >
+                                              {/* Left: Compact 16:9 Thumbnail */}
+                                              <div className="relative w-14 h-9 sm:w-16 sm:h-10 rounded overflow-hidden bg-slate-900 border border-white/10 flex-shrink-0">
+                                                <SafeAdminImage src={epPoster} fallbackSrc={poster} alt={epTitle} sizes="56px" />
+                                              </div>
+
+                                              {/* Center: Info & Badge */}
+                                              <div className="flex-1 min-w-0">
+                                                <div className="flex items-center gap-1.5 mb-0.5">
+                                                  <span className="px-1.5 py-0.2 rounded text-[8.5px] font-extrabold bg-purple-500/20 text-purple-300 border border-purple-500/30 whitespace-nowrap">
+                                                    {formatEpisodeBadge(ep.seasonFolder, ep.slug)}
+                                                  </span>
+                                                  <h5 className="font-semibold text-white text-[11px] truncate flex-1" title={epTitle}>
+                                                    {epTitle}
+                                                  </h5>
+                                                </div>
+                                                <p className="text-[9px] text-slate-400 font-mono truncate" title={epVideo}>
+                                                  {epVideo || <span className="text-red-400 font-bold">Video belum ada</span>}
+                                                </p>
+                                              </div>
+
+                                              {/* Right: Actions */}
+                                              <div className="flex items-center gap-0.5 flex-shrink-0">
+                                                <Link
+                                                  href={linkPath}
+                                                  target="_blank"
+                                                  className="p-1 rounded text-cyan-400 hover:text-cyan-300 hover:bg-cyan-500/10 transition-colors"
+                                                  title="Tonton"
+                                                >
+                                                  <Play size={11} />
+                                                </Link>
+                                                <button
+                                                  onClick={() => {
+                                                    if (!requireToken('mengedit episode')) return;
+                                                    openEditModal({
+                                                      type: 'tv_episode',
+                                                      relativePath: ep.relativePath,
+                                                      frontmatter: { ...ep.frontmatter },
+                                                      content: ep.content,
+                                                    });
+                                                  }}
+                                                  className="p-1 rounded text-slate-400 hover:text-white transition-colors"
+                                                  title="Edit Episode"
+                                                >
+                                                  <Edit2 size={11} />
+                                                </button>
+                                                <button
+                                                  onClick={() => handleDelete(ep.relativePath, epTitle)}
+                                                  className="p-1 rounded text-red-400 hover:text-red-300 transition-colors"
+                                                  title="Hapus Episode"
+                                                >
+                                                  <Trash2 size={11} />
+                                                </button>
+                                              </div>
+                                            </div>
+                                          );
+                                        })}
+                                      </div>
+
+                                      {/* Mini Pagination Bar per Season */}
+                                      {seasonTotalPages > 1 && (
+                                        <div className="flex items-center justify-between pt-2 border-t border-white/5 text-[10px] text-slate-400 px-1">
+                                          <span>
+                                            Menampilkan Episode{' '}
+                                            <span className="font-bold text-white">
+                                              {(seasonPage - 1) * EPISODES_PER_SEASON_PAGE + 1}
+                                            </span>
+                                            -
+                                            <span className="font-bold text-white">
+                                              {Math.min(seasonEps.length, seasonPage * EPISODES_PER_SEASON_PAGE)}
+                                            </span>{' '}
+                                            dari <span className="font-bold text-white">{seasonEps.length}</span>
+                                          </span>
+
+                                          <div className="flex items-center gap-1">
+                                            <button
+                                              disabled={seasonPage <= 1}
+                                              onClick={() => setSeasonPagination(show.showSlug, seasonSlug, Math.max(1, seasonPage - 1))}
+                                              className="p-1 rounded bg-white/5 border border-white/10 text-slate-300 hover:text-white disabled:opacity-30 disabled:cursor-not-allowed transition-all"
+                                              title="Episode Sebelumnya"
+                                            >
+                                              <ChevronLeft size={12} />
+                                            </button>
+                                            <span className="px-2 py-0.2 rounded bg-purple-500/20 text-purple-300 font-bold border border-purple-500/30 text-[9px]">
+                                              {seasonPage} / {seasonTotalPages}
+                                            </span>
+                                            <button
+                                              disabled={seasonPage >= seasonTotalPages}
+                                              onClick={() => setSeasonPagination(show.showSlug, seasonSlug, Math.min(seasonTotalPages, seasonPage + 1))}
+                                              className="p-1 rounded bg-white/5 border border-white/10 text-slate-300 hover:text-white disabled:opacity-30 disabled:cursor-not-allowed transition-all"
+                                              title="Episode Selanjutnya"
+                                            >
+                                              <ChevronRight size={12} />
+                                            </button>
+                                          </div>
+                                        </div>
+                                      )}
+                                    </>
+                                  )}
+                                </div>
+                              )}
+                            </div>
+                          );
+                        })
                       )}
                     </div>
                   </div>
@@ -2061,7 +2207,7 @@ export default function AdminPage() {
           )
         )}
 
-        {/* Pagination Bar */}
+        {/* Main List Pagination Bar */}
         {totalItems > 0 && (
           <div className="flex flex-col sm:flex-row items-center justify-between gap-2.5 mt-5 pt-4 border-t border-white/10 w-full">
             <div className="text-[11px] text-slate-400 font-medium">
@@ -2910,7 +3056,7 @@ export default function AdminPage() {
                       Episode {currentEditingShow.displayTitle}
                     </h4>
                     <p className="text-[10px] text-slate-400">
-                      Kelola episode series ini secara langsung.
+                      Kelola episode series ini secara langsung per season.
                     </p>
                   </div>
 
@@ -2971,7 +3117,7 @@ export default function AdminPage() {
                 {(() => {
                   const seasons = getShowSeasons(currentEditingShow);
                   return (
-                    <div className="flex items-center gap-1.5 overflow-x-auto pb-1">
+                    <div className="flex items-center gap-1.5 overflow-x-auto pb-1 pt-1 px-0.5">
                       {seasons.map((s) => {
                         const count = currentEditingShow.episodes.filter(
                           (ep) => (ep.seasonFolder || 's1').toLowerCase() === s.toLowerCase()
@@ -2984,6 +3130,7 @@ export default function AdminPage() {
                             onClick={() => {
                               setEditActiveSeasonTab(s);
                               setSelectedEditEpPaths([]);
+                              setEditModalSeasonPage(1);
                             }}
                             className={`px-2.5 py-1 rounded-md text-center transition-all flex flex-col items-center justify-center min-w-[62px] sm:min-w-[68px] gap-0.5 ${
                               isActive
@@ -3012,6 +3159,12 @@ export default function AdminPage() {
                   const seasonPaths = seasonEps.map((ep) => ep.relativePath);
                   const isAllSelected = seasonPaths.length > 0 && seasonPaths.every((p) => selectedEditEpPaths.includes(p));
                   const selectedCount = seasonEps.filter((ep) => selectedEditEpPaths.includes(ep.relativePath)).length;
+
+                  const totalEditModalPages = Math.ceil(seasonEps.length / EPISODES_PER_SEASON_PAGE) || 1;
+                  const pagedEditEpisodes = seasonEps.slice(
+                    (editModalSeasonPage - 1) * EPISODES_PER_SEASON_PAGE,
+                    editModalSeasonPage * EPISODES_PER_SEASON_PAGE
+                  );
 
                   return (
                     <div className="space-y-1.5">
@@ -3053,14 +3206,14 @@ export default function AdminPage() {
                         </div>
                       </div>
 
-                      {/* Episodes List in Season */}
+                      {/* Episodes List in Season with Mini Pagination */}
                       <div className="space-y-1.5 max-h-72 overflow-y-auto pr-1">
                         {seasonEps.length === 0 ? (
                           <div className="p-3 text-center bg-black/20 rounded border border-white/5">
                             <p className="text-[11px] text-slate-400">Belum ada episode di {formatSeasonLabel(editActiveSeasonTab)}.</p>
                           </div>
                         ) : (
-                          seasonEps.map((ep) => {
+                          pagedEditEpisodes.map((ep) => {
                             const isSelected = selectedEditEpPaths.includes(ep.relativePath);
                             const epPoster = ep.posterUrl || ep.frontmatter.image_url;
 
@@ -3136,6 +3289,38 @@ export default function AdminPage() {
                           })
                         )}
                       </div>
+
+                      {/* Mini Pagination for Edit Modal Episodes */}
+                      {totalEditModalPages > 1 && (
+                        <div className="flex items-center justify-between pt-1 border-t border-white/5 text-[10px] text-slate-400 px-1">
+                          <span>
+                            Episode {(editModalSeasonPage - 1) * EPISODES_PER_SEASON_PAGE + 1} -{' '}
+                            {Math.min(seasonEps.length, editModalSeasonPage * EPISODES_PER_SEASON_PAGE)} dari{' '}
+                            {seasonEps.length}
+                          </span>
+                          <div className="flex items-center gap-1">
+                            <button
+                              type="button"
+                              disabled={editModalSeasonPage <= 1}
+                              onClick={() => setEditModalSeasonPage((p) => Math.max(1, p - 1))}
+                              className="p-1 rounded bg-white/5 border border-white/10 text-slate-300 hover:text-white disabled:opacity-30 disabled:cursor-not-allowed"
+                            >
+                              <ChevronLeft size={11} />
+                            </button>
+                            <span className="px-1.5 py-0.2 rounded bg-purple-500/20 text-purple-300 font-bold border border-purple-500/30 text-[9px]">
+                              {editModalSeasonPage} / {totalEditModalPages}
+                            </span>
+                            <button
+                              type="button"
+                              disabled={editModalSeasonPage >= totalEditModalPages}
+                              onClick={() => setEditModalSeasonPage((p) => Math.min(totalEditModalPages, p + 1))}
+                              className="p-1 rounded bg-white/5 border border-white/10 text-slate-300 hover:text-white disabled:opacity-30 disabled:cursor-not-allowed"
+                            >
+                              <ChevronRight size={11} />
+                            </button>
+                          </div>
+                        </div>
+                      )}
                     </div>
                   );
                 })()}
