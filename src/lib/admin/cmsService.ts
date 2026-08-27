@@ -127,131 +127,124 @@ export async function fetchPaginatedAdminContent(
   const tvPage = Math.max(1, Number(options.tvPage) || 1);
   const search = (options.search || '').trim().toLowerCase();
 
-  // 1. Fetch Paginated Data from MongoDB in parallel (takes ~5-15ms)
-  const [mongoMoviesPaged, mongoTVPaged, counts] = await Promise.all([
-    getPaginatedMongoMovies({ page: moviePage, limit, search }),
-    getPaginatedMongoTVShows({ page: tvPage, limit, search }),
-    getMongoContentCounts(),
-  ]);
-
-  // Read local disk files ONLY if MongoDB has 0 items and is offline/empty
+  // 1. Fetch Repository/Disk Files Baseline (cached in memory with fast SWR)
   let localDiskMovies: any[] = [];
   let localDiskTVShows: any[] = [];
 
-  const hasMongoMovies = mongoMoviesPaged.total > 0 || (counts.totalMovies || 0) > 0;
-  const hasMongoTV = mongoTVPaged.total > 0 || (counts.totalTVShows || 0) > 0;
+  try {
+    const diskData = await memoryCache.getOrFetch<{ movies: any[]; tvShows: any[] }>(
+      'admin_repo_disk_scan',
+      async () => {
+        let diskMovies: any[] = [];
+        let diskTV: any[] = [];
 
-  if (!hasMongoMovies || !hasMongoTV) {
-    try {
-      const diskData = await memoryCache.getOrFetch<{ movies: any[]; tvShows: any[] }>(
-        'admin_local_disk_scan',
-        async () => {
-          let diskMovies: any[] = [];
-          let diskTV: any[] = [];
+        if (fs.existsSync(VIDEO_DIR)) {
+          const files = fs.readdirSync(VIDEO_DIR).filter((f) => /\.(md|markdown)$/i.test(f));
+          diskMovies = files.map((file) => {
+            try {
+              const fullPath = path.join(VIDEO_DIR, file);
+              const raw = fs.readFileSync(fullPath, 'utf8');
+              const stat = fs.statSync(fullPath);
+              const { data, content } = matter(raw);
+              const slug = file.replace(/\.(md|markdown)$/i, '');
+              return {
+                filename: file,
+                slug,
+                relativePath: `video/${file}`,
+                frontmatter: data || {},
+                content: content || '',
+                updatedAt: stat.mtimeMs || Date.now(),
+              };
+            } catch {
+              return null;
+            }
+          }).filter(Boolean) as any[];
+        }
 
-          if (fs.existsSync(VIDEO_DIR)) {
-            const files = fs.readdirSync(VIDEO_DIR).filter((f) => /\.(md|markdown)$/i.test(f));
-            diskMovies = files.map((file) => {
-              try {
-                const fullPath = path.join(VIDEO_DIR, file);
-                const raw = fs.readFileSync(fullPath, 'utf8');
-                const stat = fs.statSync(fullPath);
-                const { data, content } = matter(raw);
-                const slug = file.replace(/\.(md|markdown)$/i, '');
-                return {
-                  filename: file,
-                  slug,
-                  relativePath: `video/${file}`,
-                  frontmatter: data || {},
-                  content: content || '',
-                  updatedAt: stat.mtimeMs || Date.now(),
-                };
-              } catch {
-                return null;
-              }
-            }).filter(Boolean) as any[];
-          }
+        if (fs.existsSync(TV_DIR)) {
+          const dirs = fs.readdirSync(TV_DIR, { withFileTypes: true }).filter((d) => d.isDirectory());
+          for (const d of dirs) {
+            const showPath = path.join(TV_DIR, d.name);
+            let indexData: any = {};
+            let indexContent = '';
+            const indexPath = fs.existsSync(path.join(showPath, '_index.md'))
+              ? path.join(showPath, '_index.md')
+              : fs.existsSync(path.join(showPath, 'index.md'))
+              ? path.join(showPath, 'index.md')
+              : null;
 
-          if (fs.existsSync(TV_DIR)) {
-            const dirs = fs.readdirSync(TV_DIR, { withFileTypes: true }).filter((d) => d.isDirectory());
-            for (const d of dirs) {
-              const showPath = path.join(TV_DIR, d.name);
-              let indexData: any = {};
-              let indexContent = '';
-              const indexPath = fs.existsSync(path.join(showPath, '_index.md'))
-                ? path.join(showPath, '_index.md')
-                : fs.existsSync(path.join(showPath, 'index.md'))
-                ? path.join(showPath, 'index.md')
-                : null;
+            if (indexPath) {
+              const raw = fs.readFileSync(indexPath, 'utf8');
+              const parsed = matter(raw);
+              indexData = parsed.data || {};
+              indexContent = parsed.content || '';
+            }
 
-              if (indexPath) {
-                const raw = fs.readFileSync(indexPath, 'utf8');
-                const parsed = matter(raw);
-                indexData = parsed.data || {};
-                indexContent = parsed.content || '';
-              }
-
-              const episodes: any[] = [];
-              const entries = fs.readdirSync(showPath, { withFileTypes: true });
-              for (const entry of entries) {
-                if (entry.name === '_index.md' || entry.name === 'index.md') continue;
-                if (entry.isDirectory()) {
-                  const seasonFolder = entry.name;
-                  const seasonPath = path.join(showPath, seasonFolder);
-                  const epFiles = fs.readdirSync(seasonPath).filter((f) => /\.(md|markdown)$/i.test(f));
-                  for (const epFile of epFiles) {
-                    const raw = fs.readFileSync(path.join(seasonPath, epFile), 'utf8');
-                    const { data, content } = matter(raw);
-                    const epSlug = epFile.replace(/\.(md|markdown)$/i, '');
-                    episodes.push({
-                      showSlug: d.name,
-                      seasonFolder,
-                      filename: epFile,
-                      slug: epSlug,
-                      relativePath: `tv/${d.name}/${seasonFolder}/${epFile}`,
-                      frontmatter: data || {},
-                      content: content || '',
-                      displayTitle: data?.title || epSlug,
-                      posterUrl: data?.image_url ? getImageUrl(data.image_url, 'w500') : null,
-                      updatedAt: Date.now(),
-                    });
-                  }
+            const episodes: any[] = [];
+            const entries = fs.readdirSync(showPath, { withFileTypes: true });
+            for (const entry of entries) {
+              if (entry.name === '_index.md' || entry.name === 'index.md') continue;
+              if (entry.isDirectory()) {
+                const seasonFolder = entry.name;
+                const seasonPath = path.join(showPath, seasonFolder);
+                const epFiles = fs.readdirSync(seasonPath).filter((f) => /\.(md|markdown)$/i.test(f));
+                for (const epFile of epFiles) {
+                  const raw = fs.readFileSync(path.join(seasonPath, epFile), 'utf8');
+                  const { data, content } = matter(raw);
+                  const epSlug = epFile.replace(/\.(md|markdown)$/i, '');
+                  episodes.push({
+                    showSlug: d.name,
+                    seasonFolder,
+                    filename: epFile,
+                    slug: epSlug,
+                    relativePath: `tv/${d.name}/${seasonFolder}/${epFile}`,
+                    frontmatter: data || {},
+                    content: content || '',
+                    displayTitle: data?.title || epSlug,
+                    posterUrl: data?.image_url ? getImageUrl(data.image_url, 'w500') : null,
+                    updatedAt: Date.now(),
+                  });
                 }
               }
-
-              diskTV.push({
-                showSlug: d.name,
-                relativePath: `tv/${d.name}/_index.md`,
-                indexFrontmatter: indexData,
-                indexContent,
-                updatedAt: Date.now(),
-                episodes,
-              });
             }
-          }
-          return { movies: diskMovies, tvShows: diskTV };
-        },
-        60_000,
-        15_000
-      );
 
-      localDiskMovies = diskData.movies;
-      localDiskTVShows = diskData.tvShows;
-    } catch (err) {
-      console.warn('[cmsService] Local disk scan notice:', err);
-    }
+            diskTV.push({
+              showSlug: d.name,
+              relativePath: `tv/${d.name}/_index.md`,
+              indexFrontmatter: indexData,
+              indexContent,
+              updatedAt: Date.now(),
+              episodes,
+            });
+          }
+        }
+        return { movies: diskMovies, tvShows: diskTV };
+      },
+      60_000,
+      15_000
+    );
+
+    localDiskMovies = diskData.movies;
+    localDiskTVShows = diskData.tvShows;
+  } catch (err) {
+    console.warn('[cmsService] Repository disk scan notice:', err);
   }
 
-  // ----------------------------------------------------
-  // RESOLVE MOVIES: Merge MongoDB + Local Disk Files seamlessly
-  // ----------------------------------------------------
-  let rawMovies: any[] = [];
-  let totalMovies = 0;
-  let totalMoviePages = 1;
-  let totalAllMoviesCount = 0;
+  // 2. Fetch Staging Buffer from MongoDB in parallel (ephemeral drafts/pending changes)
+  const [stagedMovies, stagedTVShows] = await Promise.all([
+    getMongoMovies().catch(() => []),
+    getMongoTVShows().catch(() => []),
+  ]);
 
-  if (mongoMoviesPaged.total > 0) {
-    rawMovies = mongoMoviesPaged.items.map((m) => ({
+  // ----------------------------------------------------
+  // RESOLVE MOVIES: Git Baseline + MongoDB Staging Overlay
+  // ----------------------------------------------------
+  const moviesMap = new Map<string, any>();
+  for (const m of localDiskMovies) {
+    moviesMap.set(m.slug, m);
+  }
+  for (const m of stagedMovies) {
+    moviesMap.set(m.slug, {
       filename: `${m.slug}.md`,
       slug: m.slug,
       relativePath: `video/${m.slug}.md`,
@@ -268,39 +261,33 @@ export async function fetchPaginatedAdminContent(
       },
       content: m.content || '',
       updatedAt: m.updatedAt || Date.now(),
-    }));
-
-    totalMovies = mongoMoviesPaged.total;
-    totalMoviePages = mongoMoviesPaged.totalPages;
-    totalAllMoviesCount = counts.totalMovies || totalMovies;
-  } else if (localDiskMovies.length > 0) {
-    // If MongoDB returned 0 or is offline, paginate local disk movies
-    let filtered = localDiskMovies;
-    if (search) {
-      filtered = filtered.filter(
-        (m) =>
-          (m.frontmatter.title || m.slug).toLowerCase().includes(search) ||
-          String(m.frontmatter.tmdb_id || '').includes(search)
-      );
-    }
-    totalMovies = filtered.length;
-    totalMoviePages = Math.ceil(totalMovies / limit) || 1;
-    totalAllMoviesCount = localDiskMovies.length;
-    const start = (moviePage - 1) * limit;
-    rawMovies = filtered.slice(start, start + limit);
+    });
   }
 
-  // ----------------------------------------------------
-  // RESOLVE TV SHOWS: Merge MongoDB + Local Disk Files seamlessly
-  // ----------------------------------------------------
-  let rawTvShows: any[] = [];
-  let totalTvShows = 0;
-  let totalTvPages = 1;
-  let totalAllTvShowsCount = 0;
-  let totalEpisodesCount = counts.totalEpisodes || 0;
+  let allMergedMovies = Array.from(moviesMap.values());
+  if (search) {
+    allMergedMovies = allMergedMovies.filter(
+      (m) =>
+        (m.frontmatter.title || m.slug).toLowerCase().includes(search) ||
+        String(m.frontmatter.tmdb_id || '').includes(search)
+    );
+  }
 
-  if (mongoTVPaged.total > 0) {
-    rawTvShows = mongoTVPaged.items.map((s) => ({
+  const totalMovies = allMergedMovies.length;
+  const totalMoviePages = Math.max(1, Math.ceil(totalMovies / limit));
+  const totalAllMoviesCount = moviesMap.size;
+  const movieStart = (moviePage - 1) * limit;
+  const rawMovies = allMergedMovies.slice(movieStart, movieStart + limit);
+
+  // ----------------------------------------------------
+  // RESOLVE TV SHOWS: Git Baseline + MongoDB Staging Overlay
+  // ----------------------------------------------------
+  const tvShowsMap = new Map<string, any>();
+  for (const s of localDiskTVShows) {
+    tvShowsMap.set(s.showSlug, s);
+  }
+  for (const s of stagedTVShows) {
+    tvShowsMap.set(s.showSlug, {
       showSlug: s.showSlug,
       relativePath: `tv/${s.showSlug}/_index.md`,
       indexFrontmatter: {
@@ -333,27 +320,27 @@ export async function fetchPaginatedAdminContent(
         posterUrl: ep.image_url ? getImageUrl(ep.image_url, 'w500') : null,
         updatedAt: ep.updatedAt || Date.now(),
       })),
-    }));
-
-    totalTvShows = mongoTVPaged.total;
-    totalTvPages = mongoTVPaged.totalPages;
-    totalAllTvShowsCount = counts.totalTVShows || totalTvShows;
-  } else if (localDiskTVShows.length > 0) {
-    let filtered = localDiskTVShows;
-    if (search) {
-      filtered = filtered.filter(
-        (s) =>
-          (s.indexFrontmatter.title || s.showSlug).toLowerCase().includes(search) ||
-          String(s.indexFrontmatter.tmdb_id || '').includes(search)
-      );
-    }
-    totalTvShows = filtered.length;
-    totalTvPages = Math.ceil(totalTvShows / limit) || 1;
-    totalAllTvShowsCount = localDiskTVShows.length;
-    totalEpisodesCount = localDiskTVShows.reduce((acc, s) => acc + (s.episodes?.length || 0), 0);
-    const start = (tvPage - 1) * limit;
-    rawTvShows = filtered.slice(start, start + limit);
+    });
   }
+
+  let allMergedTV = Array.from(tvShowsMap.values());
+  if (search) {
+    allMergedTV = allMergedTV.filter(
+      (s) =>
+        (s.indexFrontmatter.title || s.showSlug).toLowerCase().includes(search) ||
+        String(s.indexFrontmatter.tmdb_id || '').includes(search)
+    );
+  }
+
+  const totalTvShows = allMergedTV.length;
+  const totalTvPages = Math.max(1, Math.ceil(totalTvShows / limit));
+  const totalAllTvShowsCount = tvShowsMap.size;
+  const totalEpisodesCount = Array.from(tvShowsMap.values()).reduce(
+    (acc, s) => acc + (s.episodes?.length || 0),
+    0
+  );
+  const tvStart = (tvPage - 1) * limit;
+  const rawTvShows = allMergedTV.slice(tvStart, tvStart + limit);
 
   // 2. ENRICH ONLY THE 7 ITEMS IN THE CURRENT PAGE (Blazing fast: ~1-5ms with in-memory memoization)
   const movies = await Promise.all(

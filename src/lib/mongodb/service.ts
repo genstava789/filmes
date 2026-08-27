@@ -90,13 +90,6 @@ function ensureInitialized() {
         tvShows.createIndex({ tmdb_id: 1 }),
         episodes.createIndex({ showSlug: 1, seasonFolder: 1, episode: 1 }, { unique: true }),
       ]);
-
-      const movieCount = await movies.countDocuments();
-      const showCount = await tvShows.countDocuments();
-
-      if (movieCount === 0 && showCount === 0) {
-        await seedFromMarkdownFiles(movies, tvShows, episodes);
-      }
     } catch (e) {
       console.warn('[MongoDB] Init notice:', e);
     }
@@ -714,6 +707,25 @@ export async function deleteMongoEpisode(showSlug: string, seasonFolder: string,
 }
 
 // ──────────────────────────────────────────
+export async function flushStagedContent(): Promise<{ flushedCount: number }> {
+  try {
+    const { movies, tvShows, episodes } = await getCollectionsRaw();
+    const [mRes, tRes, eRes] = await Promise.all([
+      movies.deleteMany({}),
+      tvShows.deleteMany({}),
+      episodes.deleteMany({}),
+    ]);
+    invalidateAllMongoCaches();
+    const flushedCount = (mRes.deletedCount || 0) + (tRes.deletedCount || 0) + (eRes.deletedCount || 0);
+    console.log(`[MongoDB] Staging buffer flushed: ${flushedCount} items cleared from database`);
+    return { flushedCount };
+  } catch (err) {
+    console.warn('[MongoDB] flushStagedContent notice:', err);
+    return { flushedCount: 0 };
+  }
+}
+
+// ──────────────────────────────────────────
 // SYNC MONGODB TO GITHUB (ATOMIC BULK COMMIT)
 // ──────────────────────────────────────────
 
@@ -723,7 +735,7 @@ export async function syncMongoDBToGitHub(ghConfig: GitHubOptions) {
     throw new Error('Token GitHub diperlukan untuk melakukan sinkronisasi ke repository.');
   }
 
-  // 1. Fetch freshest, live un-cached data directly from MongoDB
+  // 1. Fetch freshest, live un-cached data directly from MongoDB staging buffer
   const { movies, tvShows, episodes } = await getCollectionsRaw();
   const [allMovies, allShows, allEpisodes] = await Promise.all([
     movies.find({}).sort({ updatedAt: -1 }).toArray(),
@@ -827,6 +839,11 @@ export async function syncMongoDBToGitHub(ghConfig: GitHubOptions) {
     `cms: sync ${filesArray.length} content files from CMS`,
     ghConfig
   );
+
+  // 6. Once committed to GitHub, flush MongoDB staging buffer to 0 KB
+  if (res.success) {
+    await flushStagedContent();
+  }
 
   return { success: true, syncedCount: res.syncedCount };
 }
