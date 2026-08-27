@@ -6,5 +6,6 @@ title: Backrooms
 deskripsi: A strange doorway appears in the basement of a furniture showroom.
 image_url: 'https://image.tmdb.org/t/p/w500/rhGx6E3qRNMgj3i5su2oukNHwIQ.jpg'
 rating: 7.1
+featured: true
 ---
 
