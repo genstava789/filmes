@@ -4,7 +4,13 @@ import path from 'path';
 import matter from 'gray-matter';
 import { slugify, cleanVideoUrl } from '@/lib/urls';
 import { serializeTinaMovie, serializeTinaTVShow, serializeTinaTVEpisode } from '@/lib/tina/schema';
-import { saveGitHubFile, commitMultipleGitHubFiles, GitHubOptions } from '@/lib/githubStorage';
+import {
+  saveGitHubFile,
+  commitMultipleGitHubFiles,
+  getGitHubTree,
+  deleteGitHubFile,
+  GitHubOptions,
+} from '@/lib/githubStorage';
 import { memoryCache } from '@/lib/cache';
 
 export interface MongoMovie {
@@ -802,44 +808,37 @@ export async function syncMongoDBToGitHub(ghConfig: GitHubOptions) {
     filesMap.set(epPath, epContent);
   }
 
-  // 4. Merge any local filesystem files if missing or newer (for local development)
-  try {
-    const VIDEO_DIR = path.join(process.cwd(), 'video');
-    const TV_DIR = path.join(process.cwd(), 'tv');
-
-    if (fs.existsSync(VIDEO_DIR)) {
-      const localMovies = fs.readdirSync(VIDEO_DIR).filter((f) => f.endsWith('.md') || f.endsWith('.markdown'));
-      for (const m of localMovies) {
-        const rel = `video/${m}`;
-        if (!filesMap.has(rel)) {
-          const content = fs.readFileSync(path.join(VIDEO_DIR, m), 'utf8');
-          filesMap.set(rel, content);
-        }
-      }
-    }
-
-    if (fs.existsSync(TV_DIR)) {
-      const dirs = fs.readdirSync(TV_DIR, { withFileTypes: true }).filter((d) => d.isDirectory());
-      for (const d of dirs) {
-        const showDir = path.join(TV_DIR, d.name);
-        const indexMd = fs.existsSync(path.join(showDir, '_index.md'))
-          ? path.join(showDir, '_index.md')
-          : fs.existsSync(path.join(showDir, 'index.md'))
-          ? path.join(showDir, 'index.md')
-          : null;
-        if (indexMd && !filesMap.has(`tv/${d.name}/_index.md`)) {
-          filesMap.set(`tv/${d.name}/_index.md`, fs.readFileSync(indexMd, 'utf8'));
-        }
-      }
-    }
-  } catch {}
-
   const filesArray = Array.from(filesMap.entries()).map(([filePath, content]) => ({
     path: filePath,
     content,
   }));
 
-  // 5. Commit all files in a single atomic Git Tree commit (< 1 second)
+  // 4. Check for orphan/deleted files on GitHub repository that are no longer in MongoDB
+  try {
+    const targetFilesSet = new Set(filesArray.map((f) => f.path.replace(/^\/+/, '')));
+    const ghTree = await getGitHubTree(ghConfig);
+    const contentBlobsOnGitHub = ghTree.filter(
+      (item) =>
+        item.type === 'blob' &&
+        (item.path.startsWith('video/') || item.path.startsWith('tv/')) &&
+        (item.path.endsWith('.md') || item.path.endsWith('.markdown'))
+    );
+
+    for (const item of contentBlobsOnGitHub) {
+      if (!targetFilesSet.has(item.path)) {
+        try {
+          console.log(`[syncMongoDBToGitHub] Deleting orphan file from GitHub: ${item.path}`);
+          await deleteGitHubFile(item.path, `cms: delete ${item.path}`, ghConfig);
+        } catch (delErr) {
+          console.warn(`[syncMongoDBToGitHub] Warning deleting orphan ${item.path}:`, delErr);
+        }
+      }
+    }
+  } catch (treeErr) {
+    console.warn('[syncMongoDBToGitHub] GitHub tree prune notice:', treeErr);
+  }
+
+  // 5. Commit all active files in a single atomic Git Tree commit (< 1 second)
   const res = await commitMultipleGitHubFiles(
     filesArray,
     `cms: sync ${filesArray.length} content files from CMS`,
