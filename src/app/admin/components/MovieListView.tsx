@@ -152,6 +152,14 @@ export const MovieListView: React.FC<MovieListViewProps> = ({
                       <span className="px-2 py-0.5 rounded-md text-[9.5px] sm:text-[10px] font-bold bg-cyan-500/10 text-cyan-400 border border-cyan-500/30">
                         TMDB {tmdbId || 'N/A'}
                       </span>
+                      <span className="px-1.5 py-0.5 rounded-md text-[9.5px] font-bold bg-blue-500/10 text-blue-400 border border-blue-500/30">
+                        {String(movie.frontmatter.language || 'ID').toUpperCase()}
+                      </span>
+                      {Boolean(movie.frontmatter.trending) && (
+                        <span className="px-1.5 py-0.5 rounded-md text-[9.5px] font-bold bg-rose-500/20 text-rose-300 border border-rose-500/30 flex items-center gap-0.5">
+                          🔥 Trending
+                        </span>
+                      )}
                       {isFeatured && (
                         <span className="px-2 py-0.5 rounded-md text-[9.5px] sm:text-[10px] font-bold bg-amber-500/20 text-amber-300 border border-amber-500/30 flex items-center gap-1">
                           <Star size={10} fill="currentColor" /> Featured

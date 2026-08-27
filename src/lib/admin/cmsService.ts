@@ -69,6 +69,7 @@ export function selectiveRevalidateAll() {
     memoryCache.invalidate('markdown_');
     memoryCache.invalidate('featured_');
     memoryCache.invalidate('custom_');
+    memoryCache.invalidate('resolved_sections_');
     memoryCache.invalidate('content_provider_');
     memoryCache.invalidate('cms_');
     memoryCache.invalidate('mongo_');

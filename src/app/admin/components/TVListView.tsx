@@ -214,6 +214,14 @@ export const TVListView: React.FC<TVListViewProps> = ({
                       <span className="px-1.5 py-0.2 rounded text-[9.5px] font-bold bg-pink-500/10 text-pink-400 border border-pink-500/30">
                         TMDB {tmdbId}
                       </span>
+                      <span className="px-1.5 py-0.2 rounded text-[9.5px] font-bold bg-blue-500/10 text-blue-400 border border-blue-500/30">
+                        {String(show.frontmatter.language || 'ID').toUpperCase()}
+                      </span>
+                      {Boolean(show.frontmatter.trending) && (
+                        <span className="px-1.5 py-0.2 rounded text-[9.5px] font-bold bg-rose-500/20 text-rose-300 border border-rose-500/30 flex items-center gap-0.5">
+                          🔥 Trending
+                        </span>
+                      )}
                       {Boolean(show.frontmatter.featured) && (
                         <span className="px-1.5 py-0.2 rounded text-[9.5px] font-bold bg-amber-500/20 text-amber-300 border border-amber-500/30 flex items-center gap-1">
                           <Star size={10} fill="currentColor" /> Featured

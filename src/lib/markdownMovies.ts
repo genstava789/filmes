@@ -666,38 +666,47 @@ export async function getAllCustomMoviesForList(): Promise<any[]> {
     'custom_movies_for_list',
     async () => {
       try {
-        let mongoMovies: any[] = [];
+        const mergedMoviesMap = new Map<string, any>();
+
         if (isMongoConfigured()) {
-          mongoMovies = await getMongoMovies().catch(() => []);
-        } else {
-          ensureContentDirExists();
-          const files = getAllCustomMovieFiles();
-          mongoMovies = files
-            .map((file) => {
-              try {
-                const raw = fs.readFileSync(path.join(CONTENT_DIR, file), 'utf8');
-                const { data } = matter(raw);
-                return {
-                  slug: file.replace(/\.(md|markdown)$/i, ''),
-                  tmdb_id: Number(data.tmdb_id) || 0,
-                  title: data.title || file.replace(/\.(md|markdown)$/i, ''),
-                  videourl: cleanVideoUrl(data.videourl || data.video_url || '') || '',
-                  image_url: data.image_url || data.poster_path || '',
-                  deskripsi: data.deskripsi || data.overview || '',
-                  rating: Number(data.rating) || 0,
-                  featured: Boolean(data.featured),
-                  createdAt: 0,
-                  updatedAt: 0,
-                };
-              } catch {
-                return null;
-              }
-            })
-            .filter(Boolean) as any[];
+          const mongoMovies = await getMongoMovies().catch(() => []);
+          for (const m of mongoMovies) {
+            if (m && m.slug) {
+              mergedMoviesMap.set(m.slug, m);
+            }
+          }
         }
 
+        ensureContentDirExists();
+        const files = getAllCustomMovieFiles();
+        for (const file of files) {
+          const slug = file.replace(/\.(md|markdown)$/i, '');
+          if (!mergedMoviesMap.has(slug)) {
+            try {
+              const raw = fs.readFileSync(path.join(CONTENT_DIR, file), 'utf8');
+              const { data } = matter(raw);
+              mergedMoviesMap.set(slug, {
+                slug,
+                tmdb_id: Number(data.tmdb_id) || 0,
+                title: data.title || slug,
+                videourl: cleanVideoUrl(data.videourl || data.video_url || '') || '',
+                image_url: data.image_url || data.poster_path || '',
+                deskripsi: data.deskripsi || data.overview || '',
+                rating: Number(data.rating) || 0,
+                featured: Boolean(data.featured),
+                trending: Boolean(data.trending),
+                language: data.language ? String(data.language).trim().toUpperCase() : 'ID',
+                createdAt: 0,
+                updatedAt: 0,
+              });
+            } catch {}
+          }
+        }
+
+        const movieDocs = Array.from(mergedMoviesMap.values());
+
         return await Promise.all(
-          mongoMovies.map(async (m) => {
+          movieDocs.map(async (m) => {
             let poster: string | null = null;
             let backdrop: string | null = null;
             let rating = m.rating || 0;
@@ -729,9 +738,13 @@ export async function getAllCustomMoviesForList(): Promise<any[]> {
               adult: false,
               video: false,
               isCustomMarkdown: true,
+              media_type: 'movie',
               customSlug: m.slug,
               customVideoUrl: m.videourl,
               customImageUrl: m.image_url || null,
+              featured: Boolean(m.featured),
+              trending: Boolean(m.trending),
+              language: m.language ? String(m.language).trim().toUpperCase() : 'ID',
             };
           })
         );

@@ -1,4 +1,5 @@
 import { getDatabase, isMongoConfigured } from './client';
+export { isMongoConfigured };
 import fs from 'fs';
 import path from 'path';
 import matter from 'gray-matter';
@@ -23,6 +24,8 @@ export interface MongoMovie {
   deskripsi?: string;
   rating?: number;
   featured?: boolean;
+  trending?: boolean;
+  language?: string; // e.g. 'ID', 'KR', 'EN'
   subtitles?: string;
   duration?: string;
   content?: string;
@@ -40,6 +43,8 @@ export interface MongoTVShow {
   deskripsi?: string;
   rating?: number;
   featured?: boolean;
+  trending?: boolean;
+  language?: string; // e.g. 'ID', 'KR', 'EN'
   content?: string;
   deleted?: boolean;
   episodes?: MongoTVEpisode[];
@@ -139,6 +144,8 @@ async function seedFromMarkdownFiles(movies: any, tvShows: any, episodes: any) {
             deskripsi: data.deskripsi || data.overview || '',
             rating: Number(data.rating) || 0,
             featured: Boolean(data.featured),
+            trending: Boolean(data.trending),
+            language: data.language ? String(data.language).trim().toUpperCase() : 'ID',
             subtitles: data.subtitles || '',
             duration: data.duration || '',
             content: content || '',
@@ -182,6 +189,8 @@ async function seedFromMarkdownFiles(movies: any, tvShows: any, episodes: any) {
           deskripsi: indexData.deskripsi || '',
           rating: Number(indexData.rating) || 0,
           featured: Boolean(indexData.featured),
+          trending: Boolean(indexData.trending),
+          language: indexData.language ? String(indexData.language).trim().toUpperCase() : 'ID',
           content: indexContent || '',
           createdAt: Date.now(),
           updatedAt: Date.now(),
@@ -446,6 +455,8 @@ export async function saveMongoMovie(data: Partial<MongoMovie>): Promise<MongoMo
     deskripsi: (data.deskripsi !== undefined ? data.deskripsi : (existing?.deskripsi || '')).trim(),
     rating: data.rating !== undefined && data.rating !== null ? Number(data.rating) : (existing?.rating || 0),
     featured: data.featured !== undefined ? Boolean(data.featured) : Boolean(existing?.featured),
+    trending: data.trending !== undefined ? Boolean(data.trending) : Boolean(existing?.trending),
+    language: data.language !== undefined ? String(data.language).trim().toUpperCase() : (existing?.language || 'ID'),
     subtitles: (data.subtitles !== undefined ? data.subtitles : (existing?.subtitles || '')).trim(),
     duration: (data.duration !== undefined ? data.duration : (existing?.duration || '')).trim(),
     content: data.content !== undefined ? data.content : (existing?.content || ''),
@@ -668,6 +679,8 @@ export async function saveMongoTVShow(
     deskripsi: (data.deskripsi !== undefined ? data.deskripsi : (existing?.deskripsi || '')).trim(),
     rating: data.rating !== undefined && data.rating !== null ? Number(data.rating) : (existing?.rating || 0),
     featured: data.featured !== undefined ? Boolean(data.featured) : Boolean(existing?.featured),
+    trending: data.trending !== undefined ? Boolean(data.trending) : Boolean(existing?.trending),
+    language: data.language !== undefined ? String(data.language).trim().toUpperCase() : (existing?.language || 'ID'),
     content: data.content !== undefined ? data.content : (existing?.content || ''),
     createdAt: existing?.createdAt || data.createdAt || now,
     updatedAt: now,
@@ -788,6 +801,8 @@ export async function syncMongoDBToGitHub(ghConfig: GitHubOptions) {
     if (m.deskripsi) frontmatter.deskripsi = m.deskripsi;
     if (m.rating !== undefined && m.rating !== null) frontmatter.rating = m.rating;
     if (m.featured) frontmatter.featured = true;
+    if (m.trending) frontmatter.trending = true;
+    if (m.language) frontmatter.language = m.language;
     if (m.subtitles) frontmatter.subtitles = m.subtitles;
     if (m.duration) frontmatter.duration = m.duration;
 
@@ -806,6 +821,8 @@ export async function syncMongoDBToGitHub(ghConfig: GitHubOptions) {
     if (s.deskripsi) indexFrontmatter.deskripsi = s.deskripsi;
     if (s.rating !== undefined && s.rating !== null) indexFrontmatter.rating = s.rating;
     if (s.featured) indexFrontmatter.featured = true;
+    if (s.trending) indexFrontmatter.trending = true;
+    if (s.language) indexFrontmatter.language = s.language;
 
     const indexContent = serializeTinaTVShow(indexFrontmatter, s.content || '');
     filesMap.set(indexPath, indexContent);
