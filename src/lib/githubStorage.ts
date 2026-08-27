@@ -49,12 +49,21 @@ export async function getGitHubFile(filePath: string, options: GitHubOptions = {
   }
 
   const data = await res.json();
-  const content = Buffer.from(data.content, 'base64').toString('utf8');
+  if (Array.isArray(data)) {
+    return {
+      isDirectory: true,
+      items: data,
+      path: cleanPath,
+    } as any;
+  }
+
+  const content = data.content ? Buffer.from(data.content, 'base64').toString('utf8') : '';
 
   return {
     sha: data.sha,
     content,
     path: data.path,
+    isDirectory: false,
   };
 }
 
@@ -106,7 +115,7 @@ export async function saveGitHubFile(
   let sha: string | undefined;
   try {
     const existing = await getGitHubFile(cleanPath, options);
-    if (existing) {
+    if (existing && !existing.isDirectory) {
       sha = existing.sha;
     }
   } catch {
@@ -120,7 +129,7 @@ export async function saveGitHubFile(
   if (res.status === 409) {
     try {
       const freshExisting = await getGitHubFile(cleanPath, options);
-      if (freshExisting?.sha) {
+      if (freshExisting?.sha && !freshExisting.isDirectory) {
         res = await putFile(freshExisting.sha);
       }
     } catch {}
@@ -138,7 +147,42 @@ export async function saveGitHubFile(
 }
 
 /**
- * Deletes a file in GitHub repository
+ * Recursively deletes all files in a folder on GitHub repository.
+ */
+export async function deleteGitHubFolder(
+  folderPath: string,
+  commitMessage: string,
+  options: GitHubOptions = {}
+) {
+  const token = getEffectiveToken(options.token);
+  if (!token) throw new Error('GitHub token is required on Vercel to delete content');
+
+  const cleanFolder = folderPath.replace(/^\/+/, '').replace(/\/+$/, '');
+  const prefix = `${cleanFolder}/`;
+
+  // Get full tree to find all files in this folder
+  const tree = await getGitHubTree(options);
+  const filesToDelete = tree.filter(
+    (item) => item.type === 'blob' && (item.path === cleanFolder || item.path.startsWith(prefix))
+  );
+
+  if (filesToDelete.length === 0) {
+    return { success: true, count: 0 };
+  }
+
+  for (const file of filesToDelete) {
+    try {
+      await deleteGitHubFile(file.path, commitMessage || `cms: delete ${file.path}`, options);
+    } catch (e) {
+      console.warn(`[deleteGitHubFolder] Warning deleting ${file.path}:`, e);
+    }
+  }
+
+  return { success: true, count: filesToDelete.length };
+}
+
+/**
+ * Deletes a file or directory in GitHub repository
  */
 export async function deleteGitHubFile(
   filePath: string,
@@ -158,6 +202,11 @@ export async function deleteGitHubFile(
   if (!existing) {
     // Already deleted or not found
     return { success: true, message: 'File already deleted or not found' };
+  }
+
+  // If it's a directory, delegate to recursive delete
+  if (existing.isDirectory) {
+    return await deleteGitHubFolder(cleanPath, commitMessage, options);
   }
 
   // 2. Delete file via GitHub API
@@ -183,7 +232,7 @@ export async function deleteGitHubFile(
   if (res.status === 409) {
     try {
       const freshExisting = await getGitHubFile(cleanPath, options);
-      if (freshExisting) {
+      if (freshExisting && !freshExisting.isDirectory) {
         res = await fetch(url, {
           method: 'DELETE',
           cache: 'no-store',

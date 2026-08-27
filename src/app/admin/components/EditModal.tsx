@@ -10,20 +10,35 @@ import {
   Plus,
   Play,
   Trash2,
+  ChevronDown,
+  ChevronRight,
+  Film,
 } from 'lucide-react';
-import { EditingItemState, TMDBPreviewData, TVShowItem } from '../types';
+import { EditingItemState, TMDBPreviewData, TVShowItem, TVEpisodeItem } from '../types';
 import { BackdropPicker } from './BackdropPicker';
 import { extractTmdbIdAndType, cleanVideoUrl } from '@/lib/urls';
+
+interface EditableEpisode {
+  id: string;
+  relativePath?: string;
+  seasonFolder: string;
+  slug: string;
+  title: string;
+  videourl: string;
+  image_url: string;
+  subtitles: string;
+  duration: string;
+  deleted?: boolean;
+}
 
 interface EditModalProps {
   isOpen: boolean;
   onClose: () => void;
   editingItem: EditingItemState | null;
   setEditingItem: React.Dispatch<React.SetStateAction<EditingItemState | null>>;
-  onSubmit: (item: EditingItemState) => Promise<void>;
+  onSubmit: (item: any) => Promise<void>;
   tvShows: TVShowItem[];
   showToast: (msg: string, type?: 'success' | 'error') => void;
-  onQuickAddEpisodeToEditingShow?: (seasonSlug: string) => void;
 }
 
 export const EditModal: React.FC<EditModalProps> = ({
@@ -34,16 +49,42 @@ export const EditModal: React.FC<EditModalProps> = ({
   onSubmit,
   tvShows,
   showToast,
-  onQuickAddEpisodeToEditingShow,
 }) => {
   const [activeTab, setActiveTab] = useState<'info' | 'episodes'>('info');
   const [tmdbPreview, setTmdbPreview] = useState<TMDBPreviewData | null>(null);
   const [fetchingTmdb, setFetchingTmdb] = useState(false);
   const [showBackdropPicker, setShowBackdropPicker] = useState(false);
+  const [activeEpBackdropId, setActiveEpBackdropId] = useState<string | null>(null);
   const [submitting, setSubmitting] = useState(false);
 
+  // Editable episodes state when editing a TV Show
+  const [episodesList, setEpisodesList] = useState<EditableEpisode[]>([]);
+  const [batchInputSeason, setBatchInputSeason] = useState<string | null>(null);
+  const [batchUrlsText, setBatchUrlsText] = useState('');
+
+  const currentShow =
+    editingItem?.type === 'tv_show'
+      ? tvShows.find((s) => s.relativePath === editingItem.relativePath)
+      : null;
+
+  // Initialize editable episodes from current show
   useEffect(() => {
     if (editingItem && isOpen) {
+      if (editingItem.type === 'tv_show' && currentShow) {
+        const mapped: EditableEpisode[] = (currentShow.episodes || []).map((ep, idx) => ({
+          id: ep.relativePath || `ep_${idx}_${Date.now()}`,
+          relativePath: ep.relativePath,
+          seasonFolder: (ep.seasonFolder || 's1').toLowerCase(),
+          slug: ep.slug || `e${idx + 1}`,
+          title: ep.displayTitle || ep.frontmatter?.title || `Episode ${idx + 1}`,
+          videourl: ep.frontmatter?.videourl || ep.frontmatter?.video_url || '',
+          image_url: ep.frontmatter?.image_url || '',
+          subtitles: ep.frontmatter?.subtitles || '',
+          duration: ep.frontmatter?.duration || '',
+        }));
+        setEpisodesList(mapped);
+      }
+
       let tmdbIdToFetch = editingItem.frontmatter.tmdb_id;
       if (!tmdbIdToFetch && editingItem.type === 'tv_episode') {
         const showSlug = editingItem.relativePath.split('/')[1];
@@ -82,7 +123,17 @@ export const EditModal: React.FC<EditModalProps> = ({
     e.preventDefault();
     setSubmitting(true);
     try {
-      await onSubmit(editingItem);
+      const payload: any = {
+        relativePath: editingItem.relativePath,
+        frontmatter: editingItem.frontmatter,
+        content: editingItem.content,
+      };
+
+      if (editingItem.type === 'tv_show') {
+        payload.episodes = episodesList;
+      }
+
+      await onSubmit(payload);
       onClose();
     } catch (err: any) {
       showToast(err.message || 'Gagal menyimpan perubahan', 'error');
@@ -101,44 +152,137 @@ export const EditModal: React.FC<EditModalProps> = ({
     });
   };
 
-  const currentShow =
-    editingItem.type === 'tv_show'
-      ? tvShows.find((s) => s.relativePath === editingItem.relativePath)
-      : null;
+  // Group episodes by season
+  const activeEpisodes = episodesList.filter((ep) => !ep.deleted);
+  const seasonsMap: Record<string, EditableEpisode[]> = {};
+  activeEpisodes.forEach((ep) => {
+    const s = ep.seasonFolder || 's1';
+    if (!seasonsMap[s]) seasonsMap[s] = [];
+    seasonsMap[s].push(ep);
+  });
+
+  const availableSeasons = Object.keys(seasonsMap).sort((a, b) => {
+    const numA = parseInt(a.replace(/\D/g, ''), 10) || 0;
+    const numB = parseInt(b.replace(/\D/g, ''), 10) || 0;
+    return numA - numB;
+  });
+
+  if (availableSeasons.length === 0) {
+    availableSeasons.push('s1');
+    seasonsMap['s1'] = [];
+  }
+
+  const handleAddEpisodeToSeason = (season: string) => {
+    const count = (seasonsMap[season] || []).length + 1;
+    const newEp: EditableEpisode = {
+      id: `new_ep_${Date.now()}_${count}`,
+      seasonFolder: season,
+      slug: `e${count}`,
+      title: `Episode ${count}`,
+      videourl: '',
+      image_url: editingItem.frontmatter?.image_url || '',
+      subtitles: '',
+      duration: '',
+    };
+    setEpisodesList((prev) => [...prev, newEp]);
+    showToast(`Episode ${count} ditambahkan ke ${season.toUpperCase()}`);
+  };
+
+  const handleAddNewSeason = () => {
+    const nextSeasonNum = availableSeasons.length + 1;
+    const newSeasonKey = `s${nextSeasonNum}`;
+    const newEp: EditableEpisode = {
+      id: `new_ep_${Date.now()}_1`,
+      seasonFolder: newSeasonKey,
+      slug: 'e1',
+      title: 'Episode 1',
+      videourl: '',
+      image_url: editingItem.frontmatter?.image_url || '',
+      subtitles: '',
+      duration: '',
+    };
+    setEpisodesList((prev) => [...prev, newEp]);
+    showToast(`Season ${nextSeasonNum} dibuat!`);
+  };
+
+  const handleUpdateEpisode = (id: string, field: keyof EditableEpisode, value: any) => {
+    setEpisodesList((prev) =>
+      prev.map((ep) => (ep.id === id ? { ...ep, [field]: value } : ep))
+    );
+  };
+
+  const handleDeleteEpisode = (id: string) => {
+    setEpisodesList((prev) =>
+      prev.map((ep) => (ep.id === id ? { ...ep, deleted: true } : ep))
+    );
+    showToast('Episode ditandai untuk dihapus');
+  };
+
+  const handleApplyBatchUrls = (season: string) => {
+    if (!batchUrlsText.trim()) return;
+    const lines = batchUrlsText
+      .split('\n')
+      .map((l) => l.trim())
+      .filter(Boolean);
+
+    const newEps: EditableEpisode[] = lines.map((url, idx) => {
+      const epNum = idx + 1;
+      return {
+        id: `batch_ep_${Date.now()}_${epNum}`,
+        seasonFolder: season,
+        slug: `e${epNum}`,
+        title: `Episode ${epNum}`,
+        videourl: cleanVideoUrl(url) || url,
+        image_url: editingItem.frontmatter?.image_url || '',
+        subtitles: '',
+        duration: '',
+      };
+    });
+
+    // Replace or append
+    setEpisodesList((prev) => [
+      ...prev.filter((ep) => ep.seasonFolder !== season),
+      ...newEps,
+    ]);
+
+    setBatchUrlsText('');
+    setBatchInputSeason(null);
+    showToast(`${lines.length} episode diterapkan ke ${season.toUpperCase()}`);
+  };
 
   return (
-    <div className="fixed inset-0 z-50 flex items-center justify-center p-3 sm:p-4 bg-black/85 backdrop-blur-md overflow-y-auto animate-fade-in">
-      <div className="bg-[#0b1329] border border-cyan-500/30 rounded-2xl max-w-3xl w-full max-h-[92vh] flex flex-col shadow-2xl overflow-hidden my-auto">
+    <div className="fixed inset-0 z-50 flex items-center justify-center p-2.5 sm:p-4 bg-black/85 backdrop-blur-md overflow-y-auto animate-fade-in">
+      <div className="bg-[#0b1329] border border-cyan-500/30 rounded-2xl max-w-3xl w-full max-h-[94vh] flex flex-col shadow-2xl overflow-hidden my-auto">
         {/* Header */}
-        <div className="flex items-center justify-between p-4 sm:p-5 border-b border-white/10 bg-[#090e1f]">
-          <div className="flex items-center gap-2.5">
-            <div className="w-8 h-8 rounded-lg bg-cyan-500/20 text-cyan-400 flex items-center justify-center">
-              <Edit2 size={18} />
+        <div className="flex items-center justify-between p-3.5 sm:p-5 border-b border-white/10 bg-[#090e1f]">
+          <div className="flex items-center gap-2.5 min-w-0">
+            <div className="w-8 h-8 rounded-lg bg-cyan-500/20 text-cyan-400 flex items-center justify-center flex-shrink-0">
+              <Edit2 size={16} />
             </div>
-            <div>
-              <h2 className="text-sm sm:text-base font-bold text-white">
+            <div className="min-w-0">
+              <h2 className="text-sm sm:text-base font-bold text-white truncate">
                 Edit {editingItem.type === 'movie' ? 'Movie' : editingItem.type === 'tv_show' ? 'TV Series' : 'Episode'}
               </h2>
-              <p className="text-[10px] sm:text-[11px] text-slate-400 font-mono truncate max-w-md">
+              <p className="text-[10px] text-slate-400 font-mono truncate max-w-xs sm:max-w-md">
                 {editingItem.relativePath}
               </p>
             </div>
           </div>
           <button
             onClick={onClose}
-            className="p-1.5 rounded-lg text-slate-400 hover:text-white hover:bg-white/5 transition-all"
+            className="p-1.5 rounded-lg text-slate-400 hover:text-white hover:bg-white/5 transition-all flex-shrink-0"
           >
             <X size={18} />
           </button>
         </div>
 
         {/* Tab switcher for TV Series */}
-        {editingItem.type === 'tv_show' && currentShow && (
-          <div className="px-5 pt-3 pb-2 border-b border-white/5 flex gap-2 bg-[#090e1f]/50">
+        {editingItem.type === 'tv_show' && (
+          <div className="px-3.5 sm:px-5 pt-3 pb-2 border-b border-white/5 flex gap-2 bg-[#090e1f]/50">
             <button
               type="button"
               onClick={() => setActiveTab('info')}
-              className={`px-3.5 py-1.5 rounded-xl text-xs font-bold transition-all ${
+              className={`flex-1 sm:flex-none px-3.5 py-1.5 rounded-xl text-xs font-bold transition-all ${
                 activeTab === 'info'
                   ? 'bg-pink-500 text-white shadow-md shadow-pink-500/20'
                   : 'bg-white/5 text-slate-400 hover:text-white'
@@ -149,20 +293,20 @@ export const EditModal: React.FC<EditModalProps> = ({
             <button
               type="button"
               onClick={() => setActiveTab('episodes')}
-              className={`px-3.5 py-1.5 rounded-xl text-xs font-bold flex items-center gap-1.5 transition-all ${
+              className={`flex-1 sm:flex-none px-3.5 py-1.5 rounded-xl text-xs font-bold flex items-center justify-center gap-1.5 transition-all ${
                 activeTab === 'episodes'
                   ? 'bg-purple-500 text-white shadow-md shadow-purple-500/20'
                   : 'bg-white/5 text-slate-400 hover:text-white'
               }`}
             >
               <Layers size={13} />
-              <span>Kelola Episode ({currentShow.episodes.length})</span>
+              <span>Kelola Episode ({activeEpisodes.length})</span>
             </button>
           </div>
         )}
 
         {/* Form Body */}
-        <form onSubmit={handleSubmit} className="p-4 sm:p-5 overflow-y-auto space-y-4 flex-1">
+        <form onSubmit={handleSubmit} className="p-3.5 sm:p-5 overflow-y-auto space-y-4 flex-1">
           {activeTab === 'info' ? (
             <>
               {/* TMDB ID & Autofill */}
@@ -236,7 +380,10 @@ export const EditModal: React.FC<EditModalProps> = ({
                   {tmdbPreview?.backdrops && tmdbPreview.backdrops.length > 0 && (
                     <button
                       type="button"
-                      onClick={() => setShowBackdropPicker(!showBackdropPicker)}
+                      onClick={() => {
+                        setActiveEpBackdropId(null);
+                        setShowBackdropPicker(!showBackdropPicker);
+                      }}
                       className="text-[11px] font-bold text-cyan-400 hover:text-cyan-300 flex items-center gap-1"
                     >
                       <ImageIcon size={12} />
@@ -257,13 +404,26 @@ export const EditModal: React.FC<EditModalProps> = ({
                 {showBackdropPicker && tmdbPreview?.backdrops && (
                   <BackdropPicker
                     backdrops={tmdbPreview.backdrops}
-                    selectedUrl={editingItem.frontmatter.image_url}
+                    selectedUrl={
+                      activeEpBackdropId
+                        ? episodesList.find((ep) => ep.id === activeEpBackdropId)?.image_url
+                        : editingItem.frontmatter.image_url
+                    }
                     onSelect={(url) => {
-                      updateFrontmatter('image_url', url);
+                      if (activeEpBackdropId) {
+                        handleUpdateEpisode(activeEpBackdropId, 'image_url', url);
+                        setActiveEpBackdropId(null);
+                        showToast('Backdrop episode berhasil dipilih!');
+                      } else {
+                        updateFrontmatter('image_url', url);
+                        showToast('Backdrop series berhasil dipilih!');
+                      }
                       setShowBackdropPicker(false);
-                      showToast('Backdrop berhasil dipilih!');
                     }}
-                    onClose={() => setShowBackdropPicker(false)}
+                    onClose={() => {
+                      setShowBackdropPicker(false);
+                      setActiveEpBackdropId(null);
+                    }}
                   />
                 )}
               </div>
@@ -300,7 +460,7 @@ export const EditModal: React.FC<EditModalProps> = ({
                     />
                   </div>
                 ) : (
-                  <div className="flex items-center pt-5">
+                  <div className="flex items-center pt-2 sm:pt-5">
                     <label className="flex items-center gap-2 cursor-pointer select-none">
                       <input
                         type="checkbox"
@@ -332,7 +492,7 @@ export const EditModal: React.FC<EditModalProps> = ({
               {/* Deskripsi */}
               <div>
                 <label className="block text-xs font-semibold text-slate-300 mb-1">
-                  Deskripsi / Sinopsis (deskripsi)
+                  Deskripsi / Sinopsis
                 </label>
                 <textarea
                   rows={3}
@@ -346,10 +506,10 @@ export const EditModal: React.FC<EditModalProps> = ({
               {/* Markdown Content Body */}
               <div>
                 <label className="block text-xs font-semibold text-slate-300 mb-1">
-                  Catatan / Konten Markdown Tambahan
+                  Catatan / Markdown Body
                 </label>
                 <textarea
-                  rows={4}
+                  rows={3}
                   value={editingItem.content || ''}
                   onChange={(e) => setEditingItem({ ...editingItem, content: e.target.value })}
                   placeholder="Konten markdown tambahan..."
@@ -358,38 +518,201 @@ export const EditModal: React.FC<EditModalProps> = ({
               </div>
             </>
           ) : (
-            /* Episodes list inside TV Series Edit */
-            <div className="space-y-3">
-              <div className="flex items-center justify-between border-b border-white/10 pb-2">
-                <span className="text-xs font-bold text-white">
-                  Daftar Episode ({currentShow?.episodes.length || 0})
-                </span>
+            /* Episodes Manager Tab - Fully Interactive & Mobile Responsive */
+            <div className="space-y-4">
+              <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-2 border-b border-white/10 pb-3">
+                <div>
+                  <h3 className="text-xs sm:text-sm font-bold text-white">
+                    Kelola Episode ({activeEpisodes.length} total)
+                  </h3>
+                  <p className="text-[11px] text-slate-400">
+                    Edit URL video, judul, backdrop, dan kelola episode per season.
+                  </p>
+                </div>
+
+                <button
+                  type="button"
+                  onClick={handleAddNewSeason}
+                  className="px-3 py-1.5 rounded-xl text-xs font-bold bg-purple-500/20 hover:bg-purple-500/30 text-purple-200 border border-purple-500/40 flex items-center justify-center gap-1.5 transition-all shadow-sm active:scale-95"
+                >
+                  <Plus size={13} />
+                  <span>Tambah Season Baru</span>
+                </button>
               </div>
 
-              <div className="space-y-2 max-h-72 overflow-y-auto pr-1">
-                {currentShow?.episodes.map((ep) => (
-                  <div
-                    key={ep.relativePath}
-                    className="p-2.5 rounded-lg bg-black/40 border border-white/10 flex items-center justify-between gap-3 text-xs"
-                  >
-                    <div className="flex items-center gap-2 min-w-0">
-                      <span className="px-2 py-0.5 rounded text-[10px] font-bold bg-pink-500/20 text-pink-300">
-                        {ep.seasonFolder || 's1'}/{ep.slug}
-                      </span>
-                      <span className="font-bold text-white truncate">
-                        {ep.displayTitle || ep.frontmatter.title}
-                      </span>
+              {/* Seasons list */}
+              <div className="space-y-4">
+                {availableSeasons.map((season) => {
+                  const sEpisodes = seasonsMap[season] || [];
+                  const isBatchActive = batchInputSeason === season;
+
+                  return (
+                    <div
+                      key={season}
+                      className="p-3 sm:p-4 rounded-xl bg-black/40 border border-white/10 space-y-3"
+                    >
+                      <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-2 border-b border-white/5 pb-2">
+                        <div className="flex items-center gap-2">
+                          <span className="px-2.5 py-0.5 rounded-md text-xs font-extrabold bg-pink-500/20 text-pink-300 border border-pink-500/30">
+                            {season.toUpperCase()}
+                          </span>
+                          <span className="text-xs text-slate-400 font-semibold">
+                            {sEpisodes.length} Episode
+                          </span>
+                        </div>
+
+                        <div className="flex items-center gap-2 flex-wrap">
+                          <button
+                            type="button"
+                            onClick={() =>
+                              setBatchInputSeason(isBatchActive ? null : season)
+                            }
+                            className="text-[11px] font-bold text-cyan-400 hover:text-cyan-300"
+                          >
+                            {isBatchActive ? 'Batal Batch Paste' : 'Batch Paste URLs'}
+                          </button>
+                          <button
+                            type="button"
+                            onClick={() => handleAddEpisodeToSeason(season)}
+                            className="px-2.5 py-1 rounded-lg text-[11px] font-bold bg-pink-500/20 text-pink-300 border border-pink-500/30 hover:bg-pink-500/30 flex items-center gap-1"
+                          >
+                            <Plus size={11} /> Tambah Ep
+                          </button>
+                        </div>
+                      </div>
+
+                      {/* Batch URL input */}
+                      {isBatchActive && (
+                        <div className="p-3 rounded-lg bg-black/60 border border-cyan-500/30 space-y-2 animate-fade-in">
+                          <label className="block text-[11px] font-bold text-cyan-300">
+                            Paste URL Video Stream (1 URL per baris)
+                          </label>
+                          <textarea
+                            rows={3}
+                            value={batchUrlsText}
+                            onChange={(e) => setBatchUrlsText(e.target.value)}
+                            placeholder={`https://server.com/${season}-e1.mp4\nhttps://server.com/${season}-e2.mp4`}
+                            className="w-full p-2 bg-black/80 border border-white/10 rounded-lg text-xs text-white font-mono focus:outline-none focus:border-cyan-400"
+                          />
+                          <div className="flex justify-end gap-2">
+                            <button
+                              type="button"
+                              onClick={() => setBatchInputSeason(null)}
+                              className="px-2.5 py-1 text-xs text-slate-400"
+                            >
+                              Batal
+                            </button>
+                            <button
+                              type="button"
+                              onClick={() => handleApplyBatchUrls(season)}
+                              className="px-3 py-1 bg-cyan-500 hover:bg-cyan-400 text-black font-bold text-xs rounded-md shadow-md"
+                            >
+                              Terapkan ke {season.toUpperCase()}
+                            </button>
+                          </div>
+                        </div>
+                      )}
+
+                      {/* Episodes Editable Cards */}
+                      {sEpisodes.length === 0 ? (
+                        <div className="p-3 text-center text-slate-500 text-xs">
+                          Belum ada episode di season ini.
+                        </div>
+                      ) : (
+                        <div className="space-y-2.5">
+                          {sEpisodes.map((ep, idx) => (
+                            <div
+                              key={ep.id}
+                              className="p-3 rounded-xl bg-[#090e1e] border border-white/10 hover:border-purple-500/40 space-y-2.5 transition-all shadow-sm"
+                            >
+                              <div className="flex items-center justify-between gap-2">
+                                <div className="flex items-center gap-1.5">
+                                  <span className="w-7 text-center font-mono text-xs font-black text-pink-400 bg-pink-500/10 rounded py-0.5 border border-pink-500/20">
+                                    {ep.slug.toUpperCase()}
+                                  </span>
+                                  <input
+                                    type="text"
+                                    value={ep.title}
+                                    onChange={(e) =>
+                                      handleUpdateEpisode(ep.id, 'title', e.target.value)
+                                    }
+                                    placeholder="Judul Episode..."
+                                    className="px-2.5 py-1 bg-black/50 border border-white/10 rounded-lg text-xs text-white font-bold focus:outline-none focus:border-purple-400 flex-1 min-w-[120px]"
+                                  />
+                                </div>
+
+                                <button
+                                  type="button"
+                                  onClick={() => handleDeleteEpisode(ep.id)}
+                                  className="p-1 rounded-lg text-red-400 hover:text-red-300 hover:bg-red-500/10 transition-colors"
+                                  title="Hapus Episode"
+                                >
+                                  <Trash2 size={13} />
+                                </button>
+                              </div>
+
+                              {/* Video URL & Details - Responsive */}
+                              <div className="grid grid-cols-1 sm:grid-cols-2 gap-2">
+                                <div>
+                                  <label className="block text-[10px] text-slate-400 font-semibold mb-0.5">
+                                    URL Video Stream <span className="text-red-400">*</span>
+                                  </label>
+                                  <div className="flex items-center gap-1 bg-black/60 border border-white/10 rounded-lg px-2 py-1 focus-within:border-cyan-400">
+                                    <Play size={11} className="text-cyan-400 flex-shrink-0" />
+                                    <input
+                                      type="text"
+                                      value={ep.videourl}
+                                      onChange={(e) =>
+                                        handleUpdateEpisode(ep.id, 'videourl', e.target.value)
+                                      }
+                                      placeholder="https://server.com/video.mp4"
+                                      className="w-full bg-transparent text-xs text-white font-mono focus:outline-none"
+                                    />
+                                  </div>
+                                </div>
+
+                                <div>
+                                  <div className="flex items-center justify-between mb-0.5">
+                                    <label className="text-[10px] text-slate-400 font-semibold">
+                                      Image Backdrop / Poster
+                                    </label>
+                                    {tmdbPreview?.backdrops && tmdbPreview.backdrops.length > 0 && (
+                                      <button
+                                        type="button"
+                                        onClick={() => {
+                                          setActiveEpBackdropId(ep.id);
+                                          setShowBackdropPicker(true);
+                                        }}
+                                        className="text-[10px] font-bold text-cyan-400 hover:text-cyan-300 flex items-center gap-0.5"
+                                      >
+                                        <ImageIcon size={10} />
+                                        <span>Pilih TMDB</span>
+                                      </button>
+                                    )}
+                                  </div>
+                                  <input
+                                    type="text"
+                                    value={ep.image_url}
+                                    onChange={(e) =>
+                                      handleUpdateEpisode(ep.id, 'image_url', e.target.value)
+                                    }
+                                    placeholder="https://image.tmdb.org/..."
+                                    className="w-full px-2.5 py-1 bg-black/60 border border-white/10 rounded-lg text-xs text-white focus:outline-none focus:border-purple-400"
+                                  />
+                                </div>
+                              </div>
+                            </div>
+                          ))}
+                        </div>
+                      )}
                     </div>
-                    <span className="text-[11px] text-slate-400 font-mono truncate max-w-xs">
-                      {ep.frontmatter.videourl || 'No Video URL'}
-                    </span>
-                  </div>
-                ))}
+                  );
+                })}
               </div>
             </div>
           )}
 
-          {/* Buttons */}
+          {/* Submit Buttons */}
           <div className="flex items-center justify-end gap-2 pt-3 border-t border-white/10">
             <button
               type="button"
@@ -404,7 +727,7 @@ export const EditModal: React.FC<EditModalProps> = ({
               className="px-5 py-2 rounded-xl text-xs font-bold bg-cyan-500 hover:bg-cyan-400 text-black shadow-lg shadow-cyan-500/20 flex items-center gap-1.5 transition-all active:scale-95 disabled:opacity-50"
             >
               <CheckCircle size={14} />
-              <span>{submitting ? 'Menyimpan...' : 'Simpan Perubahan'}</span>
+              <span>{submitting ? 'Menyimpan...' : 'Simpan Semua Perubahan'}</span>
             </button>
           </div>
         </form>

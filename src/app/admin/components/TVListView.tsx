@@ -161,36 +161,39 @@ export const TVListView: React.FC<TVListViewProps> = ({
           return (
             <div
               key={show.showSlug}
-              className="p-3.5 sm:p-4 rounded-xl bg-[#0c1224] border border-white/10 hover:border-pink-500/40 transition-all shadow-sm w-full"
+              className="p-3.5 sm:p-4 rounded-xl sm:rounded-2xl bg-[#0c1224] border border-white/10 hover:border-pink-500/40 transition-all shadow-sm w-full space-y-3"
             >
-              {/* Show Main Header */}
-              <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-2.5 pb-3 border-b border-white/10 w-full">
-                <div className="flex items-center gap-2.5">
+              {/* Show Main Header - Mobile Responsive */}
+              <div className="flex flex-col md:flex-row md:items-center justify-between gap-3 pb-3 border-b border-white/10 w-full">
+                <div className="flex items-start sm:items-center gap-2.5">
                   <div className="relative w-12 sm:w-14 aspect-[2/3] min-h-[72px] sm:min-h-[84px] rounded-lg overflow-hidden bg-slate-900 flex-shrink-0 border border-white/10 shadow-sm">
                     <SafeAdminImage src={poster} alt={title} sizes="56px" />
                   </div>
 
-                  <div>
-                    <div className="flex items-center gap-1.5 mb-0.5 flex-wrap">
-                      <span className="px-1.5 py-0.2 rounded text-[9px] font-bold bg-pink-500/10 text-pink-400 border border-pink-500/30">
+                  <div className="min-w-0">
+                    <div className="flex items-center gap-1.5 mb-1 flex-wrap">
+                      <span className="px-1.5 py-0.2 rounded text-[9.5px] font-bold bg-pink-500/10 text-pink-400 border border-pink-500/30">
                         TMDB {tmdbId}
                       </span>
-                      <span className="px-1.5 py-0.2 rounded text-[9px] font-bold bg-purple-500/10 text-purple-400 border border-purple-500/30">
+                      <span className="px-1.5 py-0.2 rounded text-[9.5px] font-bold bg-purple-500/10 text-purple-400 border border-purple-500/30">
                         {show.episodes.length} Episode
                       </span>
-                      <span className="px-1.5 py-0.2 rounded text-[9px] font-bold bg-white/5 text-slate-300 border border-white/10">
+                      <span className="px-1.5 py-0.2 rounded text-[9.5px] font-bold bg-white/5 text-slate-300 border border-white/10">
                         {showSeasons.length} Season
                       </span>
                     </div>
-                    <h3 className="font-bold text-white text-xs sm:text-sm leading-snug">
+                    <h3 className="font-extrabold text-white text-xs sm:text-sm leading-snug line-clamp-2">
                       {title}{' '}
                       {year ? <span className="text-slate-400 font-normal text-xs">({year})</span> : ''}
                     </h3>
-                    <p className="text-[10px] text-slate-500 font-mono">tv/{show.showSlug}/_index.md</p>
+                    <p className="text-[9.5px] text-slate-500 font-mono truncate mt-0.5">
+                      tv/{show.showSlug}/_index.md
+                    </p>
                   </div>
                 </div>
 
-                <div className="flex items-center gap-1.5 flex-wrap">
+                {/* Show Actions - Responsive Grid on Mobile */}
+                <div className="grid grid-cols-3 sm:flex sm:items-center gap-1.5 w-full md:w-auto pt-1 md:pt-0">
                   <Link
                     href={getTVUrl({
                       id: show.frontmatter.tmdb_id,
@@ -200,23 +203,23 @@ export const TVListView: React.FC<TVListViewProps> = ({
                       customSlug: show.showSlug,
                     })}
                     target="_blank"
-                    className="inline-flex items-center gap-1 px-2.5 py-1 rounded text-[11px] font-semibold bg-white/5 hover:bg-white/10 text-cyan-400 transition-all"
+                    className="inline-flex items-center justify-center gap-1 px-2.5 py-2 sm:py-1.5 rounded-lg text-xs font-semibold bg-white/5 hover:bg-white/10 text-cyan-400 transition-all border border-white/5"
                   >
-                    <ExternalLink size={11} />
-                    <span>Show</span>
+                    <ExternalLink size={12} />
+                    <span>Lihat</span>
                   </Link>
 
                   <button
                     onClick={() => onOpenEdit(show)}
-                    className="inline-flex items-center gap-1 px-2.5 py-1 rounded text-[11px] font-bold bg-pink-500/20 hover:bg-pink-500/30 text-pink-300 border border-pink-500/40 transition-all"
+                    className="col-span-2 sm:col-auto inline-flex items-center justify-center gap-1 px-3 py-2 sm:py-1.5 rounded-lg text-xs font-bold bg-pink-500/20 hover:bg-pink-500/30 text-pink-300 border border-pink-500/40 transition-all active:scale-95"
                   >
-                    <Edit2 size={11} />
-                    <span>Kelola Series & Episode</span>
+                    <Edit2 size={12} />
+                    <span>Kelola Series</span>
                   </button>
 
                   <button
                     onClick={() => onDeleteShow(`tv/${show.showSlug}`, title)}
-                    className="p-1 rounded bg-red-500/10 hover:bg-red-500/20 text-red-400 transition-all"
+                    className="hidden sm:inline-flex p-2 rounded-lg bg-red-500/10 hover:bg-red-500/20 text-red-400 transition-all"
                     title="Hapus Seluruh TV Series"
                   >
                     <Trash2 size={13} />
@@ -225,7 +228,7 @@ export const TVListView: React.FC<TVListViewProps> = ({
               </div>
 
               {/* Season Accordions */}
-              <div className="mt-3 space-y-2 w-full">
+              <div className="space-y-2 w-full">
                 {showSeasons.length === 0 || show.episodes.length === 0 ? (
                   <div className="p-3 text-center bg-black/20 rounded-lg border border-white/5">
                     <p className="text-[11px] text-slate-400 mb-1">Belum ada episode di series ini.</p>
@@ -253,51 +256,51 @@ export const TVListView: React.FC<TVListViewProps> = ({
                     return (
                       <div
                         key={seasonSlug}
-                        className="rounded-lg border border-white/10 bg-black/30 overflow-hidden transition-all shadow-sm"
+                        className="rounded-xl border border-white/10 bg-black/30 overflow-hidden transition-all shadow-sm"
                       >
                         <div
                           onClick={() => toggleSeasonAccordion(show.showSlug, seasonSlug)}
-                          className="p-3 sm:p-3.5 flex items-center justify-between gap-3 cursor-pointer hover:bg-white/10 active:bg-white/15 transition-all select-none min-h-[48px]"
+                          className="p-3 sm:p-3.5 flex items-center justify-between gap-2.5 cursor-pointer hover:bg-white/10 active:bg-white/15 transition-all select-none min-h-[44px]"
                         >
-                          <div className="flex items-center gap-2.5 min-w-0">
-                            <div className="w-6 h-6 rounded-md bg-white/5 flex items-center justify-center flex-shrink-0 text-slate-300">
+                          <div className="flex items-center gap-2 min-w-0">
+                            <div className="w-5 h-5 rounded bg-white/5 flex items-center justify-center flex-shrink-0 text-slate-300">
                               {isExpanded ? (
-                                <ChevronDown size={18} className="text-pink-400 transition-transform" />
+                                <ChevronDown size={16} className="text-pink-400 transition-transform" />
                               ) : (
-                                <ChevronRight size={18} className="text-slate-400 transition-transform" />
+                                <ChevronRight size={16} className="text-slate-400 transition-transform" />
                               )}
                             </div>
                             <span className="text-xs sm:text-sm font-extrabold text-white tracking-tight truncate">
                               {formatSeasonLabel(seasonSlug)}
                             </span>
-                            <span className="px-2 py-0.5 rounded-md text-[10px] sm:text-[11px] font-bold bg-purple-500/20 text-purple-300 border border-purple-500/30 whitespace-nowrap">
-                              {seasonEps.length} Episode
+                            <span className="px-2 py-0.5 rounded text-[10px] font-bold bg-purple-500/20 text-purple-300 border border-purple-500/30 whitespace-nowrap">
+                              {seasonEps.length} Ep
                             </span>
                           </div>
 
                           <div
-                            className="flex items-center gap-2 flex-shrink-0"
+                            className="flex items-center gap-1.5 flex-shrink-0"
                             onClick={(e) => e.stopPropagation()}
                           >
                             <button
                               onClick={() => onQuickAddEpisode(show, seasonSlug)}
-                              className="px-2.5 sm:px-3 py-1.5 rounded-lg text-xs font-bold bg-purple-500/20 hover:bg-purple-500/30 text-purple-200 border border-purple-500/40 flex items-center gap-1.5 transition-all shadow-sm active:scale-95"
+                              className="px-2.5 py-1 rounded-lg text-[11px] font-bold bg-purple-500/20 hover:bg-purple-500/30 text-purple-200 border border-purple-500/40 flex items-center gap-1 transition-all shadow-sm active:scale-95"
                             >
-                              <Plus size={13} className="text-purple-300" />
-                              <span className="text-xs font-bold">Tambah Ep</span>
+                              <Plus size={11} className="text-purple-300" />
+                              <span>Tambah Ep</span>
                             </button>
                           </div>
                         </div>
 
                         {isExpanded && (
-                          <div className="p-3 pt-2 border-t border-white/5 space-y-2.5 bg-black/40">
+                          <div className="p-2.5 sm:p-3 pt-2 border-t border-white/5 space-y-2.5 bg-black/40">
                             {seasonEps.length === 0 ? (
                               <div className="p-3 text-center text-slate-500 text-[11px]">
                                 Belum ada episode di {formatSeasonLabel(seasonSlug)}.
                               </div>
                             ) : (
                               <>
-                                <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-2.5">
+                                <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-2 sm:gap-2.5">
                                   {pagedEpisodes.map((ep) => {
                                     const epTitle = ep.displayTitle || ep.frontmatter.title || ep.slug;
                                     const epVideo = ep.frontmatter.videourl || ep.frontmatter.video_url;
@@ -319,24 +322,24 @@ export const TVListView: React.FC<TVListViewProps> = ({
                                     return (
                                       <div
                                         key={ep.relativePath}
-                                        className="p-2.5 sm:p-3 rounded-xl bg-[#090e1e]/90 border border-white/10 flex items-start gap-3 w-full hover:border-purple-500/50 hover:bg-[#0c1328] transition-all shadow-sm group"
+                                        className="p-2.5 rounded-xl bg-[#090e1e]/90 border border-white/10 flex items-start gap-2.5 w-full hover:border-purple-500/50 hover:bg-[#0c1328] transition-all shadow-sm group"
                                       >
-                                        <div className="relative w-16 sm:w-20 aspect-video rounded-lg overflow-hidden bg-slate-900 border border-white/10 flex-shrink-0 shadow-sm mt-0.5">
+                                        <div className="relative w-14 sm:w-16 aspect-video rounded-lg overflow-hidden bg-slate-900 border border-white/10 flex-shrink-0 shadow-sm mt-0.5">
                                           <SafeAdminImage
                                             src={epPoster}
                                             fallbackSrc={poster}
                                             alt={epTitle}
-                                            sizes="80px"
+                                            sizes="64px"
                                           />
                                         </div>
 
                                         <div className="flex-1 min-w-0">
-                                          <div className="flex flex-wrap items-center gap-1.5 mb-1">
-                                            <span className="px-1.5 py-0.5 rounded text-[9.5px] sm:text-[10px] font-extrabold bg-pink-500/20 text-pink-300 border border-pink-500/30 whitespace-nowrap">
-                                              Season {seasonNum}
+                                          <div className="flex flex-wrap items-center gap-1 mb-0.5">
+                                            <span className="px-1.5 py-0.2 rounded text-[9px] font-extrabold bg-pink-500/20 text-pink-300 border border-pink-500/30">
+                                              S{seasonNum}
                                             </span>
-                                            <span className="px-1.5 py-0.5 rounded text-[9.5px] sm:text-[10px] font-extrabold bg-purple-500/20 text-purple-300 border border-purple-500/30 whitespace-nowrap">
-                                              Episode {episodeNum}
+                                            <span className="px-1.5 py-0.2 rounded text-[9px] font-extrabold bg-purple-500/20 text-purple-300 border border-purple-500/30">
+                                              E{episodeNum}
                                             </span>
                                           </div>
 
@@ -347,12 +350,12 @@ export const TVListView: React.FC<TVListViewProps> = ({
                                             {epTitle}
                                           </h4>
 
-                                          <div className="flex items-center gap-1 mt-1 text-[10px] text-slate-400">
-                                            <Play size={10} className="text-cyan-400 flex-shrink-0" />
+                                          <div className="flex items-center gap-1 mt-0.5 text-[9.5px] text-slate-400">
+                                            <Play size={9} className="text-cyan-400 flex-shrink-0" />
                                             <span className="truncate font-mono">{epVideo || 'No URL'}</span>
                                           </div>
 
-                                          <div className="flex items-center justify-between mt-2 pt-1.5 border-t border-white/5">
+                                          <div className="flex items-center justify-between mt-1.5 pt-1 border-t border-white/5">
                                             <Link
                                               href={linkPath}
                                               target="_blank"

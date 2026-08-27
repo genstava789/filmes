@@ -172,7 +172,7 @@ export function useAdminData() {
     fetchContent({ silent: true });
   };
 
-  const handleEditSubmit = async (item: EditingItemState) => {
+  const handleEditSubmit = async (item: any) => {
     showToast('Menyimpan perubahan...');
     const res = await fetch('/api/admin/content/edit', {
       method: 'PUT',
@@ -181,6 +181,7 @@ export function useAdminData() {
         relativePath: item.relativePath,
         frontmatter: item.frontmatter,
         content: item.content,
+        episodes: item.episodes,
       }),
     });
 

@@ -6,6 +6,7 @@ import { slugify, cleanVideoUrl, extractTmdbIdAndType } from '@/lib/urls';
 import {
   saveGitHubFile,
   deleteGitHubFile,
+  deleteGitHubFolder,
   getGitHubTree,
   getGitHubBlob,
   getGitHubRawFile,
@@ -929,6 +930,69 @@ export async function updateAdminContent(body: any, ghConfig: GitHubOptions) {
     }
   }
 
+  // If this is a TV show and episodes array was supplied, update all episodes
+  if (Array.isArray(body.episodes) && (relativePath.endsWith('_index.md') || relativePath.endsWith('index.md'))) {
+    const showSlug = relativePath.split('/')[1];
+
+    for (const ep of body.episodes) {
+      if (ep.deleted && ep.relativePath) {
+        try {
+          if (isProductionOrCloud && token) {
+            await deleteGitHubFile(ep.relativePath, `cms: delete episode ${ep.relativePath}`, ghConfig);
+          }
+          const epPath = path.join(process.cwd(), ep.relativePath);
+          if (fs.existsSync(epPath)) fs.unlinkSync(epPath);
+        } catch (e) {
+          console.warn(`[updateAdminContent] Error deleting episode ${ep.relativePath}:`, e);
+        }
+        continue;
+      }
+
+      const epSeason = ep.season || ep.seasonFolder || 's1';
+      const epNum = ep.episode || ep.slug || 'e1';
+      const epRelativePath = ep.relativePath || `tv/${showSlug}/${epSeason}/${epNum}.md`;
+
+      const epFrontmatter: Record<string, any> = {
+        title: ep.title || (ep.frontmatter && ep.frontmatter.title) || `Episode ${epNum.replace(/\D/g, '') || '1'}`,
+        videourl: cleanVideoUrl(ep.videourl || (ep.frontmatter && (ep.frontmatter.videourl || ep.frontmatter.video_url)) || '') || '',
+      };
+
+      const img = ep.image_url || (ep.frontmatter && ep.frontmatter.image_url);
+      if (img) epFrontmatter.image_url = img;
+
+      const sub = ep.subtitles || (ep.frontmatter && ep.frontmatter.subtitles);
+      if (sub) epFrontmatter.subtitles = sub;
+
+      const dur = ep.duration || (ep.frontmatter && ep.frontmatter.duration);
+      if (dur) epFrontmatter.duration = dur;
+
+      const epFileContent = serializeTinaTVEpisode(epFrontmatter, ep.content || '');
+
+      if (isProductionOrCloud) {
+        if (token) {
+          await saveGitHubFile(epRelativePath, epFileContent, `cms: update ${epRelativePath}`, ghConfig);
+        }
+        try {
+          const fullEpPath = path.join(process.cwd(), epRelativePath);
+          const dir = path.dirname(fullEpPath);
+          if (!fs.existsSync(dir)) fs.mkdirSync(dir, { recursive: true });
+          fs.writeFileSync(fullEpPath, epFileContent, 'utf8');
+        } catch {}
+      } else {
+        const fullEpPath = path.join(process.cwd(), epRelativePath);
+        const dir = path.dirname(fullEpPath);
+        if (!fs.existsSync(dir)) fs.mkdirSync(dir, { recursive: true });
+        fs.writeFileSync(fullEpPath, epFileContent, 'utf8');
+
+        if (token) {
+          try {
+            await saveGitHubFile(epRelativePath, epFileContent, `cms: update ${epRelativePath}`, ghConfig);
+          } catch {}
+        }
+      }
+    }
+  }
+
   selectiveRevalidateAll();
   return { success: true, relativePath };
 }
@@ -946,6 +1010,15 @@ export async function deleteAdminContent(pathsToDelete: string[], ghConfig: GitH
 
     if (!isMovie && !isTV) continue;
 
+    const isTvShowIndex = isTV && (relativePath.endsWith('/_index.md') || relativePath.endsWith('/index.md'));
+    const isTvDirectory = isTV && !relativePath.endsWith('.md') && !relativePath.endsWith('.markdown');
+
+    const folderToDelete = isTvShowIndex
+      ? relativePath.replace(/\/_?index\.md$/i, '')
+      : isTvDirectory
+      ? relativePath
+      : null;
+
     if (isProductionOrCloud) {
       if (!token) {
         throw new Error(
@@ -953,10 +1026,14 @@ export async function deleteAdminContent(pathsToDelete: string[], ghConfig: GitH
         );
       }
 
-      await deleteGitHubFile(relativePath, `cms: delete ${relativePath}`, ghConfig);
+      if (folderToDelete) {
+        await deleteGitHubFolder(folderToDelete, `cms: delete TV show ${folderToDelete}`, ghConfig);
+      } else {
+        await deleteGitHubFile(relativePath, `cms: delete ${relativePath}`, ghConfig);
+      }
 
       try {
-        const fullPath = path.join(process.cwd(), relativePath);
+        const fullPath = path.join(process.cwd(), folderToDelete || relativePath);
         if (fs.existsSync(fullPath)) {
           const stat = fs.statSync(fullPath);
           if (stat.isDirectory()) {
@@ -967,7 +1044,7 @@ export async function deleteAdminContent(pathsToDelete: string[], ghConfig: GitH
         }
       } catch {}
     } else {
-      const fullPath = path.join(process.cwd(), relativePath);
+      const fullPath = path.join(process.cwd(), folderToDelete || relativePath);
       if (fs.existsSync(fullPath)) {
         const stat = fs.statSync(fullPath);
         if (stat.isDirectory()) {
@@ -979,7 +1056,11 @@ export async function deleteAdminContent(pathsToDelete: string[], ghConfig: GitH
 
       if (token) {
         try {
-          await deleteGitHubFile(relativePath, `cms: delete ${relativePath}`, ghConfig);
+          if (folderToDelete) {
+            await deleteGitHubFolder(folderToDelete, `cms: delete TV show ${folderToDelete}`, ghConfig);
+          } else {
+            await deleteGitHubFile(relativePath, `cms: delete ${relativePath}`, ghConfig);
+          }
         } catch {}
       }
     }
