@@ -72,19 +72,19 @@ export const AdminNavbar: React.FC<AdminNavbarProps> = ({
               </button>
             )}
 
-            {/* Manual Sync to GitHub Button */}
+            {/* Manual Push to GitHub Button */}
             <button
               onClick={onManualSyncGitHub}
               disabled={syncingGitHub}
-              className={`px-3 py-1.5 rounded-xl border text-xs font-bold transition-all active:scale-95 flex items-center gap-1.5 shadow-sm ${
+              className={`px-3.5 py-2 rounded-xl border text-xs font-extrabold transition-all active:scale-95 flex items-center gap-1.5 shadow-md ${
                 syncingGitHub
-                  ? 'bg-purple-500/20 text-purple-300 border-purple-500/40'
-                  : 'bg-purple-600 hover:bg-purple-500 text-white border-purple-400/40 shadow-purple-600/20'
+                  ? 'bg-purple-500/20 text-purple-300 border-purple-500/40 cursor-not-allowed'
+                  : 'bg-gradient-to-r from-purple-600 to-indigo-600 hover:from-purple-500 hover:to-indigo-500 text-white border-purple-400/40 shadow-purple-900/30'
               }`}
-              title="Push semua perubahan lokal ke GitHub Repository"
+              title="Push seluruh perubahan lokal & CMS ke GitHub Repository"
             >
-              <CloudUpload size={14} className={syncingGitHub ? 'animate-bounce' : ''} />
-              <span>{syncingGitHub ? 'Menyinkronkan...' : 'Sync ke GitHub'}</span>
+              <CloudUpload size={15} className={syncingGitHub ? 'animate-bounce' : ''} />
+              <span>{syncingGitHub ? 'Memproses Push...' : 'Push to GitHub'}</span>
             </button>
 
             <button

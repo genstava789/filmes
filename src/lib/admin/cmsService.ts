@@ -642,31 +642,17 @@ export async function createAdminContent(body: any, ghConfig: GitHubOptions) {
 
     fileContent = serializeTinaTVShow(frontmatterData, content || '');
 
-    if (isProductionOrCloud) {
-      if (!token) {
-        throw new Error('Token GitHub diperlukan untuk menyimpan ke repositori di cloud hosting (Vercel).');
-      }
-      await saveGitHubFile(relativePath, fileContent, `cms: save ${relativePath}`, ghConfig);
-      try {
-        const fullPath = path.join(process.cwd(), relativePath);
-        const dir = path.dirname(fullPath);
-        if (!fs.existsSync(dir)) fs.mkdirSync(dir, { recursive: true });
-        fs.writeFileSync(fullPath, fileContent, 'utf8');
-      } catch {}
-    } else {
+    // Write TV Show _index.md to local filesystem
+    try {
       const fullPath = path.join(process.cwd(), relativePath);
       const dir = path.dirname(fullPath);
       if (!fs.existsSync(dir)) fs.mkdirSync(dir, { recursive: true });
       fs.writeFileSync(fullPath, fileContent, 'utf8');
-
-      if (token) {
-        try {
-          await saveGitHubFile(relativePath, fileContent, `cms: save ${relativePath}`, ghConfig);
-        } catch {}
-      }
+    } catch (err: any) {
+      console.warn(`[createAdminContent] Error writing TV show file ${relativePath}:`, err);
     }
 
-    // Save multi-season batch episodes
+    // Save multi-season batch episodes to local filesystem
     let savedEpisodesCount = 0;
     if (Array.isArray(seasons) && seasons.length > 0) {
       for (const s of seasons) {
@@ -697,25 +683,13 @@ export async function createAdminContent(body: any, ghConfig: GitHubOptions) {
 
             const epContentStr = serializeTinaTVEpisode(epFrontmatter, ep.content || '');
 
-            if (isProductionOrCloud) {
-              await saveGitHubFile(epRelPath, epContentStr, `cms: save ${epRelPath}`, ghConfig);
-              try {
-                const fullEpPath = path.join(process.cwd(), epRelPath);
-                const epDir = path.dirname(fullEpPath);
-                if (!fs.existsSync(epDir)) fs.mkdirSync(epDir, { recursive: true });
-                fs.writeFileSync(fullEpPath, epContentStr, 'utf8');
-              } catch {}
-            } else {
+            try {
               const fullEpPath = path.join(process.cwd(), epRelPath);
               const epDir = path.dirname(fullEpPath);
               if (!fs.existsSync(epDir)) fs.mkdirSync(epDir, { recursive: true });
               fs.writeFileSync(fullEpPath, epContentStr, 'utf8');
-
-              if (token) {
-                try {
-                  await saveGitHubFile(epRelPath, epContentStr, `cms: save ${epRelPath}`, ghConfig);
-                } catch {}
-              }
+            } catch (err: any) {
+              console.warn(`[createAdminContent] Error writing episode file ${epRelPath}:`, err);
             }
 
             savedEpisodesCount++;
@@ -816,33 +790,14 @@ export async function createAdminContent(body: any, ghConfig: GitHubOptions) {
     throw new Error('Invalid contentType');
   }
 
-  // Save main file
-  if (isProductionOrCloud) {
-    if (!token) {
-      throw new Error(
-        'Token GitHub diperlukan untuk menyimpan konten baru ke repositori di hosting cloud (Vercel).'
-      );
-    }
-
-    await saveGitHubFile(relativePath, fileContent, `cms: ${isUpdate ? 'update' : 'create'} ${relativePath}`, ghConfig);
-
-    try {
-      const fullPath = path.join(process.cwd(), relativePath);
-      const dir = path.dirname(fullPath);
-      if (!fs.existsSync(dir)) fs.mkdirSync(dir, { recursive: true });
-      fs.writeFileSync(fullPath, fileContent, 'utf8');
-    } catch {}
-  } else {
+  // Save main file (movie or single episode) to local filesystem
+  try {
     const fullPath = path.join(process.cwd(), relativePath);
     const dir = path.dirname(fullPath);
     if (!fs.existsSync(dir)) fs.mkdirSync(dir, { recursive: true });
     fs.writeFileSync(fullPath, fileContent, 'utf8');
-
-    if (token) {
-      try {
-        await saveGitHubFile(relativePath, fileContent, `cms: ${isUpdate ? 'update' : 'create'} ${relativePath}`, ghConfig);
-      } catch {}
-    }
+  } catch (err: any) {
+    console.warn(`[createAdminContent] Error writing file ${relativePath}:`, err);
   }
 
   selectiveRevalidateAll();
@@ -856,11 +811,10 @@ export async function createAdminContent(body: any, ghConfig: GitHubOptions) {
 }
 
 /**
- * Update an existing markdown file
+ * Update an existing markdown file locally
  */
 export async function updateAdminContent(body: any, ghConfig: GitHubOptions) {
   const { relativePath, frontmatter: newFrontmatter, content = '' } = body;
-  const { token } = ghConfig;
 
   if (!relativePath) throw new Error('relativePath is required');
 
@@ -900,46 +854,23 @@ export async function updateAdminContent(body: any, ghConfig: GitHubOptions) {
     fileContent = serializeTinaTVEpisode(cleanFrontmatter, content || '');
   }
 
-  const isProductionOrCloud = Boolean(process.env.VERCEL || process.env.NODE_ENV === 'production');
-
-  if (isProductionOrCloud) {
-    if (!token) {
-      throw new Error(
-        'Token GitHub diperlukan untuk menyimpan perubahan ke repositori di hosting cloud (Vercel).'
-      );
-    }
-
-    await saveGitHubFile(relativePath, fileContent, `cms: update ${relativePath}`, ghConfig);
-
-    try {
-      const fullPath = path.join(process.cwd(), relativePath);
-      const dir = path.dirname(fullPath);
-      if (!fs.existsSync(dir)) fs.mkdirSync(dir, { recursive: true });
-      fs.writeFileSync(fullPath, fileContent, 'utf8');
-    } catch {}
-  } else {
+  // Save main file to local filesystem
+  try {
     const fullPath = path.join(process.cwd(), relativePath);
     const dir = path.dirname(fullPath);
     if (!fs.existsSync(dir)) fs.mkdirSync(dir, { recursive: true });
     fs.writeFileSync(fullPath, fileContent, 'utf8');
-
-    if (token) {
-      try {
-        await saveGitHubFile(relativePath, fileContent, `cms: update ${relativePath}`, ghConfig);
-      } catch {}
-    }
+  } catch (err: any) {
+    console.warn(`[updateAdminContent] Error writing file ${relativePath}:`, err);
   }
 
-  // If this is a TV show and episodes array was supplied, update all episodes
+  // If this is a TV show and episodes array was supplied, update all episodes locally
   if (Array.isArray(body.episodes) && (relativePath.endsWith('_index.md') || relativePath.endsWith('index.md'))) {
     const showSlug = relativePath.split('/')[1];
 
     for (const ep of body.episodes) {
       if (ep.deleted && ep.relativePath) {
         try {
-          if (isProductionOrCloud && token) {
-            await deleteGitHubFile(ep.relativePath, `cms: delete episode ${ep.relativePath}`, ghConfig);
-          }
           const epPath = path.join(process.cwd(), ep.relativePath);
           if (fs.existsSync(epPath)) fs.unlinkSync(epPath);
         } catch (e) {
@@ -968,27 +899,13 @@ export async function updateAdminContent(body: any, ghConfig: GitHubOptions) {
 
       const epFileContent = serializeTinaTVEpisode(epFrontmatter, ep.content || '');
 
-      if (isProductionOrCloud) {
-        if (token) {
-          await saveGitHubFile(epRelativePath, epFileContent, `cms: update ${epRelativePath}`, ghConfig);
-        }
-        try {
-          const fullEpPath = path.join(process.cwd(), epRelativePath);
-          const dir = path.dirname(fullEpPath);
-          if (!fs.existsSync(dir)) fs.mkdirSync(dir, { recursive: true });
-          fs.writeFileSync(fullEpPath, epFileContent, 'utf8');
-        } catch {}
-      } else {
+      try {
         const fullEpPath = path.join(process.cwd(), epRelativePath);
         const dir = path.dirname(fullEpPath);
         if (!fs.existsSync(dir)) fs.mkdirSync(dir, { recursive: true });
         fs.writeFileSync(fullEpPath, epFileContent, 'utf8');
-
-        if (token) {
-          try {
-            await saveGitHubFile(epRelativePath, epFileContent, `cms: update ${epRelativePath}`, ghConfig);
-          } catch {}
-        }
+      } catch (err: any) {
+        console.warn(`[updateAdminContent] Error writing episode ${epRelativePath}:`, err);
       }
     }
   }
@@ -998,12 +915,9 @@ export async function updateAdminContent(body: any, ghConfig: GitHubOptions) {
 }
 
 /**
- * Delete markdown files or TV folders
+ * Delete markdown files or TV folders locally
  */
 export async function deleteAdminContent(pathsToDelete: string[], ghConfig: GitHubOptions) {
-  const { token } = ghConfig;
-  const isProductionOrCloud = Boolean(process.env.VERCEL || process.env.NODE_ENV === 'production');
-
   for (const relativePath of pathsToDelete) {
     const isMovie = relativePath.startsWith('video/');
     const isTV = relativePath.startsWith('tv/');
@@ -1019,31 +933,7 @@ export async function deleteAdminContent(pathsToDelete: string[], ghConfig: GitH
       ? relativePath
       : null;
 
-    if (isProductionOrCloud) {
-      if (!token) {
-        throw new Error(
-          'Token GitHub diperlukan untuk menghapus konten dari repositori di hosting cloud (Vercel).'
-        );
-      }
-
-      if (folderToDelete) {
-        await deleteGitHubFolder(folderToDelete, `cms: delete TV show ${folderToDelete}`, ghConfig);
-      } else {
-        await deleteGitHubFile(relativePath, `cms: delete ${relativePath}`, ghConfig);
-      }
-
-      try {
-        const fullPath = path.join(process.cwd(), folderToDelete || relativePath);
-        if (fs.existsSync(fullPath)) {
-          const stat = fs.statSync(fullPath);
-          if (stat.isDirectory()) {
-            fs.rmSync(fullPath, { recursive: true, force: true });
-          } else {
-            fs.unlinkSync(fullPath);
-          }
-        }
-      } catch {}
-    } else {
+    try {
       const fullPath = path.join(process.cwd(), folderToDelete || relativePath);
       if (fs.existsSync(fullPath)) {
         const stat = fs.statSync(fullPath);
@@ -1053,16 +943,8 @@ export async function deleteAdminContent(pathsToDelete: string[], ghConfig: GitH
           fs.unlinkSync(fullPath);
         }
       }
-
-      if (token) {
-        try {
-          if (folderToDelete) {
-            await deleteGitHubFolder(folderToDelete, `cms: delete TV show ${folderToDelete}`, ghConfig);
-          } else {
-            await deleteGitHubFile(relativePath, `cms: delete ${relativePath}`, ghConfig);
-          }
-        } catch {}
-      }
+    } catch (err: any) {
+      console.warn(`[deleteAdminContent] Error removing ${relativePath}:`, err);
     }
   }
 
