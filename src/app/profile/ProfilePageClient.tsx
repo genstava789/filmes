@@ -658,3 +658,6 @@ export default function ProfilePageClient() {
     </div>
   );
 }
+
+export { ProfilePageClient };
+
