@@ -55,7 +55,7 @@ export const SettingsModal: React.FC<SettingsModalProps> = ({
 
         <div className="space-y-3">
           <div>
-            <label className="block text-xs font-semibold text-slate-300 mb-1">
+            <label className="block text-xs font-bold text-slate-300 mb-1.5">
               GitHub Personal Access Token (PAT)
             </label>
             <input
@@ -63,41 +63,41 @@ export const SettingsModal: React.FC<SettingsModalProps> = ({
               value={ghToken}
               onChange={(e) => setGhToken(e.target.value)}
               placeholder="ghp_xxxxxxxxxxxx..."
-              className="w-full px-3 py-2 bg-black/50 border border-white/10 rounded-xl text-xs text-white placeholder-slate-500 focus:outline-none focus:border-cyan-500 font-mono"
+              className="w-full px-3.5 py-2.5 sm:py-3 bg-black/50 border border-white/10 rounded-xl text-xs sm:text-sm text-white placeholder-slate-500 focus:outline-none focus:border-cyan-500 font-mono min-h-[42px]"
             />
           </div>
 
-          <div className="grid grid-cols-2 gap-3">
+          <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
             <div>
-              <label className="block text-xs font-semibold text-slate-300 mb-1">GitHub Owner</label>
+              <label className="block text-xs font-bold text-slate-300 mb-1.5">GitHub Owner</label>
               <input
                 type="text"
                 value={ghOwner}
                 onChange={(e) => setGhOwner(e.target.value)}
                 placeholder="genstava789"
-                className="w-full px-3 py-2 bg-black/50 border border-white/10 rounded-xl text-xs text-white placeholder-slate-500 focus:outline-none focus:border-cyan-500"
+                className="w-full px-3.5 py-2.5 sm:py-3 bg-black/50 border border-white/10 rounded-xl text-xs sm:text-sm text-white placeholder-slate-500 focus:outline-none focus:border-cyan-500 min-h-[42px]"
               />
             </div>
             <div>
-              <label className="block text-xs font-semibold text-slate-300 mb-1">GitHub Repository</label>
+              <label className="block text-xs font-bold text-slate-300 mb-1.5">GitHub Repository</label>
               <input
                 type="text"
                 value={ghRepo}
                 onChange={(e) => setGhRepo(e.target.value)}
                 placeholder="filmes"
-                className="w-full px-3 py-2 bg-black/50 border border-white/10 rounded-xl text-xs text-white placeholder-slate-500 focus:outline-none focus:border-cyan-500"
+                className="w-full px-3.5 py-2.5 sm:py-3 bg-black/50 border border-white/10 rounded-xl text-xs sm:text-sm text-white placeholder-slate-500 focus:outline-none focus:border-cyan-500 min-h-[42px]"
               />
             </div>
           </div>
 
           <div>
-            <label className="block text-xs font-semibold text-slate-300 mb-1">Branch</label>
+            <label className="block text-xs font-bold text-slate-300 mb-1.5">Branch</label>
             <input
               type="text"
               value={ghBranch}
               onChange={(e) => setGhBranch(e.target.value)}
               placeholder="main"
-              className="w-full px-3 py-2 bg-black/50 border border-white/10 rounded-xl text-xs text-white placeholder-slate-500 focus:outline-none focus:border-cyan-500"
+              className="w-full px-3.5 py-2.5 sm:py-3 bg-black/50 border border-white/10 rounded-xl text-xs sm:text-sm text-white placeholder-slate-500 focus:outline-none focus:border-cyan-500 min-h-[42px]"
             />
           </div>
         </div>
@@ -105,13 +105,13 @@ export const SettingsModal: React.FC<SettingsModalProps> = ({
         <div className="flex items-center justify-end gap-2 pt-3 border-t border-white/10">
           <button
             onClick={onClose}
-            className="px-4 py-2 rounded-xl text-xs font-semibold text-slate-300 hover:text-white hover:bg-white/5 transition-all"
+            className="px-4 py-2.5 rounded-xl text-xs sm:text-sm font-semibold text-slate-300 hover:text-white hover:bg-white/5 transition-all min-h-[40px]"
           >
             Batal
           </button>
           <button
             onClick={onSave}
-            className="px-5 py-2 rounded-xl text-xs font-bold bg-cyan-500 hover:bg-cyan-400 text-black shadow-lg shadow-cyan-500/20 transition-all active:scale-95"
+            className="px-5 py-2.5 rounded-xl text-xs sm:text-sm font-bold bg-cyan-500 hover:bg-cyan-400 text-black shadow-lg shadow-cyan-500/20 transition-all active:scale-95 min-h-[40px]"
           >
             Simpan Pengaturan
           </button>

@@ -223,6 +223,35 @@ export function useAdminData() {
     }
   };
 
+  const [syncingGitHub, setSyncingGitHub] = useState(false);
+
+  const handleManualSyncToGitHub = async () => {
+    setSyncingGitHub(true);
+    showToast('Menyinkronkan semua konten ke GitHub...');
+
+    try {
+      const res = await fetch('/api/admin/github-sync', {
+        method: 'POST',
+        headers: getHeaders(),
+      });
+
+      const result = await res.json();
+      if (res.ok) {
+        showToast(
+          `Sinkronisasi berhasil! ${result.syncedCount} file dipush ke GitHub.`,
+          'success'
+        );
+      } else {
+        if (result.requiresToken) setIsSettingsOpen(true);
+        showToast(result.error || 'Gagal menyinkronkan ke GitHub', 'error');
+      }
+    } catch {
+      showToast('Koneksi ke API sync gagal', 'error');
+    } finally {
+      setSyncingGitHub(false);
+    }
+  };
+
   const toggleBatchSelect = (path: string) => {
     setSelectedBatchPaths((prev) =>
       prev.includes(path) ? prev.filter((p) => p !== path) : [...prev, path]
@@ -278,5 +307,7 @@ export function useAdminData() {
     handleCreateSubmit,
     handleEditSubmit,
     handleDeleteConfirm,
+    handleManualSyncToGitHub,
+    syncingGitHub,
   };
 }

@@ -1069,3 +1069,96 @@ export async function deleteAdminContent(pathsToDelete: string[], ghConfig: GitH
   selectiveRevalidateAll();
   return { success: true, count: pathsToDelete.length };
 }
+
+/**
+ * Synchronize all local content (video/ and tv/) to GitHub repository in a single batch push.
+ */
+export async function syncAllToGitHub(ghConfig: GitHubOptions) {
+  const { token } = ghConfig;
+  if (!token) {
+    throw new Error('Token GitHub diperlukan untuk melakukan sinkronisasi ke repository.');
+  }
+
+  let syncedCount = 0;
+  let deletedCount = 0;
+
+  // 1. Collect all local markdown files
+  const localFiles: { relativePath: string; content: string }[] = [];
+
+  // video/
+  if (fs.existsSync(VIDEO_DIR)) {
+    const movies = fs.readdirSync(VIDEO_DIR).filter((f) => f.endsWith('.md') || f.endsWith('.markdown'));
+    for (const m of movies) {
+      const rel = `video/${m}`;
+      const content = fs.readFileSync(path.join(VIDEO_DIR, m), 'utf8');
+      localFiles.push({ relativePath: rel, content });
+    }
+  }
+
+  // tv/
+  if (fs.existsSync(TV_DIR)) {
+    const shows = fs.readdirSync(TV_DIR, { withFileTypes: true }).filter((d) => d.isDirectory());
+    for (const show of shows) {
+      const showDir = path.join(TV_DIR, show.name);
+      // _index.md
+      const indexPath = fs.existsSync(path.join(showDir, '_index.md'))
+        ? path.join(showDir, '_index.md')
+        : fs.existsSync(path.join(showDir, 'index.md'))
+        ? path.join(showDir, 'index.md')
+        : null;
+      if (indexPath) {
+        const content = fs.readFileSync(indexPath, 'utf8');
+        localFiles.push({ relativePath: `tv/${show.name}/_index.md`, content });
+      }
+
+      // seasons and episodes
+      const entries = fs.readdirSync(showDir, { withFileTypes: true });
+      for (const entry of entries) {
+        if (entry.isDirectory()) {
+          const seasonDir = path.join(showDir, entry.name);
+          const eps = fs.readdirSync(seasonDir).filter((f) => f.endsWith('.md') || f.endsWith('.markdown'));
+          for (const ep of eps) {
+            const epPath = path.join(seasonDir, ep);
+            const content = fs.readFileSync(epPath, 'utf8');
+            localFiles.push({ relativePath: `tv/${show.name}/${entry.name}/${ep}`, content });
+          }
+        } else if (entry.isFile() && entry.name.endsWith('.md') && !entry.name.includes('index')) {
+          const epPath = path.join(showDir, entry.name);
+          const content = fs.readFileSync(epPath, 'utf8');
+          localFiles.push({ relativePath: `tv/${show.name}/${entry.name}`, content });
+        }
+      }
+    }
+  }
+
+  // 2. Push all local files to GitHub
+  for (const file of localFiles) {
+    try {
+      await saveGitHubFile(file.relativePath, file.content, `cms: sync ${file.relativePath}`, ghConfig);
+      syncedCount++;
+    } catch (e) {
+      console.warn(`[syncAllToGitHub] Error saving ${file.relativePath}:`, e);
+    }
+  }
+
+  // 3. Prune remote files on GitHub that no longer exist locally
+  try {
+    const tree = await getGitHubTree(ghConfig);
+    const remoteContentBlobs = tree.filter(
+      (item) => item.type === 'blob' && (item.path.startsWith('video/') || item.path.startsWith('tv/'))
+    );
+    const localRelPaths = new Set(localFiles.map((f) => f.relativePath));
+
+    for (const rBlob of remoteContentBlobs) {
+      if (!localRelPaths.has(rBlob.path)) {
+        try {
+          await deleteGitHubFile(rBlob.path, `cms: prune deleted ${rBlob.path}`, ghConfig);
+          deletedCount++;
+        } catch {}
+      }
+    }
+  } catch {}
+
+  selectiveRevalidateAll();
+  return { success: true, syncedCount, deletedCount };
+}

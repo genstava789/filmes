@@ -10,11 +10,8 @@ import {
   Plus,
   Play,
   Trash2,
-  ChevronDown,
-  ChevronRight,
-  Film,
 } from 'lucide-react';
-import { EditingItemState, TMDBPreviewData, TVShowItem, TVEpisodeItem } from '../types';
+import { EditingItemState, TMDBPreviewData, TVShowItem } from '../types';
 import { BackdropPicker } from './BackdropPicker';
 import { extractTmdbIdAndType, cleanVideoUrl } from '@/lib/urls';
 
@@ -239,7 +236,6 @@ export const EditModal: React.FC<EditModalProps> = ({
       };
     });
 
-    // Replace or append
     setEpisodesList((prev) => [
       ...prev.filter((ep) => ep.seasonFolder !== season),
       ...newEps,
@@ -282,7 +278,7 @@ export const EditModal: React.FC<EditModalProps> = ({
             <button
               type="button"
               onClick={() => setActiveTab('info')}
-              className={`flex-1 sm:flex-none px-3.5 py-1.5 rounded-xl text-xs font-bold transition-all ${
+              className={`flex-1 sm:flex-none px-4 py-2 rounded-xl text-xs font-bold transition-all ${
                 activeTab === 'info'
                   ? 'bg-pink-500 text-white shadow-md shadow-pink-500/20'
                   : 'bg-white/5 text-slate-400 hover:text-white'
@@ -293,7 +289,7 @@ export const EditModal: React.FC<EditModalProps> = ({
             <button
               type="button"
               onClick={() => setActiveTab('episodes')}
-              className={`flex-1 sm:flex-none px-3.5 py-1.5 rounded-xl text-xs font-bold flex items-center justify-center gap-1.5 transition-all ${
+              className={`flex-1 sm:flex-none px-4 py-2 rounded-xl text-xs font-bold flex items-center justify-center gap-1.5 transition-all ${
                 activeTab === 'episodes'
                   ? 'bg-purple-500 text-white shadow-md shadow-purple-500/20'
                   : 'bg-white/5 text-slate-400 hover:text-white'
@@ -311,8 +307,8 @@ export const EditModal: React.FC<EditModalProps> = ({
             <>
               {/* TMDB ID & Autofill */}
               {editingItem.type !== 'tv_episode' && (
-                <div className="space-y-1">
-                  <label className="block text-xs font-semibold text-slate-300">
+                <div className="space-y-1.5">
+                  <label className="block text-xs font-bold text-slate-300">
                     TMDB ID
                   </label>
                   <div className="flex gap-2">
@@ -321,7 +317,7 @@ export const EditModal: React.FC<EditModalProps> = ({
                       value={editingItem.frontmatter.tmdb_id || ''}
                       onChange={(e) => updateFrontmatter('tmdb_id', Number(e.target.value))}
                       placeholder="TMDB ID"
-                      className="flex-1 px-3 py-2 bg-black/50 border border-white/10 rounded-xl text-xs text-white focus:outline-none focus:border-cyan-500"
+                      className="flex-1 px-3.5 py-2.5 sm:py-3 bg-black/50 border border-white/10 rounded-xl text-xs sm:text-sm text-white focus:outline-none focus:border-cyan-500 min-h-[42px]"
                     />
                     <button
                       type="button"
@@ -332,7 +328,7 @@ export const EditModal: React.FC<EditModalProps> = ({
                         )
                       }
                       disabled={fetchingTmdb || !editingItem.frontmatter.tmdb_id}
-                      className="px-3.5 py-2 rounded-xl text-xs font-bold bg-cyan-500/20 hover:bg-cyan-500/30 text-cyan-300 border border-cyan-500/40 flex items-center gap-1.5 transition-all disabled:opacity-50"
+                      className="px-4 py-2.5 sm:py-3 rounded-xl text-xs font-bold bg-cyan-500/20 hover:bg-cyan-500/30 text-cyan-300 border border-cyan-500/40 flex items-center gap-1.5 transition-all disabled:opacity-50 min-h-[42px]"
                     >
                       <Sparkles size={14} className={fetchingTmdb ? 'animate-spin' : ''} />
                       <span>{fetchingTmdb ? 'Memuat...' : 'Cek TMDB'}</span>
@@ -343,7 +339,7 @@ export const EditModal: React.FC<EditModalProps> = ({
 
               {/* Title */}
               <div>
-                <label className="block text-xs font-semibold text-slate-300 mb-1">
+                <label className="block text-xs font-bold text-slate-300 mb-1.5">
                   Judul Kustom (Title)
                 </label>
                 <input
@@ -351,14 +347,14 @@ export const EditModal: React.FC<EditModalProps> = ({
                   value={editingItem.frontmatter.title || ''}
                   onChange={(e) => updateFrontmatter('title', e.target.value)}
                   placeholder="Judul Film atau Series"
-                  className="w-full px-3 py-2 bg-black/50 border border-white/10 rounded-xl text-xs text-white focus:outline-none focus:border-cyan-500"
+                  className="w-full px-3.5 py-2.5 sm:py-3 bg-black/50 border border-white/10 rounded-xl text-xs sm:text-sm text-white focus:outline-none focus:border-cyan-500 min-h-[42px]"
                 />
               </div>
 
               {/* Video URL (Movies & Episodes) */}
               {editingItem.type !== 'tv_show' && (
                 <div>
-                  <label className="block text-xs font-semibold text-slate-300 mb-1">
+                  <label className="block text-xs font-bold text-slate-300 mb-1.5">
                     URL Video Stream (videourl)
                   </label>
                   <input
@@ -366,15 +362,15 @@ export const EditModal: React.FC<EditModalProps> = ({
                     value={editingItem.frontmatter.videourl || editingItem.frontmatter.video_url || ''}
                     onChange={(e) => updateFrontmatter('videourl', e.target.value)}
                     placeholder="https://server.com/video.mp4 atau .m3u8"
-                    className="w-full px-3 py-2 bg-black/50 border border-white/10 rounded-xl text-xs text-white focus:outline-none focus:border-cyan-500 font-mono"
+                    className="w-full px-3.5 py-2.5 sm:py-3 bg-black/50 border border-white/10 rounded-xl text-xs sm:text-sm text-white focus:outline-none focus:border-cyan-500 font-mono min-h-[42px]"
                   />
                 </div>
               )}
 
               {/* Poster / Backdrop Image URL */}
               <div>
-                <div className="flex items-center justify-between mb-1">
-                  <label className="text-xs font-semibold text-slate-300">
+                <div className="flex items-center justify-between mb-1.5">
+                  <label className="text-xs font-bold text-slate-300">
                     Image Poster / Backdrop URL (image_url)
                   </label>
                   {tmdbPreview?.backdrops && tmdbPreview.backdrops.length > 0 && (
@@ -398,7 +394,7 @@ export const EditModal: React.FC<EditModalProps> = ({
                   value={editingItem.frontmatter.image_url || editingItem.frontmatter.poster_path || ''}
                   onChange={(e) => updateFrontmatter('image_url', e.target.value)}
                   placeholder="https://image.tmdb.org/t/p/..."
-                  className="w-full px-3 py-2 bg-black/50 border border-white/10 rounded-xl text-xs text-white focus:outline-none focus:border-cyan-500"
+                  className="w-full px-3.5 py-2.5 sm:py-3 bg-black/50 border border-white/10 rounded-xl text-xs sm:text-sm text-white focus:outline-none focus:border-cyan-500 min-h-[42px]"
                 />
 
                 {showBackdropPicker && tmdbPreview?.backdrops && (
@@ -431,7 +427,7 @@ export const EditModal: React.FC<EditModalProps> = ({
               {/* Rating, Featured, Duration, Subtitles */}
               <div className="grid grid-cols-1 sm:grid-cols-3 gap-3">
                 <div>
-                  <label className="block text-xs font-semibold text-slate-300 mb-1">
+                  <label className="block text-xs font-bold text-slate-300 mb-1.5">
                     Rating (0 - 10)
                   </label>
                   <input
@@ -442,13 +438,13 @@ export const EditModal: React.FC<EditModalProps> = ({
                     value={editingItem.frontmatter.rating || ''}
                     onChange={(e) => updateFrontmatter('rating', Number(e.target.value))}
                     placeholder="8.5"
-                    className="w-full px-3 py-2 bg-black/50 border border-white/10 rounded-xl text-xs text-white focus:outline-none focus:border-cyan-500"
+                    className="w-full px-3.5 py-2.5 sm:py-3 bg-black/50 border border-white/10 rounded-xl text-xs sm:text-sm text-white focus:outline-none focus:border-cyan-500 min-h-[42px]"
                   />
                 </div>
 
                 {editingItem.type === 'tv_episode' ? (
                   <div>
-                    <label className="block text-xs font-semibold text-slate-300 mb-1">
+                    <label className="block text-xs font-bold text-slate-300 mb-1.5">
                       Durasi (e.g. 45m)
                     </label>
                     <input
@@ -456,11 +452,11 @@ export const EditModal: React.FC<EditModalProps> = ({
                       value={editingItem.frontmatter.duration || ''}
                       onChange={(e) => updateFrontmatter('duration', e.target.value)}
                       placeholder="45m"
-                      className="w-full px-3 py-2 bg-black/50 border border-white/10 rounded-xl text-xs text-white focus:outline-none focus:border-cyan-500"
+                      className="w-full px-3.5 py-2.5 sm:py-3 bg-black/50 border border-white/10 rounded-xl text-xs sm:text-sm text-white focus:outline-none focus:border-cyan-500 min-h-[42px]"
                     />
                   </div>
                 ) : (
-                  <div className="flex items-center pt-2 sm:pt-5">
+                  <div className="flex items-center pt-2 sm:pt-6">
                     <label className="flex items-center gap-2 cursor-pointer select-none">
                       <input
                         type="checkbox"
@@ -468,15 +464,15 @@ export const EditModal: React.FC<EditModalProps> = ({
                         onChange={(e) => updateFrontmatter('featured', e.target.checked)}
                         className="w-4 h-4 rounded text-cyan-500 focus:ring-cyan-500 bg-black/50 border-white/20"
                       />
-                      <span className="text-xs font-bold text-amber-300 flex items-center gap-1">
-                        <Star size={12} fill="currentColor" /> Featured di Hero
+                      <span className="text-xs sm:text-sm font-bold text-amber-300 flex items-center gap-1">
+                        <Star size={14} fill="currentColor" /> Featured di Hero
                       </span>
                     </label>
                   </div>
                 )}
 
                 <div>
-                  <label className="block text-xs font-semibold text-slate-300 mb-1">
+                  <label className="block text-xs font-bold text-slate-300 mb-1.5">
                     Subtitles URL
                   </label>
                   <input
@@ -484,14 +480,14 @@ export const EditModal: React.FC<EditModalProps> = ({
                     value={editingItem.frontmatter.subtitles || ''}
                     onChange={(e) => updateFrontmatter('subtitles', e.target.value)}
                     placeholder="https://server.com/sub.vtt"
-                    className="w-full px-3 py-2 bg-black/50 border border-white/10 rounded-xl text-xs text-white focus:outline-none focus:border-cyan-500 font-mono"
+                    className="w-full px-3.5 py-2.5 sm:py-3 bg-black/50 border border-white/10 rounded-xl text-xs sm:text-sm text-white focus:outline-none focus:border-cyan-500 font-mono min-h-[42px]"
                   />
                 </div>
               </div>
 
               {/* Deskripsi */}
               <div>
-                <label className="block text-xs font-semibold text-slate-300 mb-1">
+                <label className="block text-xs font-bold text-slate-300 mb-1.5">
                   Deskripsi / Sinopsis
                 </label>
                 <textarea
@@ -499,13 +495,13 @@ export const EditModal: React.FC<EditModalProps> = ({
                   value={editingItem.frontmatter.deskripsi || editingItem.frontmatter.description || ''}
                   onChange={(e) => updateFrontmatter('deskripsi', e.target.value)}
                   placeholder="Sinopsis singkat..."
-                  className="w-full px-3 py-2 bg-black/50 border border-white/10 rounded-xl text-xs text-white focus:outline-none focus:border-cyan-500"
+                  className="w-full px-3.5 py-2.5 sm:py-3 bg-black/50 border border-white/10 rounded-xl text-xs sm:text-sm text-white focus:outline-none focus:border-cyan-500"
                 />
               </div>
 
               {/* Markdown Content Body */}
               <div>
-                <label className="block text-xs font-semibold text-slate-300 mb-1">
+                <label className="block text-xs font-bold text-slate-300 mb-1.5">
                   Catatan / Markdown Body
                 </label>
                 <textarea
@@ -513,12 +509,12 @@ export const EditModal: React.FC<EditModalProps> = ({
                   value={editingItem.content || ''}
                   onChange={(e) => setEditingItem({ ...editingItem, content: e.target.value })}
                   placeholder="Konten markdown tambahan..."
-                  className="w-full px-3 py-2 bg-black/50 border border-white/10 rounded-xl text-xs text-white font-mono focus:outline-none focus:border-cyan-500"
+                  className="w-full px-3.5 py-2.5 sm:py-3 bg-black/50 border border-white/10 rounded-xl text-xs sm:text-sm text-white font-mono focus:outline-none focus:border-cyan-500"
                 />
               </div>
             </>
           ) : (
-            /* Episodes Manager Tab - Fully Interactive & Mobile Responsive */
+            /* Episodes Manager Tab - Spacious, Mobile-Friendly UI */
             <div className="space-y-4">
               <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-2 border-b border-white/10 pb-3">
                 <div>
@@ -533,7 +529,7 @@ export const EditModal: React.FC<EditModalProps> = ({
                 <button
                   type="button"
                   onClick={handleAddNewSeason}
-                  className="px-3 py-1.5 rounded-xl text-xs font-bold bg-purple-500/20 hover:bg-purple-500/30 text-purple-200 border border-purple-500/40 flex items-center justify-center gap-1.5 transition-all shadow-sm active:scale-95"
+                  className="px-3.5 py-2 rounded-xl text-xs font-bold bg-purple-500/20 hover:bg-purple-500/30 text-purple-200 border border-purple-500/40 flex items-center justify-center gap-1.5 transition-all shadow-sm active:scale-95 min-h-[38px]"
                 >
                   <Plus size={13} />
                   <span>Tambah Season Baru</span>
@@ -549,7 +545,7 @@ export const EditModal: React.FC<EditModalProps> = ({
                   return (
                     <div
                       key={season}
-                      className="p-3 sm:p-4 rounded-xl bg-black/40 border border-white/10 space-y-3"
+                      className="p-3.5 sm:p-4 rounded-xl bg-black/40 border border-white/10 space-y-3"
                     >
                       <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-2 border-b border-white/5 pb-2">
                         <div className="flex items-center gap-2">
@@ -567,16 +563,16 @@ export const EditModal: React.FC<EditModalProps> = ({
                             onClick={() =>
                               setBatchInputSeason(isBatchActive ? null : season)
                             }
-                            className="text-[11px] font-bold text-cyan-400 hover:text-cyan-300"
+                            className="text-xs font-bold text-cyan-400 hover:text-cyan-300"
                           >
                             {isBatchActive ? 'Batal Batch Paste' : 'Batch Paste URLs'}
                           </button>
                           <button
                             type="button"
                             onClick={() => handleAddEpisodeToSeason(season)}
-                            className="px-2.5 py-1 rounded-lg text-[11px] font-bold bg-pink-500/20 text-pink-300 border border-pink-500/30 hover:bg-pink-500/30 flex items-center gap-1"
+                            className="px-3 py-1.5 rounded-lg text-xs font-bold bg-pink-500/20 text-pink-300 border border-pink-500/30 hover:bg-pink-500/30 flex items-center gap-1 min-h-[34px]"
                           >
-                            <Plus size={11} /> Tambah Ep
+                            <Plus size={12} /> Tambah Ep
                           </button>
                         </div>
                       </div>
@@ -584,7 +580,7 @@ export const EditModal: React.FC<EditModalProps> = ({
                       {/* Batch URL input */}
                       {isBatchActive && (
                         <div className="p-3 rounded-lg bg-black/60 border border-cyan-500/30 space-y-2 animate-fade-in">
-                          <label className="block text-[11px] font-bold text-cyan-300">
+                          <label className="block text-xs font-bold text-cyan-300">
                             Paste URL Video Stream (1 URL per baris)
                           </label>
                           <textarea
@@ -592,20 +588,20 @@ export const EditModal: React.FC<EditModalProps> = ({
                             value={batchUrlsText}
                             onChange={(e) => setBatchUrlsText(e.target.value)}
                             placeholder={`https://server.com/${season}-e1.mp4\nhttps://server.com/${season}-e2.mp4`}
-                            className="w-full p-2 bg-black/80 border border-white/10 rounded-lg text-xs text-white font-mono focus:outline-none focus:border-cyan-400"
+                            className="w-full p-2.5 bg-black/80 border border-white/10 rounded-lg text-xs text-white font-mono focus:outline-none focus:border-cyan-400"
                           />
                           <div className="flex justify-end gap-2">
                             <button
                               type="button"
                               onClick={() => setBatchInputSeason(null)}
-                              className="px-2.5 py-1 text-xs text-slate-400"
+                              className="px-3 py-1.5 text-xs text-slate-400"
                             >
                               Batal
                             </button>
                             <button
                               type="button"
                               onClick={() => handleApplyBatchUrls(season)}
-                              className="px-3 py-1 bg-cyan-500 hover:bg-cyan-400 text-black font-bold text-xs rounded-md shadow-md"
+                              className="px-3.5 py-1.5 bg-cyan-500 hover:bg-cyan-400 text-black font-bold text-xs rounded-md shadow-md"
                             >
                               Terapkan ke {season.toUpperCase()}
                             </button>
@@ -619,15 +615,15 @@ export const EditModal: React.FC<EditModalProps> = ({
                           Belum ada episode di season ini.
                         </div>
                       ) : (
-                        <div className="space-y-2.5">
+                        <div className="space-y-3">
                           {sEpisodes.map((ep, idx) => (
                             <div
                               key={ep.id}
-                              className="p-3 rounded-xl bg-[#090e1e] border border-white/10 hover:border-purple-500/40 space-y-2.5 transition-all shadow-sm"
+                              className="p-3 sm:p-3.5 rounded-xl bg-[#090e1e] border border-white/10 hover:border-purple-500/40 space-y-3 transition-all shadow-sm"
                             >
                               <div className="flex items-center justify-between gap-2">
-                                <div className="flex items-center gap-1.5">
-                                  <span className="w-7 text-center font-mono text-xs font-black text-pink-400 bg-pink-500/10 rounded py-0.5 border border-pink-500/20">
+                                <div className="flex items-center gap-2 flex-1">
+                                  <span className="w-8 text-center font-mono text-xs font-black text-pink-400 bg-pink-500/10 rounded-lg py-1.5 border border-pink-500/20">
                                     {ep.slug.toUpperCase()}
                                   </span>
                                   <input
@@ -637,28 +633,28 @@ export const EditModal: React.FC<EditModalProps> = ({
                                       handleUpdateEpisode(ep.id, 'title', e.target.value)
                                     }
                                     placeholder="Judul Episode..."
-                                    className="px-2.5 py-1 bg-black/50 border border-white/10 rounded-lg text-xs text-white font-bold focus:outline-none focus:border-purple-400 flex-1 min-w-[120px]"
+                                    className="px-3 py-2 bg-black/50 border border-white/10 rounded-xl text-xs sm:text-sm text-white font-bold focus:outline-none focus:border-purple-400 flex-1 min-h-[38px]"
                                   />
                                 </div>
 
                                 <button
                                   type="button"
                                   onClick={() => handleDeleteEpisode(ep.id)}
-                                  className="p-1 rounded-lg text-red-400 hover:text-red-300 hover:bg-red-500/10 transition-colors"
+                                  className="p-2 rounded-xl text-red-400 hover:text-red-300 hover:bg-red-500/10 transition-colors"
                                   title="Hapus Episode"
                                 >
-                                  <Trash2 size={13} />
+                                  <Trash2 size={15} />
                                 </button>
                               </div>
 
-                              {/* Video URL & Details - Responsive */}
-                              <div className="grid grid-cols-1 sm:grid-cols-2 gap-2">
+                              {/* Video URL & Details - Mobile-Friendly */}
+                              <div className="grid grid-cols-1 sm:grid-cols-2 gap-2.5">
                                 <div>
-                                  <label className="block text-[10px] text-slate-400 font-semibold mb-0.5">
+                                  <label className="block text-[11px] text-slate-400 font-bold mb-1">
                                     URL Video Stream <span className="text-red-400">*</span>
                                   </label>
-                                  <div className="flex items-center gap-1 bg-black/60 border border-white/10 rounded-lg px-2 py-1 focus-within:border-cyan-400">
-                                    <Play size={11} className="text-cyan-400 flex-shrink-0" />
+                                  <div className="flex items-center gap-1.5 bg-black/60 border border-white/10 rounded-xl px-3 py-2 focus-within:border-cyan-400 min-h-[40px]">
+                                    <Play size={13} className="text-cyan-400 flex-shrink-0" />
                                     <input
                                       type="text"
                                       value={ep.videourl}
@@ -672,8 +668,8 @@ export const EditModal: React.FC<EditModalProps> = ({
                                 </div>
 
                                 <div>
-                                  <div className="flex items-center justify-between mb-0.5">
-                                    <label className="text-[10px] text-slate-400 font-semibold">
+                                  <div className="flex items-center justify-between mb-1">
+                                    <label className="text-[11px] text-slate-400 font-bold">
                                       Image Backdrop / Poster
                                     </label>
                                     {tmdbPreview?.backdrops && tmdbPreview.backdrops.length > 0 && (
@@ -683,9 +679,9 @@ export const EditModal: React.FC<EditModalProps> = ({
                                           setActiveEpBackdropId(ep.id);
                                           setShowBackdropPicker(true);
                                         }}
-                                        className="text-[10px] font-bold text-cyan-400 hover:text-cyan-300 flex items-center gap-0.5"
+                                        className="text-xs font-bold text-cyan-400 hover:text-cyan-300 flex items-center gap-1"
                                       >
-                                        <ImageIcon size={10} />
+                                        <ImageIcon size={11} />
                                         <span>Pilih TMDB</span>
                                       </button>
                                     )}
@@ -697,7 +693,7 @@ export const EditModal: React.FC<EditModalProps> = ({
                                       handleUpdateEpisode(ep.id, 'image_url', e.target.value)
                                     }
                                     placeholder="https://image.tmdb.org/..."
-                                    className="w-full px-2.5 py-1 bg-black/60 border border-white/10 rounded-lg text-xs text-white focus:outline-none focus:border-purple-400"
+                                    className="w-full px-3 py-2 bg-black/60 border border-white/10 rounded-xl text-xs text-white focus:outline-none focus:border-purple-400 min-h-[40px]"
                                   />
                                 </div>
                               </div>
@@ -717,16 +713,16 @@ export const EditModal: React.FC<EditModalProps> = ({
             <button
               type="button"
               onClick={onClose}
-              className="px-4 py-2 rounded-xl text-xs font-semibold text-slate-300 hover:text-white hover:bg-white/5 transition-all"
+              className="px-4 py-2.5 rounded-xl text-xs sm:text-sm font-semibold text-slate-300 hover:text-white hover:bg-white/5 transition-all min-h-[42px]"
             >
               Batal
             </button>
             <button
               type="submit"
               disabled={submitting}
-              className="px-5 py-2 rounded-xl text-xs font-bold bg-cyan-500 hover:bg-cyan-400 text-black shadow-lg shadow-cyan-500/20 flex items-center gap-1.5 transition-all active:scale-95 disabled:opacity-50"
+              className="px-5 py-2.5 rounded-xl text-xs sm:text-sm font-bold bg-cyan-500 hover:bg-cyan-400 text-black shadow-lg shadow-cyan-500/20 flex items-center gap-1.5 transition-all active:scale-95 disabled:opacity-50 min-h-[42px]"
             >
-              <CheckCircle size={14} />
+              <CheckCircle size={15} />
               <span>{submitting ? 'Menyimpan...' : 'Simpan Semua Perubahan'}</span>
             </button>
           </div>

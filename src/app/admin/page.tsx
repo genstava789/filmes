@@ -67,6 +67,8 @@ export default function AdminPage() {
             count: admin.selectedBatchPaths.length,
           });
         }}
+        onManualSyncGitHub={admin.handleManualSyncToGitHub}
+        syncingGitHub={admin.syncingGitHub}
       />
 
       {/* Content Area */}
