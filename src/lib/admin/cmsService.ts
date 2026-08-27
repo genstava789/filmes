@@ -90,194 +90,74 @@ export async function fetchAllAdminContent(ghConfig: GitHubOptions) {
   ensureDirectories();
   const isLocal = !process.env.VERCEL && process.env.NODE_ENV !== 'production';
 
-  let rawMovies: Array<{
-    filename: string;
-    slug: string;
-    relativePath: string;
-    frontmatter: Record<string, any>;
-    content: string;
-    updatedAt: number;
-  }> = [];
+  // 1. Read all local files from disk (Local source of truth for unpushed changes)
+  const localMoviesMap = new Map<string, any>();
+  const localTvShowsMap = new Map<string, any>();
 
-  const rawTvShowsMap: Map<
-    string,
-    {
-      showSlug: string;
-      relativePath: string;
-      indexFrontmatter: Record<string, any>;
-      indexContent: string;
-      updatedAt: number;
-      episodes: any[];
+  let movieFiles: string[] = [];
+  try {
+    if (fs.existsSync(VIDEO_DIR)) {
+      movieFiles = fs.readdirSync(VIDEO_DIR).filter((f) => /\.(md|markdown)$/i.test(f));
     }
-  > = new Map();
-
-  let fetchedFromGitHub = false;
-  if ((!isLocal || ghConfig.token) && ghConfig.token) {
-    try {
-      const tree = await getGitHubTree(ghConfig);
-      if (tree && tree.length > 0) {
-        const videoBlobs = tree.filter(
-          (item) => item.type === 'blob' && item.path.startsWith('video/') && /\.(md|markdown)$/i.test(item.path)
-        );
-        const tvBlobs = tree.filter(
-          (item) => item.type === 'blob' && item.path.startsWith('tv/') && /\.(md|markdown)$/i.test(item.path)
-        );
-
-        if (videoBlobs.length > 0 || tvBlobs.length > 0) {
-          fetchedFromGitHub = true;
-
-          const movieItems = await Promise.all(
-            videoBlobs.map(async (item) => {
-              const filename = path.basename(item.path);
-              const raw =
-                (await getGitHubBlob(item.sha, ghConfig)) ||
-                (await getGitHubRawFile(item.path, ghConfig)) ||
-                '';
-              const { data, content } = matter(raw);
-              return {
-                filename,
-                slug: filename.replace(/\.(md|markdown)$/i, ''),
-                relativePath: item.path,
-                frontmatter: data,
-                content: content || '',
-                updatedAt: Date.now(),
-              };
-            })
-          );
-          rawMovies = movieItems;
-
-          const tvItems = await Promise.all(
-            tvBlobs.map(async (item) => {
-              const raw =
-                (await getGitHubBlob(item.sha, ghConfig)) ||
-                (await getGitHubRawFile(item.path, ghConfig)) ||
-                '';
-              const { data, content } = matter(raw);
-              return {
-                path: item.path,
-                data,
-                content,
-              };
-            })
-          );
-
-          for (const { path: relPath, data, content } of tvItems) {
-            const parts = relPath.replace(/^tv\//, '').split('/');
-            const showDir = parts[0];
-            if (!showDir) continue;
-
-            if (!rawTvShowsMap.has(showDir)) {
-              rawTvShowsMap.set(showDir, {
-                showSlug: showDir,
-                relativePath: `tv/${showDir}/_index.md`,
-                indexFrontmatter: {},
-                indexContent: '',
-                updatedAt: Date.now(),
-                episodes: [],
-              });
-            }
-
-            const currentShow = rawTvShowsMap.get(showDir)!;
-            const filename = parts[parts.length - 1];
-
-            if (filename === '_index.md' || filename === 'index.md') {
-              currentShow.indexFrontmatter = data;
-              currentShow.indexContent = content || '';
-            } else if (parts.length === 3) {
-              const seasonFolder = parts[1];
-              currentShow.episodes.push({
-                showSlug: showDir,
-                seasonFolder,
-                filename,
-                slug: filename.replace(/\.(md|markdown)$/i, ''),
-                relativePath: relPath,
-                frontmatter: data,
-                content: content || '',
-                displayTitle: data.title || filename.replace(/\.(md|markdown)$/i, ''),
-                posterUrl: data.image_url ? getImageUrl(data.image_url, 'w500') : null,
-                updatedAt: Date.now(),
-              });
-            } else if (parts.length === 2) {
-              currentShow.episodes.push({
-                showSlug: showDir,
-                seasonFolder: null,
-                filename,
-                slug: filename.replace(/\.(md|markdown)$/i, ''),
-                relativePath: relPath,
-                frontmatter: data,
-                content: content || '',
-                displayTitle: data.title || filename.replace(/\.(md|markdown)$/i, ''),
-                posterUrl: data.image_url ? getImageUrl(data.image_url, 'w500') : null,
-                updatedAt: Date.now(),
-              });
-            }
-          }
-        }
-      }
-    } catch (ghErr) {
-      console.warn('[cmsService] GitHub tree fetch notice:', ghErr);
-    }
+  } catch (e) {
+    console.warn('[cmsService] Read video dir notice:', e);
   }
 
-  if (!fetchedFromGitHub) {
-    let movieFiles: string[] = [];
+  for (const file of movieFiles) {
+    const fullPath = path.join(VIDEO_DIR, file);
     try {
-      if (fs.existsSync(VIDEO_DIR)) {
-        movieFiles = fs.readdirSync(VIDEO_DIR).filter((f) => /\.(md|markdown)$/i.test(f));
-      }
-    } catch (e) {
-      console.warn('[cmsService] Read video dir notice:', e);
-    }
-
-    rawMovies = movieFiles.map((file) => {
-      const fullPath = path.join(VIDEO_DIR, file);
       const raw = fs.readFileSync(fullPath, 'utf8');
       const stat = fs.statSync(fullPath);
       const { data, content } = matter(raw);
-      return {
+      const rel = `video/${file}`;
+      localMoviesMap.set(rel, {
         filename: file,
         slug: file.replace(/\.(md|markdown)$/i, ''),
-        relativePath: `video/${file}`,
+        relativePath: rel,
         frontmatter: data,
         content: content || '',
         updatedAt: stat.mtimeMs || Date.now(),
-      };
-    });
+      });
+    } catch {}
+  }
 
-    let tvDirs: string[] = [];
-    try {
-      if (fs.existsSync(TV_DIR)) {
-        tvDirs = fs
-          .readdirSync(TV_DIR, { withFileTypes: true })
-          .filter((d) => d.isDirectory())
-          .map((d) => d.name);
-      }
-    } catch (e) {
-      console.warn('[cmsService] Read tv dir notice:', e);
+  let tvDirs: string[] = [];
+  try {
+    if (fs.existsSync(TV_DIR)) {
+      tvDirs = fs
+        .readdirSync(TV_DIR, { withFileTypes: true })
+        .filter((d) => d.isDirectory())
+        .map((d) => d.name);
     }
+  } catch (e) {
+    console.warn('[cmsService] Read tv dir notice:', e);
+  }
 
-    for (const showDir of tvDirs) {
-      const showPath = path.join(TV_DIR, showDir);
-      let indexFrontmatter: any = {};
-      let indexContent = '';
-      let updatedAt = Date.now();
+  for (const showDir of tvDirs) {
+    const showPath = path.join(TV_DIR, showDir);
+    let indexFrontmatter: any = {};
+    let indexContent = '';
+    let updatedAt = Date.now();
 
-      const indexPath = fs.existsSync(path.join(showPath, '_index.md'))
-        ? path.join(showPath, '_index.md')
-        : fs.existsSync(path.join(showPath, 'index.md'))
-        ? path.join(showPath, 'index.md')
-        : null;
+    const indexPath = fs.existsSync(path.join(showPath, '_index.md'))
+      ? path.join(showPath, '_index.md')
+      : fs.existsSync(path.join(showPath, 'index.md'))
+      ? path.join(showPath, 'index.md')
+      : null;
 
-      if (indexPath) {
+    if (indexPath) {
+      try {
         const raw = fs.readFileSync(indexPath, 'utf8');
         const stat = fs.statSync(indexPath);
         const parsed = matter(raw);
         indexFrontmatter = parsed.data;
         indexContent = parsed.content || '';
         updatedAt = stat.mtimeMs || Date.now();
-      }
+      } catch {}
+    }
 
-      const episodes: any[] = [];
+    const episodes: any[] = [];
+    try {
       const entries = fs.readdirSync(showPath, { withFileTypes: true });
 
       for (const entry of entries) {
@@ -290,52 +170,162 @@ export async function fetchAllAdminContent(ghConfig: GitHubOptions) {
 
           for (const epFile of epFiles) {
             const epFullPath = path.join(seasonPath, epFile);
+            try {
+              const raw = fs.readFileSync(epFullPath, 'utf8');
+              const epStat = fs.statSync(epFullPath);
+              const { data, content } = matter(raw);
+              episodes.push({
+                showSlug: showDir,
+                seasonFolder,
+                filename: epFile,
+                slug: epFile.replace(/\.(md|markdown)$/i, ''),
+                relativePath: `tv/${showDir}/${seasonFolder}/${epFile}`,
+                frontmatter: data,
+                content: content || '',
+                displayTitle: data.title || epFile.replace(/\.(md|markdown)$/i, ''),
+                posterUrl: data.image_url ? getImageUrl(data.image_url, 'w500') : null,
+                updatedAt: epStat.mtimeMs || Date.now(),
+              });
+            } catch {}
+          }
+        } else if (/\.(md|markdown)$/i.test(entry.name)) {
+          const epFullPath = path.join(showPath, entry.name);
+          try {
             const raw = fs.readFileSync(epFullPath, 'utf8');
             const epStat = fs.statSync(epFullPath);
             const { data, content } = matter(raw);
             episodes.push({
               showSlug: showDir,
-              seasonFolder,
-              filename: epFile,
-              slug: epFile.replace(/\.(md|markdown)$/i, ''),
-              relativePath: `tv/${showDir}/${seasonFolder}/${epFile}`,
+              seasonFolder: null,
+              filename: entry.name,
+              slug: entry.name.replace(/\.(md|markdown)$/i, ''),
+              relativePath: `tv/${showDir}/${entry.name}`,
               frontmatter: data,
               content: content || '',
-              displayTitle: data.title || epFile.replace(/\.(md|markdown)$/i, ''),
+              displayTitle: data.title || entry.name.replace(/\.(md|markdown)$/i, ''),
               posterUrl: data.image_url ? getImageUrl(data.image_url, 'w500') : null,
               updatedAt: epStat.mtimeMs || Date.now(),
             });
-          }
-        } else if (/\.(md|markdown)$/i.test(entry.name)) {
-          const epFullPath = path.join(showPath, entry.name);
-          const raw = fs.readFileSync(epFullPath, 'utf8');
-          const epStat = fs.statSync(epFullPath);
-          const { data, content } = matter(raw);
-          episodes.push({
-            showSlug: showDir,
-            seasonFolder: null,
-            filename: entry.name,
-            slug: entry.name.replace(/\.(md|markdown)$/i, ''),
-            relativePath: `tv/${showDir}/${entry.name}`,
-            frontmatter: data,
-            content: content || '',
-            displayTitle: data.title || entry.name.replace(/\.(md|markdown)$/i, ''),
-            posterUrl: data.image_url ? getImageUrl(data.image_url, 'w500') : null,
-            updatedAt: epStat.mtimeMs || Date.now(),
-          });
+          } catch {}
         }
       }
+    } catch {}
 
-      rawTvShowsMap.set(showDir, {
-        showSlug: showDir,
-        relativePath: `tv/${showDir}/_index.md`,
-        indexFrontmatter,
-        indexContent,
-        updatedAt,
-        episodes,
-      });
+    localTvShowsMap.set(showDir, {
+      showSlug: showDir,
+      relativePath: `tv/${showDir}/_index.md`,
+      indexFrontmatter,
+      indexContent,
+      updatedAt,
+      episodes,
+    });
+  }
+
+  // 2. Fetch remote files if token is available
+  const mergedMoviesMap = new Map<string, any>();
+  const mergedTvShowsMap = new Map<string, any>();
+
+  if (ghConfig.token) {
+    try {
+      const tree = await getGitHubTree(ghConfig);
+      if (tree && tree.length > 0) {
+        const videoBlobs = tree.filter(
+          (item) => item.type === 'blob' && item.path.startsWith('video/') && /\.(md|markdown)$/i.test(item.path)
+        );
+        const tvBlobs = tree.filter(
+          (item) => item.type === 'blob' && item.path.startsWith('tv/') && /\.(md|markdown)$/i.test(item.path)
+        );
+
+        for (const item of videoBlobs) {
+          const filename = path.basename(item.path);
+          const raw =
+            (await getGitHubBlob(item.sha, ghConfig)) ||
+            (await getGitHubRawFile(item.path, ghConfig)) ||
+            '';
+          const { data, content } = matter(raw);
+          mergedMoviesMap.set(item.path, {
+            filename,
+            slug: filename.replace(/\.(md|markdown)$/i, ''),
+            relativePath: item.path,
+            frontmatter: data,
+            content: content || '',
+            updatedAt: Date.now(),
+          });
+        }
+
+        for (const item of tvBlobs) {
+          const raw =
+            (await getGitHubBlob(item.sha, ghConfig)) ||
+            (await getGitHubRawFile(item.path, ghConfig)) ||
+            '';
+          const { data, content } = matter(raw);
+          const parts = item.path.replace(/^tv\//, '').split('/');
+          const showDir = parts[0];
+          if (!showDir) continue;
+
+          if (!mergedTvShowsMap.has(showDir)) {
+            mergedTvShowsMap.set(showDir, {
+              showSlug: showDir,
+              relativePath: `tv/${showDir}/_index.md`,
+              indexFrontmatter: {},
+              indexContent: '',
+              updatedAt: Date.now(),
+              episodes: [],
+            });
+          }
+
+          const currentShow = mergedTvShowsMap.get(showDir)!;
+          const filename = parts[parts.length - 1];
+
+          if (filename === '_index.md' || filename === 'index.md') {
+            currentShow.indexFrontmatter = data;
+            currentShow.indexContent = content || '';
+          } else if (parts.length === 3) {
+            const seasonFolder = parts[1];
+            currentShow.episodes.push({
+              showSlug: showDir,
+              seasonFolder,
+              filename,
+              slug: filename.replace(/\.(md|markdown)$/i, ''),
+              relativePath: item.path,
+              frontmatter: data,
+              content: content || '',
+              displayTitle: data.title || filename.replace(/\.(md|markdown)$/i, ''),
+              posterUrl: data.image_url ? getImageUrl(data.image_url, 'w500') : null,
+              updatedAt: Date.now(),
+            });
+          } else if (parts.length === 2) {
+            currentShow.episodes.push({
+              showSlug: showDir,
+              seasonFolder: null,
+              filename,
+              slug: filename.replace(/\.(md|markdown)$/i, ''),
+              relativePath: item.path,
+              frontmatter: data,
+              content: content || '',
+              displayTitle: data.title || filename.replace(/\.(md|markdown)$/i, ''),
+              posterUrl: data.image_url ? getImageUrl(data.image_url, 'w500') : null,
+              updatedAt: Date.now(),
+            });
+          }
+        }
+      }
+    } catch (ghErr) {
+      console.warn('[cmsService] GitHub tree fetch notice:', ghErr);
     }
   }
+
+  // 3. Overlay local disk files so all new local additions/edits ALWAYS take precedence and appear immediately!
+  localMoviesMap.forEach((movie, rel) => {
+    mergedMoviesMap.set(rel, movie);
+  });
+
+  localTvShowsMap.forEach((show, showDir) => {
+    mergedTvShowsMap.set(showDir, show);
+  });
+
+  const rawMovies = Array.from(mergedMoviesMap.values());
+  const rawTvShowsMap = mergedTvShowsMap;
 
   // Enrich Movies with TMDB metadata & STRICT PRECEDENCE for custom frontmatter image
   const movies = await Promise.all(

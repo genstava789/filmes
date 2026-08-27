@@ -69,20 +69,17 @@ export function getAllCustomMovieFiles(): string[] {
   }
 }
 
-/**
- * Gets all markdown files asynchronously, discovering live files from GitHub API in production/Vercel.
- */
 export async function getAllCustomMovieFilesAsync(): Promise<string[]> {
+  const localFiles = getAllCustomMovieFiles();
   if (process.env.VERCEL || process.env.NODE_ENV === 'production') {
     try {
       const ghFiles = await listGitHubDir('video');
       const mdFiles = ghFiles.filter((file) => file.endsWith('.md') || file.endsWith('.markdown'));
-      if (Array.isArray(mdFiles) && mdFiles.length > 0) {
-        return mdFiles;
-      }
+      const combined = Array.from(new Set([...localFiles, ...mdFiles]));
+      if (combined.length > 0) return combined;
     } catch {}
   }
-  return getAllCustomMovieFiles();
+  return localFiles;
 }
 
 /**

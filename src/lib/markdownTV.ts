@@ -133,19 +133,16 @@ export function getAllCustomTVShowDirs(): string[] {
   }
 }
 
-/**
- * Gets all TV show directory names asynchronously, discovering live directories from GitHub API in production/Vercel.
- */
 export async function getAllCustomTVShowDirsAsync(): Promise<string[]> {
+  const localDirs = getAllCustomTVShowDirs();
   if (process.env.VERCEL || process.env.NODE_ENV === 'production') {
     try {
       const ghDirs = await listGitHubDir('tv');
-      if (Array.isArray(ghDirs) && ghDirs.length > 0) {
-        return ghDirs;
-      }
+      const combined = Array.from(new Set([...localDirs, ...ghDirs]));
+      if (combined.length > 0) return combined;
     } catch {}
   }
-  return getAllCustomTVShowDirs();
+  return localDirs;
 }
 
 /**
