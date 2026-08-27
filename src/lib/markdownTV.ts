@@ -675,7 +675,7 @@ export async function getTVShowDetailsWithCustomOverride(
     customContentHtml: contentHtml,
     hasSeasons,
     seasonsList: seasons,
-    allEpisodes,
+          allEpisodes,
     activeEpisode,
   } as any;
 }
@@ -716,61 +716,70 @@ export function getCustomTVTmdbMapping(): Record<string, string> {
  */
 export async function getAllFeaturedCustomTV(): Promise<FeaturedItem[]> {
   const showSlugs = await getAllCustomTVShowDirsAsync();
-  const featuredShows: FeaturedItem[] = [];
+  const results = await Promise.all(
+    showSlugs.map(async (slug) => {
+      try {
+        const customData = await getCustomTVShowBySlug(slug);
+        if (
+          customData &&
+          (customData.frontmatter.featured === true ||
+            customData.frontmatter.featured === 'true' ||
+            customData.frontmatter.featured === '1')
+        ) {
+          const detail = await getTVShowDetailsWithCustomOverride([slug]);
+          if (detail) {
+            const firstEp = detail.allEpisodes?.[0];
+            const link = firstEp?.urlPath || getTVUrl(detail);
+            const customImg =
+              detail.customImageUrl ||
+              customData.frontmatter.image_url ||
+              customData.frontmatter.poster_path ||
+              customData.frontmatter.backdrop_url;
+            const backdrop = customImg
+              ? getImageUrl(customImg, 'w1280')
+              : detail.backdrop_path
+              ? getImageUrl(detail.backdrop_path, 'w1280')
+              : detail.poster_path
+              ? getImageUrl(detail.poster_path, 'w780')
+              : '/placeholder-poster.svg';
+            const poster = customImg
+              ? getImageUrl(customImg, 'w500')
+              : detail.poster_path
+              ? getImageUrl(detail.poster_path, 'w500')
+              : detail.backdrop_path
+              ? getImageUrl(detail.backdrop_path, 'w780')
+              : '/placeholder-poster.svg';
 
-  for (const slug of showSlugs) {
-    try {
-      const customData = await getCustomTVShowBySlug(slug);
-      if (
-        customData &&
-        (customData.frontmatter.featured === true ||
-          customData.frontmatter.featured === 'true' ||
-          customData.frontmatter.featured === '1')
-      ) {
-        const detail = await getTVShowDetailsWithCustomOverride([slug]);
-        if (detail) {
-          const firstEp = detail.allEpisodes?.[0];
-          const link = firstEp?.urlPath || getTVUrl(detail);
-          const customImg = detail.customImageUrl || customData.frontmatter.image_url || customData.frontmatter.poster_path || customData.frontmatter.backdrop_url;
-          const backdrop = customImg
-            ? getImageUrl(customImg, 'w1280')
-            : detail.backdrop_path
-            ? getImageUrl(detail.backdrop_path, 'w1280')
-            : detail.poster_path
-            ? getImageUrl(detail.poster_path, 'w780')
-            : '/placeholder-poster.svg';
-          const poster = customImg
-            ? getImageUrl(customImg, 'w500')
-            : detail.poster_path
-            ? getImageUrl(detail.poster_path, 'w500')
-            : detail.backdrop_path
-            ? getImageUrl(detail.backdrop_path, 'w780')
-            : '/placeholder-poster.svg';
-
-          featuredShows.push({
-            id: `tv-${detail.customSlug || detail.id}`,
-            tmdbId: detail.id,
-            title: detail.name,
-            tagline: detail.tagline || undefined,
-            overview: detail.overview,
-            backdropUrl: backdrop,
-            posterUrl: poster,
-            rating: Math.round(detail.vote_average * 10) / 10,
-            year: detail.first_air_date ? new Date(detail.first_air_date).getFullYear() : '2025',
-            duration: detail.number_of_episodes ? `${detail.number_of_episodes} Episodes` : (detail.episode_run_time?.[0] ? `${detail.episode_run_time[0]}m` : undefined),
-            type: 'tv' as const,
-            genres: detail.genres?.map((g) => g.name) || [],
-            link,
-            badge: 'Featured',
-            featured: true,
-            isCustom: true,
-          });
+            return {
+              id: `tv-${detail.customSlug || detail.id}`,
+              tmdbId: detail.id,
+              title: detail.name,
+              tagline: detail.tagline || undefined,
+              overview: detail.overview,
+              backdropUrl: backdrop,
+              posterUrl: poster,
+              rating: Math.round(detail.vote_average * 10) / 10,
+              year: detail.first_air_date ? new Date(detail.first_air_date).getFullYear() : '2025',
+              duration: detail.number_of_episodes
+                ? `${detail.number_of_episodes} Episodes`
+                : detail.episode_run_time?.[0]
+                ? `${detail.episode_run_time[0]}m`
+                : undefined,
+              type: 'tv' as const,
+              genres: detail.genres?.map((g) => g.name) || [],
+              link,
+              badge: 'Featured',
+              featured: true,
+              isCustom: true,
+            } as FeaturedItem;
+          }
         }
+      } catch (err) {
+        console.error(`Error loading featured custom TV for ${slug}:`, err);
       }
-    } catch (err) {
-      console.error(`Error loading featured custom TV for ${slug}:`, err);
-    }
-  }
+      return null;
+    })
+  );
 
-  return featuredShows;
+  return results.filter((item): item is FeaturedItem => item !== null);
 }
