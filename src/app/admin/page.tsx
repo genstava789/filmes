@@ -85,6 +85,7 @@ export default function AdminPage() {
           currentPage={admin.moviePage}
           totalPages={admin.totalMoviePages}
           onPageChange={admin.setMoviePage}
+          pageLoading={admin.pageLoading}
           onOpenCreate={() => {
             admin.setCreateContentType('movie');
             admin.setIsCreateModalOpen(true);
@@ -112,6 +113,7 @@ export default function AdminPage() {
           currentPage={admin.tvPage}
           totalPages={admin.totalTvPages}
           onPageChange={admin.setTvPage}
+          pageLoading={admin.pageLoading}
           onOpenCreate={() => {
             admin.setCreateContentType('tv_show');
             admin.setIsCreateModalOpen(true);

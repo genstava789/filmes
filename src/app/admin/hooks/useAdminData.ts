@@ -12,6 +12,7 @@ const adminClientCache = new Map<string, any>();
 export function useAdminData() {
   const [movies, setMovies] = useState<MovieItem[]>([]);
   const [tvShows, setTvShows] = useState<TVShowItem[]>([]);
+  const [pageLoading, setPageLoading] = useState(false);
   const [loading, setLoading] = useState(true);
   const [isInitialLoad, setIsInitialLoad] = useState(true);
   const [activeTab, setActiveTab] = useState<'movies' | 'tv'>('movies');
@@ -115,6 +116,8 @@ export function useAdminData() {
 
       if (options.force) {
         adminClientCache.clear();
+        setLoading(true);
+        setPageLoading(true);
       }
 
       // Check client cache for instant render
@@ -130,12 +133,14 @@ export function useAdminData() {
         setTotalAllTvShowsCount(cached.totalAllTvShowsCount !== undefined ? cached.totalAllTvShowsCount : (cached.totalTvShows || 0));
         setTotalEpisodesCount(cached.totalEpisodesCount || 0);
         setLoading(false);
+        setPageLoading(false);
         setIsInitialLoad(false);
         return;
       }
 
-      if (!options.silent && isInitialLoad) {
-        setLoading(true);
+      if (!options.silent) {
+        if (isInitialLoad) setLoading(true);
+        setPageLoading(true);
       }
 
       try {
@@ -164,6 +169,9 @@ export function useAdminData() {
           setTotalAllMoviesCount(data.totalAllMoviesCount !== undefined ? data.totalAllMoviesCount : (data.totalMovies || 0));
           setTotalAllTvShowsCount(data.totalAllTvShowsCount !== undefined ? data.totalAllTvShowsCount : (data.totalTvShows || 0));
           setTotalEpisodesCount(data.totalEpisodesCount || 0);
+          if (options.force) {
+            showToast('Data berhasil diperbarui!');
+          }
         } else {
           showToast('Gagal memuat konten admin', 'error');
         }
@@ -171,10 +179,47 @@ export function useAdminData() {
         showToast('Koneksi ke API admin gagal', 'error');
       } finally {
         setLoading(false);
+        setPageLoading(false);
         setIsInitialLoad(false);
       }
     },
     [getHeaders, activeTab, moviePage, tvPage, debouncedSearch, isInitialLoad, showToast]
+  );
+
+  const handleMoviePageChange = useCallback(
+    (newPage: number) => {
+      setMoviePage(newPage);
+      const cacheKey = `${newPage}_${tvPage}_${debouncedSearch}_${ITEMS_PER_PAGE}`;
+      if (adminClientCache.has(cacheKey)) {
+        const cached = adminClientCache.get(cacheKey);
+        setMovies(cached.movies || []);
+        setTotalMovies(cached.totalMovies || 0);
+        setTotalMoviePages(cached.totalMoviePages || 1);
+        setTotalAllMoviesCount(cached.totalAllMoviesCount !== undefined ? cached.totalAllMoviesCount : (cached.totalMovies || 0));
+      } else {
+        setPageLoading(true);
+        fetchContent({ customMoviePage: newPage });
+      }
+    },
+    [tvPage, debouncedSearch, fetchContent]
+  );
+
+  const handleTvPageChange = useCallback(
+    (newPage: number) => {
+      setTvPage(newPage);
+      const cacheKey = `${moviePage}_${newPage}_${debouncedSearch}_${ITEMS_PER_PAGE}`;
+      if (adminClientCache.has(cacheKey)) {
+        const cached = adminClientCache.get(cacheKey);
+        setTvShows(cached.tvShows || []);
+        setTotalTvShows(cached.totalTvShows || 0);
+        setTotalTvPages(cached.totalTvPages || 1);
+        setTotalAllTvShowsCount(cached.totalAllTvShowsCount !== undefined ? cached.totalAllTvShowsCount : (cached.totalTvShows || 0));
+      } else {
+        setPageLoading(true);
+        fetchContent({ customTvPage: newPage });
+      }
+    },
+    [moviePage, debouncedSearch, fetchContent]
   );
 
   useEffect(() => {
@@ -340,6 +385,7 @@ export function useAdminData() {
     movies,
     tvShows,
     loading,
+    pageLoading,
     activeTab,
     setActiveTab,
     searchQuery,
@@ -353,10 +399,10 @@ export function useAdminData() {
     totalAllMoviesCount,
     totalAllTvShowsCount,
     moviePage,
-    setMoviePage,
+    setMoviePage: handleMoviePageChange,
     totalMoviePages,
     tvPage,
-    setTvPage,
+    setTvPage: handleTvPageChange,
     totalTvPages,
     totalEpisodesCount,
     isCreateModalOpen,

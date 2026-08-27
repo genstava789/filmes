@@ -7,6 +7,7 @@ import { getMovieDetails, getImageUrl, searchMovies } from '@/lib/tmdb';
 import siteConfig, { FeaturedItem } from '@/config';
 import { cleanVideoUrl, getMovieUrl } from '@/lib/urls';
 import { getMongoMovieBySlug, getMongoMovies } from '@/lib/mongodb/service';
+import { isMongoConfigured } from '@/lib/mongodb/client';
 import { memoryCache } from '@/lib/cache';
 
 export interface CustomMovieFrontmatter {
@@ -219,31 +220,34 @@ export function getCustomMovieSlugsByTmdbId(): Record<number, string> {
  */
 export async function getCustomMovieBySlug(slugOrId: string | number): Promise<CustomMovieData | null> {
   // 1. Check MongoDB first (Persistent Cloud Source of Truth)
-  try {
-    const mongoDoc = await getMongoMovieBySlug(slugOrId);
-    if (mongoDoc) {
-      const frontmatter: CustomMovieFrontmatter = {
-        title: mongoDoc.title,
-        tmdb_id: mongoDoc.tmdb_id,
-        rating: mongoDoc.rating,
-        deskripsi: mongoDoc.deskripsi,
-        videourl: mongoDoc.videourl,
-        image_url: mongoDoc.image_url,
-        featured: mongoDoc.featured,
-        subtitles: mongoDoc.subtitles,
-        duration: mongoDoc.duration,
-      };
-      const contentHtml = mongoDoc.content ? (marked.parse(mongoDoc.content) as string) : '';
-      return {
-        slug: mongoDoc.slug,
-        filename: `${mongoDoc.slug}.md`,
-        frontmatter,
-        contentHtml,
-        rawContent: mongoDoc.content || '',
-      };
+  if (isMongoConfigured()) {
+    try {
+      const mongoDoc = await getMongoMovieBySlug(slugOrId);
+      if (mongoDoc) {
+        const frontmatter: CustomMovieFrontmatter = {
+          title: mongoDoc.title,
+          tmdb_id: mongoDoc.tmdb_id,
+          rating: mongoDoc.rating,
+          deskripsi: mongoDoc.deskripsi,
+          videourl: mongoDoc.videourl,
+          image_url: mongoDoc.image_url,
+          featured: mongoDoc.featured,
+          subtitles: mongoDoc.subtitles,
+          duration: mongoDoc.duration,
+        };
+        const contentHtml = mongoDoc.content ? (marked.parse(mongoDoc.content) as string) : '';
+        return {
+          slug: mongoDoc.slug,
+          filename: `${mongoDoc.slug}.md`,
+          frontmatter,
+          contentHtml,
+          rawContent: mongoDoc.content || '',
+        };
+      }
+      return null;
+    } catch (mErr) {
+      console.warn('[markdownMovies] MongoDB getCustomMovieBySlug notice:', mErr);
     }
-  } catch (mErr) {
-    console.warn('[markdownMovies] MongoDB getCustomMovieBySlug notice:', mErr);
   }
 
   ensureContentDirExists();

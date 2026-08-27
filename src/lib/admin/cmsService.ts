@@ -1482,14 +1482,6 @@ export async function deleteAdminContent(pathsToDelete: string[], ghConfig: GitH
     } catch (err: any) {
       console.warn(`[deleteAdminContent] Error removing ${relativePath}:`, err);
     }
-
-    // Direct deletion from GitHub repository if token is available
-    try {
-      const targetPath = folderToDelete || relativePath;
-      await deleteGitHubFile(targetPath, `cms: delete ${targetPath}`, ghConfig);
-    } catch (ghErr) {
-      console.warn(`[deleteAdminContent] GitHub direct delete notice for ${relativePath}:`, ghErr);
-    }
   }
 
   selectiveRevalidateAll();
