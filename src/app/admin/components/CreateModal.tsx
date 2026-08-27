@@ -12,11 +12,11 @@ import {
   Play,
   ImageIcon,
   Check,
-  Calendar,
+  Trash2,
 } from 'lucide-react';
 import { DraftSeason, TMDBPreviewData, MovieItem, TVShowItem } from '../types';
 import { BackdropPicker } from './BackdropPicker';
-import { cleanVideoUrl, extractTmdbIdAndType } from '@/lib/urls';
+import { cleanVideoUrl } from '@/lib/urls';
 
 interface TMDBLiveSearchResult {
   id: number;
@@ -44,9 +44,7 @@ export const CreateModal: React.FC<CreateModalProps> = ({
   isOpen,
   onClose,
   contentType,
-  setContentType,
   onSubmit,
-  movies,
   tvShows,
   showToast,
 }) => {
@@ -69,7 +67,15 @@ export const CreateModal: React.FC<CreateModalProps> = ({
     {
       id: 's1',
       season: 's1',
-      episodes: [{ id: 'e1', episode: 'e1', videourl: '', title: '', image_url: '' }],
+      episodes: [
+        {
+          id: 'e1',
+          episode: 'e1',
+          videourl: '',
+          title: 'Episode 1',
+          image_url: '',
+        },
+      ],
     },
   ]);
 
@@ -88,6 +94,43 @@ export const CreateModal: React.FC<CreateModalProps> = ({
   const [showBatchUrlInput, setShowBatchUrlInput] = useState(false);
   const [formErrors, setFormErrors] = useState<Record<string, string>>({});
   const [submitting, setSubmitting] = useState(false);
+
+  // Reset states when modal opens
+  useEffect(() => {
+    if (isOpen) {
+      setFormTmdbId('');
+      setFormTitle('');
+      setFormSlug('');
+      setFormVideoUrl('');
+      setFormPoster('');
+      setFormDesc('');
+      setFormRating('');
+      setFormFeatured(false);
+      setFormSubtitles('');
+      setFormDuration('');
+      setSearchQuery('');
+      setSearchResults([]);
+      setSelectedTmdbResult(null);
+      setTmdbPreview(null);
+      setShowBackdropPicker(false);
+      setFormErrors({});
+      setFormSeasons([
+        {
+          id: 's1',
+          season: 's1',
+          episodes: [
+            {
+              id: 'e1',
+              episode: 'e1',
+              videourl: '',
+              title: 'Episode 1',
+              image_url: '',
+            },
+          ],
+        },
+      ]);
+    }
+  }, [isOpen, contentType]);
 
   // Debounced Live TMDB Search
   useEffect(() => {
@@ -122,7 +165,7 @@ export const CreateModal: React.FC<CreateModalProps> = ({
     setSelectedTmdbResult(item);
     setFormTmdbId(String(item.id));
     setSearchResults([]);
-    showToast(`TMDB terpilih: ${item.title}. Klik "Terapkan ke Form" untuk mengisi form.`);
+    showToast(`TMDB terpilih: ${item.title}. Klik "Terapkan Metadata ke Form" untuk mengisi form.`);
   };
 
   const handleApplyTmdbToForm = async () => {
@@ -240,18 +283,47 @@ export const CreateModal: React.FC<CreateModalProps> = ({
     showToast(`${lines.length} episode berhasil ditambahkan!`);
   };
 
+  const modalTitle =
+    contentType === 'movie'
+      ? 'Tambah Movie Baru'
+      : contentType === 'tv_show'
+      ? 'Tambah TV Series Baru'
+      : 'Tambah Episode Baru';
+
+  const modalIcon =
+    contentType === 'movie' ? (
+      <Film size={18} />
+    ) : contentType === 'tv_show' ? (
+      <Tv size={18} />
+    ) : (
+      <Play size={18} />
+    );
+
+  const themeColor =
+    contentType === 'movie'
+      ? 'bg-cyan-500/20 text-cyan-400 border-cyan-500/30'
+      : contentType === 'tv_show'
+      ? 'bg-pink-500/20 text-pink-400 border-pink-500/30'
+      : 'bg-purple-500/20 text-purple-400 border-purple-500/30';
+
   return (
     <div className="fixed inset-0 z-50 flex items-center justify-center p-2.5 sm:p-4 bg-black/85 backdrop-blur-md overflow-y-auto animate-fade-in">
       <div className="bg-[#0b1329] border border-cyan-500/30 rounded-2xl max-w-3xl w-full max-h-[94vh] flex flex-col shadow-2xl overflow-hidden my-auto">
-        {/* Modal Header */}
+        {/* Dedicated Modal Header (No duplicate tabs) */}
         <div className="flex items-center justify-between p-3.5 sm:p-5 border-b border-white/10 bg-[#090e1f]">
           <div className="flex items-center gap-2.5">
-            <div className="w-8 h-8 rounded-lg bg-cyan-500/20 text-cyan-400 flex items-center justify-center flex-shrink-0">
-              <Plus size={18} />
+            <div className={`w-8 h-8 rounded-lg flex items-center justify-center flex-shrink-0 ${themeColor}`}>
+              {modalIcon}
             </div>
             <div>
-              <h2 className="text-sm sm:text-base font-bold text-white">Tambah Konten Baru</h2>
-              <p className="text-[11px] text-slate-400">Pilih tipe konten dan masukkan metadata</p>
+              <h2 className="text-sm sm:text-base font-bold text-white">{modalTitle}</h2>
+              <p className="text-[11px] text-slate-400">
+                {contentType === 'movie'
+                  ? 'Isi detail film, streaming video URL, dan metadata TMDB.'
+                  : contentType === 'tv_show'
+                  ? 'Isi metadata series, kelola judul episode, dan daftar season.'
+                  : 'Tambahkan episode baru ke TV Series.'}
+              </p>
             </div>
           </div>
           <button
@@ -262,62 +334,13 @@ export const CreateModal: React.FC<CreateModalProps> = ({
           </button>
         </div>
 
-        {/* Content Type Selector */}
-        <div className="px-3.5 sm:px-5 pt-3 pb-2 border-b border-white/5 flex gap-2 bg-[#090e1f]/50">
-          <button
-            type="button"
-            onClick={() => {
-              setContentType('movie');
-              setSelectedTmdbResult(null);
-            }}
-            className={`flex-1 sm:flex-none px-4 py-2 rounded-xl text-xs font-bold flex items-center justify-center gap-1.5 transition-all ${
-              contentType === 'movie'
-                ? 'bg-cyan-500 text-black shadow-md shadow-cyan-500/20'
-                : 'bg-white/5 text-slate-400 hover:text-white'
-            }`}
-          >
-            <Film size={14} />
-            <span>Movie</span>
-          </button>
-          <button
-            type="button"
-            onClick={() => {
-              setContentType('tv_show');
-              setSelectedTmdbResult(null);
-            }}
-            className={`flex-1 sm:flex-none px-4 py-2 rounded-xl text-xs font-bold flex items-center justify-center gap-1.5 transition-all ${
-              contentType === 'tv_show'
-                ? 'bg-pink-500 text-white shadow-md shadow-pink-500/20'
-                : 'bg-white/5 text-slate-400 hover:text-white'
-            }`}
-          >
-            <Tv size={14} />
-            <span>TV Series</span>
-          </button>
-          <button
-            type="button"
-            onClick={() => {
-              setContentType('tv_episode');
-              setSelectedTmdbResult(null);
-            }}
-            className={`flex-1 sm:flex-none px-4 py-2 rounded-xl text-xs font-bold flex items-center justify-center gap-1.5 transition-all ${
-              contentType === 'tv_episode'
-                ? 'bg-purple-500 text-white shadow-md shadow-purple-500/20'
-                : 'bg-white/5 text-slate-400 hover:text-white'
-            }`}
-          >
-            <Play size={14} />
-            <span>Single Episode</span>
-          </button>
-        </div>
-
         {/* Modal Form Content */}
         <form onSubmit={handleSubmit} className="p-3.5 sm:p-5 overflow-y-auto space-y-4 flex-1">
           {/* Live TMDB Search Bar (For Movies and TV Series) */}
           {contentType !== 'tv_episode' && (
             <div className="p-3 sm:p-4 rounded-xl bg-[#080d1e] border border-cyan-500/25 space-y-3">
               <label className="block text-xs font-bold text-cyan-300">
-                Pencarian Live TMDB (Ketik Judul Film / Series)
+                Pencarian Live TMDB (Ketik Judul {contentType === 'movie' ? 'Film' : 'Series'})
               </label>
 
               <div className="relative">
@@ -339,7 +362,7 @@ export const CreateModal: React.FC<CreateModalProps> = ({
                 )}
               </div>
 
-              {/* Live Search Results Dropdown / Grid */}
+              {/* Live Search Results Dropdown / List */}
               {searchResults.length > 0 && (
                 <div className="space-y-1.5 max-h-56 overflow-y-auto pr-1 border border-white/10 rounded-xl p-2 bg-black/70">
                   <span className="text-[10px] font-bold text-slate-400 uppercase tracking-wider block px-1">
@@ -445,7 +468,7 @@ export const CreateModal: React.FC<CreateModalProps> = ({
           {contentType !== 'tv_episode' && (
             <div className="space-y-1.5">
               <label className="block text-xs font-bold text-slate-300">
-                TMDB ID atau URL TMDB <span className="text-red-400">*</span>
+                TMDB ID <span className="text-red-400">*</span>
               </label>
               <div className="flex gap-2">
                 <input
@@ -473,7 +496,7 @@ export const CreateModal: React.FC<CreateModalProps> = ({
             </div>
           )}
 
-          {/* Episode Parent Show Picker */}
+          {/* Episode Parent Show Picker (For Single Episode only) */}
           {contentType === 'tv_episode' && (
             <div className="grid grid-cols-1 sm:grid-cols-3 gap-3">
               <div className="sm:col-span-1">
@@ -519,12 +542,14 @@ export const CreateModal: React.FC<CreateModalProps> = ({
           {/* Title & Slug */}
           <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
             <div>
-              <label className="block text-xs font-bold text-slate-300 mb-1.5">Judul Kustom</label>
+              <label className="block text-xs font-bold text-slate-300 mb-1.5">
+                {contentType === 'tv_show' ? 'Judul TV Series' : 'Judul Konten'}
+              </label>
               <input
                 type="text"
                 value={formTitle}
                 onChange={(e) => setFormTitle(e.target.value)}
-                placeholder="Judul Film atau Series"
+                placeholder={contentType === 'tv_show' ? 'Judul TV Series' : 'Judul Film'}
                 className="w-full px-3.5 py-2.5 sm:py-3 bg-black/50 border border-white/10 rounded-xl text-xs sm:text-sm text-white placeholder-slate-500 focus:outline-none focus:border-cyan-500 min-h-[42px]"
               />
             </div>
@@ -536,7 +561,7 @@ export const CreateModal: React.FC<CreateModalProps> = ({
                 type="text"
                 value={formSlug}
                 onChange={(e) => setFormSlug(e.target.value)}
-                placeholder="nama-film-2026"
+                placeholder="nama-slug-kustom"
                 className="w-full px-3.5 py-2.5 sm:py-3 bg-black/50 border border-white/10 rounded-xl text-xs sm:text-sm text-white placeholder-slate-500 focus:outline-none focus:border-cyan-500 font-mono min-h-[42px]"
               />
             </div>
@@ -671,12 +696,12 @@ export const CreateModal: React.FC<CreateModalProps> = ({
               rows={3}
               value={formDesc}
               onChange={(e) => setFormDesc(e.target.value)}
-              placeholder="Sinopsis singkat film/series..."
+              placeholder="Sinopsis singkat..."
               className="w-full px-3.5 py-2.5 sm:py-3 bg-black/50 border border-white/10 rounded-xl text-xs sm:text-sm text-white placeholder-slate-500 focus:outline-none focus:border-cyan-500"
             />
           </div>
 
-          {/* TV Series Multi-Season Episode Batch Creator */}
+          {/* TV Series Multi-Season Episode Creator with Title & URL Controls */}
           {contentType === 'tv_show' && (
             <div className="p-3.5 sm:p-4 rounded-xl bg-black/40 border border-white/10 space-y-3">
               <div className="flex items-center justify-between border-b border-white/10 pb-2">
@@ -697,14 +722,14 @@ export const CreateModal: React.FC<CreateModalProps> = ({
                             id: `e1_${Date.now()}`,
                             episode: 'e1',
                             videourl: '',
-                            title: '',
+                            title: 'Episode 1',
                             image_url: formPoster || '',
                           },
                         ],
                       },
                     ])
                   }
-                  className="px-2.5 py-1.5 rounded-lg text-xs font-bold bg-pink-500/20 text-pink-300 border border-pink-500/30 flex items-center gap-1"
+                  className="px-3 py-1.5 rounded-xl text-xs font-bold bg-pink-500/20 text-pink-300 border border-pink-500/30 flex items-center gap-1"
                 >
                   <Plus size={12} /> Tambah Season
                 </button>
@@ -713,7 +738,7 @@ export const CreateModal: React.FC<CreateModalProps> = ({
               {formSeasons.map((season, sIdx) => (
                 <div
                   key={season.id}
-                  className="p-3 rounded-xl bg-black/30 border border-white/5 space-y-2.5"
+                  className="p-3.5 rounded-xl bg-black/30 border border-white/5 space-y-3"
                 >
                   <div className="flex items-center justify-between">
                     <span className="text-xs sm:text-sm font-bold text-pink-300">Season {sIdx + 1}</span>
@@ -728,11 +753,14 @@ export const CreateModal: React.FC<CreateModalProps> = ({
 
                   {showBatchUrlInput && (
                     <div className="p-3 rounded-lg bg-black/50 border border-cyan-500/30 space-y-2">
+                      <label className="block text-xs font-bold text-cyan-300">
+                        Paste URL Video Stream (1 URL per baris)
+                      </label>
                       <textarea
                         rows={3}
                         value={batchUrlsInput}
                         onChange={(e) => setBatchUrlsInput(e.target.value)}
-                        placeholder="Paste URL video per baris..."
+                        placeholder="Paste URL video per baris (baris 1 = Ep 1, baris 2 = Ep 2)..."
                         className="w-full p-2.5 bg-black/60 border border-white/10 rounded-lg text-xs text-white font-mono"
                       />
                       <button
@@ -745,37 +773,90 @@ export const CreateModal: React.FC<CreateModalProps> = ({
                     </div>
                   )}
 
-                  <div className="space-y-2 max-h-52 overflow-y-auto pr-1">
+                  {/* Individual Episode Rows with Title & Video URL controls */}
+                  <div className="space-y-2.5 max-h-60 overflow-y-auto pr-1">
                     {season.episodes.map((ep, eIdx) => (
                       <div
                         key={ep.id}
-                        className="p-2.5 rounded-lg bg-black/40 border border-white/5 flex items-center gap-2 text-xs"
+                        className="p-3 rounded-xl bg-black/50 border border-white/10 space-y-2"
                       >
-                        <span className="font-mono text-xs text-pink-400 font-bold w-7 text-center">
-                          E{eIdx + 1}
-                        </span>
-                        <input
-                          type="text"
-                          value={ep.videourl}
-                          onChange={(e) =>
-                            setFormSeasons((prev) =>
-                              prev.map((s) =>
-                                s.id === season.id
-                                  ? {
-                                      ...s,
-                                      episodes: s.episodes.map((item) =>
-                                        item.id === ep.id
-                                          ? { ...item, videourl: e.target.value }
-                                          : item
-                                      ),
-                                    }
-                                  : s
+                        <div className="flex items-center justify-between gap-2">
+                          <div className="flex items-center gap-2 flex-1">
+                            <span className="w-8 text-center font-mono text-xs font-black text-pink-400 bg-pink-500/10 rounded-lg py-1 border border-pink-500/20">
+                              {ep.episode.toUpperCase()}
+                            </span>
+                            <input
+                              type="text"
+                              value={ep.title}
+                              onChange={(e) =>
+                                setFormSeasons((prev) =>
+                                  prev.map((s) =>
+                                    s.id === season.id
+                                      ? {
+                                          ...s,
+                                          episodes: s.episodes.map((item) =>
+                                            item.id === ep.id
+                                              ? { ...item, title: e.target.value }
+                                              : item
+                                          ),
+                                        }
+                                      : s
+                                  )
+                                )
+                              }
+                              placeholder={`Judul Episode ${eIdx + 1}`}
+                              className="px-3 py-1.5 bg-black/60 border border-white/10 rounded-lg text-xs font-bold text-white focus:outline-none focus:border-pink-400 flex-1 min-h-[36px]"
+                            />
+                          </div>
+
+                          {season.episodes.length > 1 && (
+                            <button
+                              type="button"
+                              onClick={() =>
+                                setFormSeasons((prev) =>
+                                  prev.map((s) =>
+                                    s.id === season.id
+                                      ? {
+                                          ...s,
+                                          episodes: s.episodes.filter((item) => item.id !== ep.id),
+                                        }
+                                      : s
+                                  )
+                                )
+                              }
+                              className="p-1.5 rounded-lg text-red-400 hover:text-red-300 hover:bg-red-500/10"
+                              title="Hapus Episode"
+                            >
+                              <Trash2 size={14} />
+                            </button>
+                          )}
+                        </div>
+
+                        <div className="flex items-center gap-1.5 bg-black/70 border border-white/10 rounded-lg px-2.5 py-1.5 focus-within:border-cyan-400 min-h-[38px]">
+                          <Play size={12} className="text-cyan-400 flex-shrink-0" />
+                          <input
+                            type="text"
+                            value={ep.videourl}
+                            onChange={(e) =>
+                              setFormSeasons((prev) =>
+                                prev.map((s) =>
+                                  s.id === season.id
+                                    ? {
+                                        ...s,
+                                        episodes: s.episodes.map((item) =>
+                                          item.id === ep.id
+                                            ? { ...item, videourl: e.target.value }
+                                            : item
+                                        ),
+                                      }
+                                    : s
+                                )
                               )
-                            )
-                          }
-                          placeholder="URL Video stream..."
-                          className="flex-1 px-3 py-2 bg-black/60 border border-white/10 rounded-lg text-xs text-white font-mono focus:outline-none focus:border-pink-400 min-h-[38px]"
-                        />
+                            }
+                            placeholder="URL Video stream (MP4 / .m3u8)..."
+                            className="w-full bg-transparent text-xs text-white font-mono focus:outline-none"
+                          />
+                        </div>
                       </div>
                     ))}
                   </div>
@@ -791,7 +872,7 @@ export const CreateModal: React.FC<CreateModalProps> = ({
                                 episodes: [
                                   ...s.episodes,
                                   {
-                                    id: `ep_${Date.now()}`,
+                                    id: `ep_${Date.now()}_${s.episodes.length + 1}`,
                                     episode: `e${s.episodes.length + 1}`,
                                     videourl: '',
                                     title: `Episode ${s.episodes.length + 1}`,

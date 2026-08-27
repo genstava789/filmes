@@ -1141,24 +1141,6 @@ export async function syncAllToGitHub(ghConfig: GitHubOptions) {
     }
   }
 
-  // 3. Prune remote files on GitHub that no longer exist locally
-  try {
-    const tree = await getGitHubTree(ghConfig);
-    const remoteContentBlobs = tree.filter(
-      (item) => item.type === 'blob' && (item.path.startsWith('video/') || item.path.startsWith('tv/'))
-    );
-    const localRelPaths = new Set(localFiles.map((f) => f.relativePath));
-
-    for (const rBlob of remoteContentBlobs) {
-      if (!localRelPaths.has(rBlob.path)) {
-        try {
-          await deleteGitHubFile(rBlob.path, `cms: prune deleted ${rBlob.path}`, ghConfig);
-          deletedCount++;
-        } catch {}
-      }
-    }
-  } catch {}
-
   selectiveRevalidateAll();
-  return { success: true, syncedCount, deletedCount };
+  return { success: true, syncedCount, deletedCount: 0 };
 }
