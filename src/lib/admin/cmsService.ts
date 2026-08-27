@@ -33,6 +33,7 @@ import {
   deleteMongoMovie,
   saveMongoTVShow,
   deleteMongoTVShow,
+  deleteMongoEpisode,
   syncMongoDBToGitHub,
 } from '@/lib/mongodb/service';
 
@@ -137,9 +138,10 @@ export async function fetchPaginatedAdminContent(
   let localDiskMovies: any[] = [];
   let localDiskTVShows: any[] = [];
 
-  const hasMongoData = mongoMoviesPaged.total > 0 || mongoTVPaged.total > 0 || (counts.totalMovies || 0) > 0 || (counts.totalTVShows || 0) > 0;
+  const hasMongoMovies = mongoMoviesPaged.total > 0 || (counts.totalMovies || 0) > 0;
+  const hasMongoTV = mongoTVPaged.total > 0 || (counts.totalTVShows || 0) > 0;
 
-  if (!hasMongoData) {
+  if (!hasMongoMovies || !hasMongoTV) {
     try {
       const diskData = await memoryCache.getOrFetch<{ movies: any[]; tvShows: any[] }>(
         'admin_local_disk_scan',
@@ -1438,6 +1440,7 @@ export async function deleteAdminContent(pathsToDelete: string[], ghConfig: GitH
 
     const isTvShowIndex = isTV && (relativePath.endsWith('/_index.md') || relativePath.endsWith('/index.md'));
     const isTvDirectory = isTV && !relativePath.endsWith('.md') && !relativePath.endsWith('.markdown');
+    const isTvEpisode = isTV && !isTvShowIndex && (relativePath.endsWith('.md') || relativePath.endsWith('.markdown'));
 
     const folderToDelete = isTvShowIndex
       ? relativePath.replace(/\/_?index\.md$/i, '')
@@ -1445,14 +1448,24 @@ export async function deleteAdminContent(pathsToDelete: string[], ghConfig: GitH
       ? relativePath
       : null;
 
-    // Delete from MongoDB
+    // Delete from MongoDB & Disk with exact granular scope
     try {
       if (isMovie) {
         const slug = path.basename(relativePath).replace(/\.(md|markdown)$/i, '');
         await deleteMongoMovie(slug);
-      } else if (isTV) {
+      } else if (isTvShowIndex || isTvDirectory) {
         const showSlug = (folderToDelete || relativePath).replace(/^tv\//, '').split('/')[0];
         await deleteMongoTVShow(showSlug);
+      } else if (isTvEpisode) {
+        // e.g. tv/lanterns/s1/e1.md
+        const cleanRel = relativePath.replace(/^tv\//, '');
+        const parts = cleanRel.split('/');
+        const showSlug = parts[0];
+        const seasonFolder = parts[1] || 's1';
+        const episode = path.basename(parts[2] || parts[parts.length - 1] || '').replace(/\.(md|markdown)$/i, '');
+        if (showSlug && seasonFolder && episode) {
+          await deleteMongoEpisode(showSlug, seasonFolder, episode);
+        }
       }
     } catch (mErr) {
       console.warn('[deleteAdminContent] MongoDB delete notice:', mErr);

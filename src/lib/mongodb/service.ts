@@ -705,6 +705,14 @@ export async function deleteMongoTVShow(showSlug: string): Promise<boolean> {
   return res.deletedCount > 0;
 }
 
+export async function deleteMongoEpisode(showSlug: string, seasonFolder: string, episode: string): Promise<boolean> {
+  const { episodes } = await getCollectionsRaw();
+  const cleanEp = episode.replace(/\.(md|markdown)$/i, '');
+  const res = await episodes.deleteOne({ showSlug, seasonFolder, episode: cleanEp });
+  invalidateAllMongoCaches();
+  return res.deletedCount > 0;
+}
+
 // ──────────────────────────────────────────
 // SYNC MONGODB TO GITHUB (ATOMIC BULK COMMIT)
 // ──────────────────────────────────────────
