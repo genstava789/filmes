@@ -1,4 +1,4 @@
-import { getDatabase } from './client';
+import { getDatabase, isMongoConfigured } from './client';
 import fs from 'fs';
 import path from 'path';
 import matter from 'gray-matter';
@@ -20,12 +20,13 @@ export interface MongoMovie {
   title: string;
   videourl: string;
   image_url: string;
-  deskripsi: string;
-  rating: number;
-  featured: boolean;
+  deskripsi?: string;
+  rating?: number;
+  featured?: boolean;
   subtitles?: string;
   duration?: string;
   content?: string;
+  deleted?: boolean;
   createdAt: number;
   updatedAt: number;
 }
@@ -36,10 +37,12 @@ export interface MongoTVShow {
   tmdb_id: number;
   title: string;
   image_url: string;
-  deskripsi: string;
-  rating: number;
-  featured: boolean;
+  deskripsi?: string;
+  rating?: number;
+  featured?: boolean;
   content?: string;
+  deleted?: boolean;
+  episodes?: MongoTVEpisode[];
   createdAt: number;
   updatedAt: number;
 }
@@ -71,6 +74,9 @@ const EPISODES_COLLECTION = 'tv_episodes';
  * Direct collection references without index overhead on every call
  */
 async function getCollectionsRaw() {
+  if (!isMongoConfigured()) {
+    throw new Error('MONGODB_URI is not configured');
+  }
   const db = await getDatabase();
   const movies = db.collection<MongoMovie>(MOVIES_COLLECTION);
   const tvShows = db.collection<MongoTVShow>(TV_SHOWS_COLLECTION);
@@ -82,7 +88,7 @@ async function getCollectionsRaw() {
 let isInitialized = false;
 
 function ensureInitialized() {
-  if (isInitialized) return;
+  if (!isMongoConfigured() || isInitialized) return;
   isInitialized = true;
 
   // Run in background without blocking current request
@@ -299,6 +305,9 @@ export interface MongoPaginationOptions {
 export async function getPaginatedMongoMovies(
   options: MongoPaginationOptions = {}
 ): Promise<PaginatedResult<MongoMovie>> {
+  if (!isMongoConfigured()) {
+    return { items: [], total: 0, page: 1, limit: 7, totalPages: 1 };
+  }
   ensureInitialized();
   const page = Math.max(1, Number(options.page) || 1);
   const limit = Math.max(1, Number(options.limit) || 7);
@@ -343,6 +352,7 @@ export async function getPaginatedMongoMovies(
 }
 
 export async function getMongoMovies(): Promise<MongoMovie[]> {
+  if (!isMongoConfigured()) return [];
   ensureInitialized();
   return memoryCache.getOrFetch<MongoMovie[]>(
     'mongo_all_movies',
@@ -367,6 +377,7 @@ export async function getMongoMovies(): Promise<MongoMovie[]> {
 }
 
 export async function getMongoMovieBySlug(slugOrId: string | number): Promise<MongoMovie | null> {
+  if (!isMongoConfigured()) return null;
   const allMovies = await getMongoMovies();
   const rawKey = String(slugOrId).trim().toLowerCase().replace(/\.(md|markdown)$/i, '');
   const idNum = Number(rawKey);
@@ -457,6 +468,9 @@ export async function deleteMongoMovie(slug: string): Promise<boolean> {
 export async function getPaginatedMongoTVShows(
   options: MongoPaginationOptions = {}
 ): Promise<PaginatedResult<MongoTVShow & { episodes: MongoTVEpisode[] }>> {
+  if (!isMongoConfigured()) {
+    return { items: [], total: 0, page: 1, limit: 7, totalPages: 1 };
+  }
   ensureInitialized();
   const page = Math.max(1, Number(options.page) || 1);
   const limit = Math.max(1, Number(options.limit) || 7);
@@ -518,6 +532,9 @@ export async function getMongoContentCounts(): Promise<{
   totalTVShows: number;
   totalEpisodes: number;
 }> {
+  if (!isMongoConfigured()) {
+    return { totalMovies: 0, totalTVShows: 0, totalEpisodes: 0 };
+  }
   ensureInitialized();
   return withTimeout(
     (async () => {
@@ -540,6 +557,7 @@ export async function getMongoContentCounts(): Promise<{
 }
 
 export async function getMongoTVShows(): Promise<(MongoTVShow & { episodes: MongoTVEpisode[] })[]> {
+  if (!isMongoConfigured()) return [];
   ensureInitialized();
   return memoryCache.getOrFetch<(MongoTVShow & { episodes: MongoTVEpisode[] })[]>(
     'mongo_all_tv_shows',
@@ -572,6 +590,7 @@ export async function getMongoTVShows(): Promise<(MongoTVShow & { episodes: Mong
 export async function getMongoTVShowBySlug(
   showSlugOrId: string | number
 ): Promise<(MongoTVShow & { episodes: MongoTVEpisode[] }) | null> {
+  if (!isMongoConfigured()) return null;
   const allShows = await getMongoTVShows();
   const rawKey = String(showSlugOrId).trim().toLowerCase().replace(/\.(md|markdown)$/i, '');
   const idNum = Number(rawKey);
