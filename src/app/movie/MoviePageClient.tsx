@@ -28,6 +28,23 @@ const SORT_OPTIONS = [
   { value: 'revenue.desc', label: 'Highest Revenue' },
 ];
 
+function sortLocalMovies(items: Movie[], sortOption: string): Movie[] {
+  const copy = [...items];
+  if (sortOption === 'vote_average.desc') {
+    return copy.sort((a, b) => (b.vote_average || 0) - (a.vote_average || 0));
+  }
+  if (sortOption === 'release_date.desc') {
+    return copy.sort((a, b) => new Date(b.release_date || 0).getTime() - new Date(a.release_date || 0).getTime());
+  }
+  if (sortOption === 'release_date.asc') {
+    return copy.sort((a, b) => new Date(a.release_date || 0).getTime() - new Date(b.release_date || 0).getTime());
+  }
+  if (sortOption === 'popularity.desc') {
+    return copy.sort((a, b) => (b.popularity || 100) - (a.popularity || 100));
+  }
+  return copy;
+}
+
 export default function MoviePageClient({
   initialMovies = [],
   totalPages: initialTotalPages = 1,
@@ -41,13 +58,17 @@ export default function MoviePageClient({
   const searchParams = useSearchParams();
 
   const [genres, setGenres] = useState<Genre[]>(propGenres);
-  const [movies, setMovies] = useState<Movie[]>(initialMovies);
+  const [movies, setMovies] = useState<Movie[]>(() =>
+    initialMovies.length > 0 ? sortLocalMovies(initialMovies, initialSort) : []
+  );
   const [page, setPage] = useState(initialPage);
   const [sort, setSort] = useState(initialSort);
   const [genreId, setGenreId] = useState<number | undefined>(initialGenreId);
-  const [totalPages, setTotalPages] = useState(Math.min(initialTotalPages, 500));
-  const [totalResults, setTotalResults] = useState(initialTotalResults);
-  const [loading, setLoading] = useState(initialMovies.length === 0);
+  const [totalPages, setTotalPages] = useState(
+    initialMovies.length > 0 ? Math.max(1, Math.ceil(initialMovies.length / 20)) : Math.min(initialTotalPages, 500)
+  );
+  const [totalResults, setTotalResults] = useState(initialMovies.length > 0 ? initialMovies.length : initialTotalResults);
+  const [loading, setLoading] = useState(false);
   const [sortOpen, setSortOpen] = useState(false);
 
   const sortRef = useRef<HTMLDivElement>(null);
@@ -83,8 +104,31 @@ export default function MoviePageClient({
     setGenreId(g);
   }, [searchParams]);
 
-  // Fetch movies when filter/sort/page change
+  // Fetch or filter movies when filter/sort/page change
   useEffect(() => {
+    // 1. If browsing page 1 without genre filter and local movies exist:
+    if (page === 1 && !genreId && initialMovies.length > 0) {
+      const sorted = sortLocalMovies(initialMovies, sort);
+      setMovies(sorted);
+      setTotalPages(Math.max(1, Math.ceil(initialMovies.length / 20)));
+      setTotalResults(initialMovies.length);
+      setLoading(false);
+      return;
+    }
+
+    // 2. If genre filter is active and local movies match that genre:
+    if (genreId && initialMovies.length > 0) {
+      const localGenreMatches = initialMovies.filter((m) => m.genre_ids && m.genre_ids.includes(genreId));
+      if (localGenreMatches.length > 0 && page === 1) {
+        const sorted = sortLocalMovies(localGenreMatches, sort);
+        setMovies(sorted);
+        setTotalPages(Math.max(1, Math.ceil(localGenreMatches.length / 20)));
+        setTotalResults(localGenreMatches.length);
+        setLoading(false);
+        return;
+      }
+    }
+
     const cacheKey = `${page}_${sort}_${genreId || 'all'}`;
     if (movieClientCache.has(cacheKey)) {
       const cached = movieClientCache.get(cacheKey);
@@ -92,20 +136,6 @@ export default function MoviePageClient({
       setTotalPages(Math.min(cached.total_pages, 500));
       setTotalResults(cached.total_results);
       setLoading(false);
-
-      // Background prefetch next page
-      const nextPage = page + 1;
-      if (nextPage <= Math.min(cached.total_pages, 500)) {
-        const nextKey = `${nextPage}_${sort}_${genreId || 'all'}`;
-        if (!movieClientCache.has(nextKey)) {
-          discoverMovies(nextPage, sort, genreId)
-            .then((nextData) => {
-              movieClientCache.set(nextKey, nextData);
-              prefetchImages(nextData.results);
-            })
-            .catch(() => {});
-        }
-      }
       return;
     }
 
@@ -118,24 +148,10 @@ export default function MoviePageClient({
         setTotalPages(maxPages);
         setTotalResults(data.total_results);
         prefetchImages(data.results);
-
-        // Background prefetch next page for instant next-page clicks
-        const nextPage = page + 1;
-        if (nextPage <= maxPages) {
-          const nextKey = `${nextPage}_${sort}_${genreId || 'all'}`;
-          if (!movieClientCache.has(nextKey)) {
-            discoverMovies(nextPage, sort, genreId)
-              .then((nextData) => {
-                movieClientCache.set(nextKey, nextData);
-                prefetchImages(nextData.results);
-              })
-              .catch(() => {});
-          }
-        }
       })
       .catch(() => setMovies([]))
       .finally(() => setLoading(false));
-  }, [page, sort, genreId]);
+  }, [page, sort, genreId, initialMovies]);
 
   const updateUrl = (newPage: number, newSort: string, newGenreId?: number) => {
     const params = new URLSearchParams();

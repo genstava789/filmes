@@ -263,6 +263,8 @@ export async function fetchPaginatedAdminContent(
         deskripsi: m.deskripsi,
         rating: m.rating,
         featured: m.featured,
+        trending: m.trending,
+        language: m.language ? String(m.language).toUpperCase() : 'ID',
         subtitles: m.subtitles,
         duration: m.duration,
       },
@@ -309,6 +311,8 @@ export async function fetchPaginatedAdminContent(
         deskripsi: s.deskripsi,
         rating: s.rating,
         featured: s.featured,
+        trending: s.trending,
+        language: s.language ? String(s.language).toUpperCase() : 'ID',
       },
       indexContent: s.content || '',
       updatedAt: s.updatedAt || Date.now(),
@@ -504,6 +508,8 @@ export async function fetchAllAdminContent(ghConfig: GitHubOptions) {
           deskripsi: m.deskripsi,
           rating: m.rating,
           featured: m.featured,
+          trending: m.trending,
+          language: m.language ? String(m.language).toUpperCase() : 'ID',
           subtitles: m.subtitles,
           duration: m.duration,
         },
@@ -523,6 +529,8 @@ export async function fetchAllAdminContent(ghConfig: GitHubOptions) {
           deskripsi: s.deskripsi,
           rating: s.rating,
           featured: s.featured,
+          trending: s.trending,
+          language: s.language ? String(s.language).toUpperCase() : 'ID',
         },
         indexContent: s.content || '',
         updatedAt: s.updatedAt || Date.now(),
@@ -892,6 +900,8 @@ export async function createAdminContent(body: any, ghConfig: GitHubOptions) {
     if (poster && poster.trim()) frontmatterData.image_url = poster.trim();
     if (rating !== undefined && rating !== null && rating !== '') frontmatterData.rating = Number(rating);
     if (featured !== undefined) frontmatterData.featured = Boolean(featured);
+    if (body.trending !== undefined) frontmatterData.trending = Boolean(body.trending);
+    if (body.language && String(body.language).trim()) frontmatterData.language = String(body.language).trim().toUpperCase();
     if (subtitles && subtitles.trim()) frontmatterData.subtitles = subtitles.trim();
 
     fileContent = serializeTinaMovie(frontmatterData, content || '');
@@ -917,6 +927,8 @@ export async function createAdminContent(body: any, ghConfig: GitHubOptions) {
         deskripsi: frontmatterData.deskripsi || '',
         rating: frontmatterData.rating || 0,
         featured: frontmatterData.featured || false,
+        trending: frontmatterData.trending || false,
+        language: frontmatterData.language || 'ID',
         subtitles: frontmatterData.subtitles || '',
         duration: frontmatterData.duration || '',
         content: content || '',
@@ -989,6 +1001,8 @@ export async function createAdminContent(body: any, ghConfig: GitHubOptions) {
     if (poster && poster.trim()) frontmatterData.image_url = poster.trim();
     if (rating !== undefined && rating !== null && rating !== '') frontmatterData.rating = Number(rating);
     if (featured !== undefined) frontmatterData.featured = Boolean(featured);
+    if (body.trending !== undefined) frontmatterData.trending = Boolean(body.trending);
+    if (body.language && String(body.language).trim()) frontmatterData.language = String(body.language).trim().toUpperCase();
 
     fileContent = serializeTinaTVShow(frontmatterData, content || '');
 
@@ -1080,6 +1094,8 @@ export async function createAdminContent(body: any, ghConfig: GitHubOptions) {
           deskripsi: frontmatterData.deskripsi || '',
           rating: frontmatterData.rating || 0,
           featured: frontmatterData.featured || false,
+          trending: frontmatterData.trending || false,
+          language: frontmatterData.language || 'ID',
           content: content || '',
         },
         mongoEpisodesList
@@ -1252,10 +1268,16 @@ export async function updateAdminContent(body: any, ghConfig: GitHubOptions) {
         cleanFrontmatter[key] = isNaN(Number(val)) ? val : Number(val);
       } else if (key === 'featured') {
         cleanFrontmatter[key] = Boolean(val);
+      } else if (key === 'trending') {
+        cleanFrontmatter[key] = Boolean(val);
+      } else if (key === 'language') {
+        cleanFrontmatter[key] = String(val).trim().toUpperCase();
       } else {
         cleanFrontmatter[key] = val;
       }
     } else if (key === 'featured') {
+      cleanFrontmatter[key] = false;
+    } else if (key === 'trending') {
       cleanFrontmatter[key] = false;
     }
   }
@@ -1278,6 +1300,8 @@ export async function updateAdminContent(body: any, ghConfig: GitHubOptions) {
         deskripsi: cleanFrontmatter.deskripsi || cleanFrontmatter.description,
         rating: cleanFrontmatter.rating,
         featured: cleanFrontmatter.featured,
+        trending: cleanFrontmatter.trending,
+        language: cleanFrontmatter.language || 'ID',
         subtitles: cleanFrontmatter.subtitles,
         duration: cleanFrontmatter.duration,
         content: content || '',
@@ -1318,6 +1342,8 @@ export async function updateAdminContent(body: any, ghConfig: GitHubOptions) {
           deskripsi: cleanFrontmatter.deskripsi || cleanFrontmatter.description,
           rating: cleanFrontmatter.rating,
           featured: cleanFrontmatter.featured,
+          trending: cleanFrontmatter.trending,
+          language: cleanFrontmatter.language || 'ID',
           content: content || '',
         },
         mongoEps

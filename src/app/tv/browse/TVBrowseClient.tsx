@@ -27,6 +27,23 @@ const SORT_OPTIONS = [
   { value: 'first_air_date.asc', label: 'Oldest First' },
 ];
 
+function sortLocalTVShows(items: TVShow[], sortOption: string): TVShow[] {
+  const copy = [...items];
+  if (sortOption === 'vote_average.desc') {
+    return copy.sort((a, b) => (b.vote_average || 0) - (a.vote_average || 0));
+  }
+  if (sortOption === 'first_air_date.desc') {
+    return copy.sort((a, b) => new Date(b.first_air_date || 0).getTime() - new Date(a.first_air_date || 0).getTime());
+  }
+  if (sortOption === 'first_air_date.asc') {
+    return copy.sort((a, b) => new Date(a.first_air_date || 0).getTime() - new Date(b.first_air_date || 0).getTime());
+  }
+  if (sortOption === 'popularity.desc') {
+    return copy.sort((a, b) => (b.popularity || 100) - (a.popularity || 100));
+  }
+  return copy;
+}
+
 export default function TVBrowseClient({
   initialShows = [],
   totalPages: initialTotalPages = 1,
@@ -40,13 +57,17 @@ export default function TVBrowseClient({
   const searchParams = useSearchParams();
 
   const [genres, setGenres] = useState<Genre[]>(propGenres);
-  const [shows, setShows] = useState<TVShow[]>(initialShows);
+  const [shows, setShows] = useState<TVShow[]>(() =>
+    initialShows.length > 0 ? sortLocalTVShows(initialShows, initialSort) : []
+  );
   const [page, setPage] = useState(initialPage);
   const [sort, setSort] = useState(initialSort);
   const [genreId, setGenreId] = useState<number | undefined>(initialGenreId);
-  const [totalPages, setTotalPages] = useState(Math.min(initialTotalPages, 500));
-  const [totalResults, setTotalResults] = useState(initialTotalResults);
-  const [loading, setLoading] = useState(initialShows.length === 0);
+  const [totalPages, setTotalPages] = useState(
+    initialShows.length > 0 ? Math.max(1, Math.ceil(initialShows.length / 20)) : Math.min(initialTotalPages, 500)
+  );
+  const [totalResults, setTotalResults] = useState(initialShows.length > 0 ? initialShows.length : initialTotalResults);
+  const [loading, setLoading] = useState(false);
   const [sortOpen, setSortOpen] = useState(false);
 
   const sortRef = useRef<HTMLDivElement>(null);
@@ -83,8 +104,31 @@ export default function TVBrowseClient({
     setGenreId(g);
   }, [searchParams]);
 
-  // Fetch TV shows when filter/sort/page change
+  // Fetch or filter TV shows when filter/sort/page change
   useEffect(() => {
+    // 1. If browsing page 1 without genre filter and local TV shows exist:
+    if (page === 1 && !genreId && initialShows.length > 0) {
+      const sorted = sortLocalTVShows(initialShows, sort);
+      setShows(sorted);
+      setTotalPages(Math.max(1, Math.ceil(initialShows.length / 20)));
+      setTotalResults(initialShows.length);
+      setLoading(false);
+      return;
+    }
+
+    // 2. If genre filter is active and local TV shows match that genre:
+    if (genreId && initialShows.length > 0) {
+      const localGenreMatches = initialShows.filter((s) => s.genre_ids && s.genre_ids.includes(genreId));
+      if (localGenreMatches.length > 0 && page === 1) {
+        const sorted = sortLocalTVShows(localGenreMatches, sort);
+        setShows(sorted);
+        setTotalPages(Math.max(1, Math.ceil(localGenreMatches.length / 20)));
+        setTotalResults(localGenreMatches.length);
+        setLoading(false);
+        return;
+      }
+    }
+
     const cacheKey = `${page}_${sort}_${genreId || 'all'}`;
     if (tvClientCache.has(cacheKey)) {
       const cached = tvClientCache.get(cacheKey);
@@ -92,20 +136,6 @@ export default function TVBrowseClient({
       setTotalPages(Math.min(cached.total_pages, 500));
       setTotalResults(cached.total_results);
       setLoading(false);
-
-      // Background prefetch next page
-      const nextPage = page + 1;
-      if (nextPage <= Math.min(cached.total_pages, 500)) {
-        const nextKey = `${nextPage}_${sort}_${genreId || 'all'}`;
-        if (!tvClientCache.has(nextKey)) {
-          discoverTVShows(nextPage, sort, genreId)
-            .then((nextData) => {
-              tvClientCache.set(nextKey, nextData);
-              prefetchImages(nextData.results);
-            })
-            .catch(() => {});
-        }
-      }
       return;
     }
 
@@ -118,24 +148,10 @@ export default function TVBrowseClient({
         setTotalPages(maxPages);
         setTotalResults(data.total_results);
         prefetchImages(data.results);
-
-        // Background prefetch next page for instant next-page clicks
-        const nextPage = page + 1;
-        if (nextPage <= maxPages) {
-          const nextKey = `${nextPage}_${sort}_${genreId || 'all'}`;
-          if (!tvClientCache.has(nextKey)) {
-            discoverTVShows(nextPage, sort, genreId)
-              .then((nextData) => {
-                tvClientCache.set(nextKey, nextData);
-                prefetchImages(nextData.results);
-              })
-              .catch(() => {});
-          }
-        }
       })
       .catch(() => setShows([]))
       .finally(() => setLoading(false));
-  }, [page, sort, genreId]);
+  }, [page, sort, genreId, initialShows]);
 
   const updateUrl = (newPage: number, newSort: string, newGenreId?: number) => {
     const params = new URLSearchParams();
