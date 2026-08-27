@@ -90,6 +90,12 @@ function ensureInitialized() {
         tvShows.createIndex({ tmdb_id: 1 }),
         episodes.createIndex({ showSlug: 1, seasonFolder: 1, episode: 1 }, { unique: true }),
       ]);
+
+      const movieCount = await movies.countDocuments();
+      const showCount = await tvShows.countDocuments();
+      if (movieCount === 0 && showCount === 0) {
+        await seedFromMarkdownFiles(movies, tvShows, episodes);
+      }
     } catch (e) {
       console.warn('[MongoDB] Init notice:', e);
     }
@@ -840,10 +846,7 @@ export async function syncMongoDBToGitHub(ghConfig: GitHubOptions) {
     ghConfig
   );
 
-  // 6. Once committed to GitHub, flush MongoDB staging buffer to 0 KB
-  if (res.success) {
-    await flushStagedContent();
-  }
+  invalidateAllMongoCaches();
 
   return { success: true, syncedCount: res.syncedCount };
 }
