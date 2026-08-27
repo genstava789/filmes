@@ -32,6 +32,12 @@ export default function MovieCard({ item, type = 'movie', priority = false }: Mo
   // Use w342 for optimal bandwidth & instant rendering in 2-6 col grids
   const posterUrl = getImageUrl(imagePath, 'w342');
 
+  // Reset image loaded state when posterUrl changes
+  React.useEffect(() => {
+    setIsImgLoaded(false);
+    setImgError(false);
+  }, [posterUrl]);
+
   return (
     <Link
       href={href}
@@ -44,14 +50,18 @@ export default function MovieCard({ item, type = 'movie', priority = false }: Mo
           <div className="absolute inset-0 skeleton bg-white/[0.08] z-0" />
         )}
 
-        {/* Poster Image */}
+        {/* Poster Image - Direct from TMDB CDN without Vercel proxy */}
         {imagePath && !imgError ? (
           <Image
+            key={posterUrl}
             src={posterUrl}
             alt={title || 'Movie Poster'}
             fill
+            unoptimized
             priority={priority}
-            className={`object-cover transition-all duration-300 ease-out group-hover:scale-105 ${
+            loading={priority ? 'eager' : 'lazy'}
+            decoding="async"
+            className={`object-cover transition-opacity duration-300 ease-out group-hover:scale-105 ${
               isImgLoaded ? 'opacity-100' : 'opacity-0'
             }`}
             sizes="(max-width: 640px) 50vw, (max-width: 1024px) 33vw, 20vw"
