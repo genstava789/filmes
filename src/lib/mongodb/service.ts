@@ -255,8 +255,12 @@ function invalidateAllMongoCaches() {
   memoryCache.invalidate('mongo_');
   memoryCache.invalidate('markdown_');
   memoryCache.invalidate('featured_');
+  memoryCache.invalidate('custom_');
   memoryCache.invalidate('content_provider_');
   memoryCache.invalidate('admin_');
+  memoryCache.invalidate('cms_');
+  memoryCache.invalidate('bucket_');
+  memoryCache.invalidate('hero_');
 }
 
 async function withTimeout<T>(promise: Promise<T>, ms: number, fallback: T): Promise<T> {

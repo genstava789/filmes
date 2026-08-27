@@ -581,7 +581,13 @@ export async function getAllFeaturedCustomMovies(): Promise<FeaturedItem[]> {
 
             if (m.tmdb_id) {
               try {
-                const tmdb = await getMovieDetails(Number(m.tmdb_id));
+                const tmdbId = Number(m.tmdb_id);
+                const tmdb = await memoryCache.getOrFetch(
+                  `admin_tmdb_movie_${tmdbId}`,
+                  () => getMovieDetails(tmdbId).catch(() => null),
+                  3600_000,
+                  600_000
+                );
                 if (tmdb) {
                   if (tmdb.poster_path) posterUrl = getImageUrl(tmdb.poster_path, 'w500');
                   if (tmdb.backdrop_path) backdropUrl = getImageUrl(tmdb.backdrop_path, 'w1280');
