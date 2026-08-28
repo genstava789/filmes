@@ -1,7 +1,7 @@
 import React from 'react';
 import Link from 'next/link';
 import Image from 'next/image';
-import { Film, Plus, ExternalLink, Edit2, Trash2, Star, ChevronLeft, ChevronRight } from 'lucide-react';
+import { Film, Plus, ExternalLink, Edit2, Trash2, Star, Check, ChevronLeft, ChevronRight } from 'lucide-react';
 import { MovieItem } from '../types';
 import { getMovieUrl } from '@/lib/urls';
 
@@ -89,7 +89,7 @@ export const MovieListView: React.FC<MovieListViewProps> = ({
   onSelectAll,
   onClearSelection,
 }) => {
-  if (pageLoading) {
+  if (pageLoading && movies.length === 0) {
     return (
       <div className="space-y-4">
         <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-3.5 sm:gap-4">
@@ -137,15 +137,21 @@ export const MovieListView: React.FC<MovieListViewProps> = ({
     <div className="space-y-3.5">
       {/* Select All & Summary Header */}
       <div className="flex items-center justify-between px-1.5 py-1">
-        <label className="flex items-center gap-2 cursor-pointer select-none text-xs font-bold text-slate-300 hover:text-white transition-colors">
-          <input
-            type="checkbox"
-            checked={isAllCurrentSelected}
-            onChange={handleToggleSelectAll}
-            className="w-4 h-4 rounded text-cyan-500 focus:ring-cyan-500 bg-black/50 border-white/20 cursor-pointer"
-          />
+        <div
+          onClick={handleToggleSelectAll}
+          className="flex items-center gap-2 cursor-pointer select-none text-xs font-bold text-slate-300 hover:text-white transition-colors"
+        >
+          <div
+            className={`w-4 h-4 rounded flex items-center justify-center transition-all ${
+              isAllCurrentSelected
+                ? 'bg-cyan-500 text-black shadow-sm'
+                : 'bg-black/50 border border-white/30 hover:border-cyan-400 text-transparent'
+            }`}
+          >
+            <Check size={11} strokeWidth={3} className={isAllCurrentSelected ? 'opacity-100' : 'opacity-0'} />
+          </div>
           <span>Pilih Semua di Halaman Ini ({movies.length})</span>
-        </label>
+        </div>
         <span className="text-xs text-slate-400">
           Total <span className="text-cyan-400 font-bold">{totalMoviesCount}</span> movies
         </span>
@@ -172,26 +178,29 @@ export const MovieListView: React.FC<MovieListViewProps> = ({
             >
               <div>
                 <div className="flex items-start gap-3 mb-2.5">
-                  {/* Poster with Checkbox Overlay */}
+                  {/* Clean Selector Checkbox */}
+                  <button
+                    type="button"
+                    onClick={(e) => {
+                      e.stopPropagation();
+                      onToggleSelect(movie.relativePath);
+                    }}
+                    className={`w-5 h-5 rounded-md flex items-center justify-center transition-all flex-shrink-0 mt-0.5 ${
+                      isSelected
+                        ? 'bg-cyan-500 text-black shadow-md shadow-cyan-500/40 ring-2 ring-cyan-400/40'
+                        : 'bg-black/50 border border-white/20 hover:border-cyan-400 text-transparent'
+                    }`}
+                    title={isSelected ? 'Batalkan pilihan' : 'Pilih film ini'}
+                  >
+                    <Check size={12} strokeWidth={3} className={isSelected ? 'opacity-100' : 'opacity-0'} />
+                  </button>
+
+                  {/* Poster Thumbnail */}
                   <div
                     onClick={() => onToggleSelect(movie.relativePath)}
-                    className="relative w-16 sm:w-20 aspect-[2/3] min-h-[96px] sm:min-h-[120px] rounded-lg sm:rounded-xl overflow-hidden bg-slate-900 flex-shrink-0 border border-white/15 shadow-md cursor-pointer group/poster"
+                    className="relative w-16 sm:w-20 aspect-[2/3] min-h-[96px] sm:min-h-[120px] rounded-lg sm:rounded-xl overflow-hidden bg-slate-900 flex-shrink-0 border border-white/15 shadow-md cursor-pointer"
                   >
                     <SafeAdminImage src={poster} alt={title} sizes="(max-width: 640px) 64px, 80px" />
-                    <div
-                      className={`absolute top-1.5 left-1.5 w-5 h-5 rounded-md flex items-center justify-center transition-all ${
-                        isSelected
-                          ? 'bg-cyan-500 text-black shadow-md shadow-cyan-500/40'
-                          : 'bg-black/60 text-transparent border border-white/30 group-hover/poster:border-cyan-400'
-                      }`}
-                    >
-                      <input
-                        type="checkbox"
-                        checked={isSelected}
-                        onChange={() => {}} // handled by div onClick
-                        className="w-3.5 h-3.5 pointer-events-none"
-                      />
-                    </div>
                   </div>
 
                   <div className="flex-1 min-w-0">

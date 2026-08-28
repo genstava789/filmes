@@ -145,7 +145,6 @@ export function useAdminData() {
 
       try {
         const queryParams = new URLSearchParams({
-          tab: activeTab,
           moviePage: String(mPage),
           tvPage: String(tPage),
           search: debouncedSearch,
@@ -183,7 +182,7 @@ export function useAdminData() {
         setIsInitialLoad(false);
       }
     },
-    [getHeaders, activeTab, moviePage, tvPage, debouncedSearch, isInitialLoad, showToast]
+    [getHeaders, moviePage, tvPage, debouncedSearch, isInitialLoad, showToast]
   );
 
   const handleMoviePageChange = useCallback(
