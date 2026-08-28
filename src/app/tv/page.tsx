@@ -2,7 +2,6 @@ import React from 'react';
 import type { Metadata } from 'next';
 import Hero from '@/components/Hero';
 import MovieRow from '@/components/MovieRow';
-import GenreFilter from '@/components/GenreFilter';
 import { getTVGenres, getGenres } from '@/lib/tmdb';
 import { getEnrichedFeaturedTV } from '@/lib/featured';
 import { getResolvedSections } from '@/lib/sections';
@@ -37,19 +36,7 @@ export default async function TVPage() {
       )}
 
       {/* Content sections */}
-      <div className="relative z-10 space-y-10 pb-6 sm:pb-8 pt-2 sm:pt-4">
-        {/* Browse TV Series by Genre Filter */}
-        {genreList.length > 0 && (
-          <section className="w-full px-4 sm:px-6 md:px-8 lg:px-10 xl:px-12 2xl:px-14">
-            <GenreFilter
-              genres={genreList}
-              title={siteConfig.tvSections?.browseGenres || 'Browse Series by Genre'}
-              type="tv"
-              allHref="/tv"
-            />
-          </section>
-        )}
-
+      <div className="relative z-10 space-y-6 sm:space-y-8 md:space-y-10 pb-6 sm:pb-8 pt-2 sm:pt-4">
         {/* Dynamic TV Sections ordered by weight */}
         {sections.map((section) => (
           <MovieRow

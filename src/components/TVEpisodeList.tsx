@@ -46,7 +46,7 @@ function EpisodeRowItem({
   return (
     <Link
       href={ep.urlPath}
-      className="group relative rounded-2xl p-2.5 sm:p-3.5 border transition-all duration-200 hover:scale-[1.01] hover:border-cyan-500/40 flex items-center gap-2.5 sm:gap-4 w-full"
+      className="group/episode relative rounded-2xl p-2.5 sm:p-3.5 border transition-all duration-200 hover:scale-[1.01] hover:border-cyan-500/40 flex items-center gap-2.5 sm:gap-4 w-full"
       style={{
         background: 'rgba(255, 255, 255, 0.03)',
         borderColor: 'rgba(255, 255, 255, 0.07)',
@@ -54,7 +54,7 @@ function EpisodeRowItem({
       }}
     >
       {/* 1. Episode Index Number */}
-      <span className="text-xs sm:text-sm font-black min-w-[18px] sm:min-w-[24px] text-center text-slate-500 group-hover:text-cyan-400 transition-colors flex-shrink-0">
+      <span className="text-xs sm:text-sm font-black min-w-[18px] sm:min-w-[24px] text-center text-slate-500 group-hover/episode:text-cyan-400 transition-colors flex-shrink-0">
         {String(ep.episodeNumber).padStart(2, '0')}
       </span>
 
@@ -70,7 +70,7 @@ function EpisodeRowItem({
             src={imgSrc}
             alt={ep.title}
             fill
-            className="object-cover group-hover:scale-105 transition-transform duration-300"
+            className="object-cover group-hover/episode:scale-105 transition-transform duration-300"
             sizes="(max-width: 640px) 96px, (max-width: 1024px) 128px, 144px"
             onError={() => {
               if (defaultBackdrop && imgSrc !== defaultBackdrop && (defaultBackdrop.startsWith('http') || defaultBackdrop.startsWith('/'))) {
@@ -116,7 +116,7 @@ function EpisodeRowItem({
         </div>
 
         {/* Episode Title */}
-        <h3 className="text-xs sm:text-sm font-bold text-white group-hover:text-cyan-300 transition-colors line-clamp-1 sm:line-clamp-2 leading-snug">
+        <h3 className="text-xs sm:text-sm font-bold text-white group-hover/episode:text-cyan-300 transition-colors line-clamp-1 sm:line-clamp-2 leading-snug">
           {ep.title}
         </h3>
 
@@ -131,7 +131,7 @@ function EpisodeRowItem({
       {/* 4. Watch / Nonton Button (Flex-shrink-0, perfectly centered) */}
       <div className="flex items-center justify-end flex-shrink-0 pl-1">
         <span
-          className="inline-flex items-center gap-1 sm:gap-1.5 px-2.5 sm:px-3.5 py-1.5 sm:py-2 rounded-xl text-xs font-bold text-white transition-all duration-200 group-hover:scale-105 shadow-md"
+          className="inline-flex items-center gap-1 sm:gap-1.5 px-2.5 sm:px-3.5 py-1.5 sm:py-2 rounded-xl text-xs font-bold text-white transition-all duration-200 group-hover/episode:scale-105 shadow-md"
           style={{
             background: 'linear-gradient(135deg, #06b6d4, #7c3aed)',
             boxShadow: '0 0 12px rgba(6, 182, 212, 0.25)',

@@ -81,9 +81,9 @@ function WatchlistCardItem({
   const year = item.releaseDate ? String(item.releaseDate).slice(0, 4) : '2026';
 
   return (
-    <div className="group block w-full select-none">
+    <div className="group/card block w-full select-none">
       {/* ── Poster Wrapper (Exact styling matching MovieCard) ── */}
-      <div className="relative aspect-[2/3] w-full rounded-xl sm:rounded-2xl overflow-hidden bg-[#0c1224] border border-white/10 shadow-md group-hover:shadow-xl transition-all duration-300 transform group-hover:-translate-y-1.5">
+      <div className="relative aspect-[2/3] w-full rounded-xl sm:rounded-2xl overflow-hidden bg-[#0c1224] border border-white/10 shadow-md group-hover/card:shadow-xl transition-all duration-300 transform group-hover/card:-translate-y-1.5">
         <Link href={targetUrl} className="block w-full h-full relative">
           <div className="absolute inset-0 bg-white/[0.04]" />
 
@@ -93,7 +93,7 @@ function WatchlistCardItem({
               alt={item.title}
               loading="lazy"
               decoding="async"
-              className="absolute inset-0 w-full h-full object-cover transition-transform duration-300 ease-out group-hover:scale-105"
+              className="absolute inset-0 w-full h-full object-cover transition-transform duration-300 ease-out group-hover/card:scale-105"
               onError={() => setImgError(true)}
             />
           ) : (
@@ -104,29 +104,29 @@ function WatchlistCardItem({
           )}
 
           {/* ── IMDb-Style Yellow Rating Badge (Top-Right) ── */}
-          <div className="absolute top-2 right-2 z-10 flex items-center gap-1 px-1.5 py-0.5 sm:px-2 sm:py-0.5 rounded-md bg-[#f5c518] text-black font-black text-[10px] sm:text-[11.5px] shadow-lg shadow-black/50 tracking-tight">
-            <Star size={11} fill="currentColor" stroke="none" className="text-black" />
+          <div className="absolute top-1.5 right-1.5 sm:top-2 sm:right-2 z-10 flex items-center gap-1 px-1.5 py-0.5 sm:px-2 sm:py-0.5 rounded-md bg-[#f5c518] text-black font-black text-[9px] xs:text-[9.5px] sm:text-[11.5px] shadow-lg shadow-black/50 tracking-tight">
+            <Star size={10} fill="currentColor" stroke="none" className="text-black sm:w-[11px] sm:h-[11px]" />
             <span>{typeof rating === 'number' && rating > 0 ? rating.toFixed(1) : 'NR'}</span>
           </div>
 
           {/* ── Media Type Badge (Top-Left: Series / Movie) ── */}
-          <div className="absolute top-2 left-2 z-10 flex items-center gap-1 px-1.5 py-0.5 rounded-md bg-black/75 backdrop-blur-md border border-white/15 text-slate-200 font-bold text-[9px] sm:text-[10px] uppercase tracking-wider shadow-md">
+          <div className="absolute top-1.5 left-1.5 sm:top-2 sm:left-2 z-10 flex items-center gap-1 px-1.5 py-0.5 rounded-md bg-black/75 backdrop-blur-md border border-white/15 text-slate-200 font-bold text-[8.5px] xs:text-[9px] sm:text-[10px] uppercase tracking-wider shadow-md">
             {item.type === 'tv' ? (
               <>
-                <Tv size={10} className="text-cyan-400" />
+                <Tv size={9} className="text-cyan-400 sm:w-[10px] sm:h-[10px]" />
                 <span>Series</span>
               </>
             ) : (
               <>
-                <Film size={10} className="text-cyan-400" />
+                <Film size={9} className="text-cyan-400 sm:w-[10px] sm:h-[10px]" />
                 <span>Movie</span>
               </>
             )}
           </div>
 
           {/* Hover Play Overlay */}
-          <div className="absolute inset-0 bg-slate-950/50 opacity-0 group-hover:opacity-100 transition-opacity duration-300 flex items-center justify-center pointer-events-none">
-            <div className="w-10 h-10 rounded-full bg-cyan-500 text-slate-950 flex items-center justify-center shadow-[0_0_15px_rgba(6,182,212,0.8)] transform scale-75 group-hover:scale-100 transition-transform duration-300">
+          <div className="absolute inset-0 bg-slate-950/50 opacity-0 group-hover/card:opacity-100 transition-opacity duration-300 flex items-center justify-center pointer-events-none">
+            <div className="w-10 h-10 rounded-full bg-cyan-500 text-slate-950 flex items-center justify-center shadow-[0_0_15px_rgba(6,182,212,0.8)] transform scale-75 group-hover/card:scale-100 transition-transform duration-300">
               <Play size={16} className="fill-current ml-0.5" />
             </div>
           </div>
@@ -134,12 +134,12 @@ function WatchlistCardItem({
       </div>
 
       {/* ── Info Outside Below Poster (Matching MovieCard) ── */}
-      <div className="pt-2 sm:pt-2.5 px-0.5 space-y-1">
+      <div className="pt-1.5 sm:pt-2.5 px-0.5 space-y-0.5 sm:space-y-1">
         <div className="flex items-start justify-between gap-1.5">
           <Link href={targetUrl} className="flex-1 min-w-0 block">
             <h3
               title={item.title}
-              className="font-bold text-white text-xs sm:text-[13.5px] leading-snug line-clamp-2 group-hover:text-cyan-400 transition-colors"
+              className="font-bold text-white text-xs sm:text-[13.5px] leading-snug line-clamp-2 group-hover/card:text-cyan-400 transition-colors"
             >
               {item.title}
             </h3>

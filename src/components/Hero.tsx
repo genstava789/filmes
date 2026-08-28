@@ -170,7 +170,7 @@ export default function Hero({
 
   return (
     <section
-      className="relative w-full max-w-full overflow-hidden select-none touch-pan-y aspect-[16/10] xs:aspect-[16/9] sm:aspect-auto sm:h-[460px] md:h-[540px] lg:h-[620px] xl:h-[680px] 2xl:h-[740px]"
+      className="relative w-full max-w-full overflow-hidden select-none touch-pan-y h-[480px] xs:h-[520px] sm:h-[560px] md:h-[620px] lg:h-[700px] xl:h-[760px] 2xl:h-[820px]"
       style={{ overscrollBehaviorX: 'none' }}
       onMouseEnter={() => setIsHovered(true)}
       onMouseLeave={() => setIsHovered(false)}
@@ -197,7 +197,7 @@ export default function Hero({
                   fill
                   priority={idx === 0}
                   quality={95}
-                  className="object-cover object-center"
+                  className="object-cover object-top sm:object-center"
                   sizes="100vw"
                 />
               </div>
@@ -211,32 +211,32 @@ export default function Hero({
         className="absolute inset-0 z-10 pointer-events-none"
         style={{
           background:
-            'linear-gradient(to top, rgba(5,8,22,1) 0%, rgba(5,8,22,0.85) 18%, rgba(5,8,22,0.45) 45%, rgba(5,8,22,0.05) 75%, transparent 100%)',
+            'linear-gradient(to top, rgba(5,8,22,1) 0%, rgba(5,8,22,0.92) 20%, rgba(5,8,22,0.5) 45%, rgba(5,8,22,0.05) 75%, transparent 100%)',
         }}
       />
       <div
         className="absolute inset-0 z-10 pointer-events-none hidden sm:block"
         style={{
           background:
-            'linear-gradient(to right, rgba(5,8,22,0.98) 0%, rgba(5,8,22,0.75) 30%, rgba(5,8,22,0.3) 60%, transparent 100%)',
+            'linear-gradient(to right, rgba(5,8,22,0.95) 0%, rgba(5,8,22,0.7) 35%, rgba(5,8,22,0.2) 65%, transparent 100%)',
         }}
       />
       <div
         className="absolute inset-0 z-10 pointer-events-none"
         style={{
           background:
-            'linear-gradient(to bottom, rgba(5,8,22,0.5) 0%, transparent 25%)',
+            'linear-gradient(to bottom, rgba(5,8,22,0.55) 0%, transparent 28%)',
         }}
       />
 
       {/* ── Hero Content (Fluid Edge-to-Edge Desktop Alignment) ── */}
-      <div className="relative z-20 h-full flex items-end pb-4 xs:pb-6 sm:pb-12 md:pb-16 lg:pb-20">
-        <div className="w-full px-4 sm:px-6 md:px-8 lg:px-10 xl:px-12 2xl:px-14">
+      <div className="relative z-20 h-full flex items-end pb-5 xs:pb-7 sm:pb-12 md:pb-16 lg:pb-20">
+        <div className="w-full px-3.5 sm:px-6 md:px-8 lg:px-10 xl:px-12 2xl:px-14">
           <div className="max-w-xl md:max-w-2xl lg:max-w-3xl">
 
             {/* Title (Scaled responsively for small mobile screen) */}
             <h1
-              className="text-xl xs:text-2xl sm:text-3xl md:text-5xl lg:text-6xl font-black leading-tight mb-2 sm:mb-3 text-white tracking-tight line-clamp-2"
+              className="text-2xl xs:text-3xl sm:text-4xl md:text-5xl lg:text-6xl font-black leading-tight mb-2 sm:mb-3 text-white tracking-tight line-clamp-2"
               style={{
                 textShadow: '0 2px 24px rgba(0,0,0,0.9)',
               }}
@@ -244,8 +244,8 @@ export default function Hero({
               {currentItem.title}
             </h1>
 
-            {/* Meta row with Designed Badges: Featured badge placed side-by-side with HD badge */}
-            <div className="flex flex-wrap items-center gap-1.5 xs:gap-2 sm:gap-3 mb-3 sm:mb-5 text-xs sm:text-sm">
+            {/* Meta row with Designed Badges (Genre badges removed to showcase cover artwork) */}
+            <div className="flex flex-wrap items-center gap-1.5 xs:gap-2 sm:gap-3 mb-3 sm:mb-4 text-xs sm:text-sm">
               {/* Featured Badge */}
               <span
                 className="inline-flex items-center gap-1 px-2.5 py-1 sm:px-3 sm:py-1 rounded-lg text-[10px] sm:text-xs font-extrabold uppercase tracking-wider"
@@ -300,30 +300,11 @@ export default function Hero({
                   <span>{currentItem.year}</span>
                 </div>
               )}
-
-              {/* Genres */}
-              {currentItem.genres && currentItem.genres.length > 0 && (
-                <div className="hidden sm:flex items-center gap-1.5">
-                  {currentItem.genres.slice(0, 3).map((g) => (
-                    <span
-                      key={g}
-                      className="px-2.5 py-0.5 rounded-full text-[11px] font-medium"
-                      style={{
-                        background: 'rgba(124,58,237,0.15)',
-                        border: '1px solid rgba(124,58,237,0.35)',
-                        color: '#a78bfa',
-                      }}
-                    >
-                      {g}
-                    </span>
-                  ))}
-                </div>
-              )}
             </div>
 
             {/* Overview / Deskripsi */}
             {currentItem.overview && (
-              <p className="text-xs sm:text-sm leading-relaxed text-slate-300 mb-3 sm:mb-5 line-clamp-2 sm:line-clamp-3 md:line-clamp-4 max-w-xl">
+              <p className="text-xs sm:text-sm leading-relaxed text-slate-300 mb-3.5 sm:mb-5 line-clamp-2 sm:line-clamp-3 md:line-clamp-4 max-w-xl">
                 {currentItem.overview}
               </p>
             )}
@@ -332,7 +313,7 @@ export default function Hero({
             <div className="flex items-center gap-2.5 sm:gap-3">
               <Link
                 href={currentItem.link || '/'}
-                className="inline-flex items-center gap-2.5 px-5 py-2 xs:px-6 xs:py-2.5 sm:px-8 sm:py-3.5 rounded-xl font-bold text-xs sm:text-sm transition-all duration-300 hover:scale-105 active:scale-95 shadow-lg"
+                className="inline-flex items-center gap-2.5 px-5 py-2.5 xs:px-6 xs:py-3 sm:px-8 sm:py-3.5 rounded-xl font-bold text-xs sm:text-sm transition-all duration-300 hover:scale-105 active:scale-95 shadow-lg"
                 style={{
                   background: btnBg,
                   color: 'white',
@@ -384,7 +365,7 @@ export default function Hero({
           </button>
 
           {/* Minimalist & Sleek Indicator Dots */}
-          <div className="absolute right-4 sm:right-6 md:right-8 lg:right-10 xl:right-12 2xl:right-14 bottom-4 sm:bottom-6 z-30 flex items-center gap-1.5">
+          <div className="absolute right-3.5 sm:right-6 md:right-8 lg:right-10 xl:right-12 2xl:right-14 bottom-5 xs:bottom-7 sm:bottom-6 z-30 flex items-center gap-1.5">
             {items.map((_, idx) => {
               const isCurrent = idx === currentIndex;
               return (

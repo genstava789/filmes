@@ -39,10 +39,10 @@ export default function MovieCard({ item, type, priority = false }: MovieCardPro
   return (
     <Link
       href={href}
-      className="group block w-full select-none"
+      className="group/card block w-full select-none"
     >
       {/* ── Poster Wrapper ── */}
-      <div className="relative aspect-[2/3] w-full rounded-xl sm:rounded-2xl overflow-hidden bg-[#0c1224] border border-white/10 shadow-md group-hover:shadow-xl transition-all duration-300 transform group-hover:-translate-y-1.5">
+      <div className="relative aspect-[2/3] w-full rounded-xl sm:rounded-2xl overflow-hidden bg-[#0c1224] border border-white/10 shadow-md group-hover/card:shadow-xl transition-all duration-300 transform group-hover/card:-translate-y-1.5">
         {/* Background placeholder */}
         <div className="absolute inset-0 bg-white/[0.04]" />
 
@@ -54,7 +54,7 @@ export default function MovieCard({ item, type, priority = false }: MovieCardPro
             alt={title || 'Movie Poster'}
             loading={priority ? 'eager' : 'lazy'}
             decoding="async"
-            className="absolute inset-0 w-full h-full object-cover transition-transform duration-300 ease-out group-hover:scale-105"
+            className="absolute inset-0 w-full h-full object-cover transition-transform duration-300 ease-out group-hover/card:scale-105"
             onError={() => setImgError(true)}
           />
         ) : (
@@ -65,21 +65,21 @@ export default function MovieCard({ item, type, priority = false }: MovieCardPro
         )}
 
         {/* ── IMDb-Style Yellow Rating Badge (Top-Right) ── */}
-        <div className="absolute top-2 right-2 z-10 flex items-center gap-1 px-1.5 py-0.5 sm:px-2 sm:py-0.5 rounded-md bg-[#f5c518] text-black font-black text-[10px] sm:text-[11.5px] shadow-lg shadow-black/50 tracking-tight">
-          <Star size={11} fill="currentColor" stroke="none" className="text-black" />
+        <div className="absolute top-1.5 right-1.5 sm:top-2 sm:right-2 z-10 flex items-center gap-1 px-1.5 py-0.5 sm:px-2 sm:py-0.5 rounded-md bg-[#f5c518] text-black font-black text-[9px] xs:text-[9.5px] sm:text-[11.5px] shadow-lg shadow-black/50 tracking-tight">
+          <Star size={10} fill="currentColor" stroke="none" className="text-black sm:w-[11px] sm:h-[11px]" />
           <span>{rating > 0 ? rating.toFixed(1) : 'NR'}</span>
         </div>
 
         {/* ── Media Type Badge (Top-Left: Series / Movie) ── */}
-        <div className="absolute top-2 left-2 z-10 flex items-center gap-1 px-1.5 py-0.5 rounded-md bg-black/75 backdrop-blur-md border border-white/15 text-slate-200 font-bold text-[9px] sm:text-[10px] uppercase tracking-wider shadow-md">
+        <div className="absolute top-1.5 left-1.5 sm:top-2 sm:left-2 z-10 flex items-center gap-1 px-1.5 py-0.5 rounded-md bg-black/75 backdrop-blur-md border border-white/15 text-slate-200 font-bold text-[8.5px] xs:text-[9px] sm:text-[10px] uppercase tracking-wider shadow-md">
           {resolvedType === 'tv' ? (
             <>
-              <Tv size={10} className="text-cyan-400" />
+              <Tv size={9} className="text-cyan-400 sm:w-[10px] sm:h-[10px]" />
               <span>Series</span>
             </>
           ) : (
             <>
-              <Film size={10} className="text-cyan-400" />
+              <Film size={9} className="text-cyan-400 sm:w-[10px] sm:h-[10px]" />
               <span>Movie</span>
             </>
           )}
@@ -87,14 +87,14 @@ export default function MovieCard({ item, type, priority = false }: MovieCardPro
       </div>
 
       {/* ── Info Outside Below Poster ── */}
-      <div className="pt-2 sm:pt-2.5 px-0.5 space-y-1">
+      <div className="pt-1.5 sm:pt-2.5 px-0.5 space-y-0.5 sm:space-y-1">
         <h3
           title={title}
-          className="font-bold text-white text-xs sm:text-[13.5px] leading-snug line-clamp-2 group-hover:text-cyan-400 transition-colors"
+          className="font-bold text-white text-xs sm:text-[13.5px] leading-snug line-clamp-2 group-hover/card:text-cyan-400 transition-colors"
         >
           {title}
         </h3>
-        <div className="flex items-center text-[11px] sm:text-xs text-slate-400 font-medium">
+        <div className="flex items-center text-[10.5px] sm:text-xs text-slate-400 font-medium">
           <span>{year || '2025'}</span>
         </div>
       </div>

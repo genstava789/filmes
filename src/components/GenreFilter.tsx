@@ -104,7 +104,7 @@ export default function GenreFilter({
     <div className="relative group/genres w-full max-w-full overflow-hidden">
       {/* Header with Title & Desktop Navigation Arrows (if not hidden) */}
       {!hideTitle && (
-        <div className="flex items-center justify-between mb-3.5">
+        <div className="flex items-center justify-between mb-2.5 sm:mb-3.5">
           <h2 className="text-lg sm:text-xl md:text-2xl font-bold text-white tracking-tight">
             {title || (isTV ? (siteConfig.tvSections?.browseGenres || 'Browse Series by Genre') : (siteConfig.homepageSections?.browseGenres || 'Browse by Genre'))}
           </h2>
@@ -154,14 +154,14 @@ export default function GenreFilter({
         <div
           ref={scrollRef}
           style={{ overscrollBehaviorX: 'contain' }}
-          className="flex items-center gap-2 overflow-x-auto hide-scrollbar scroll-smooth py-1"
+          className="flex items-center gap-1.5 sm:gap-2 overflow-x-auto hide-scrollbar scroll-smooth py-1"
         >
           {/* "All" button */}
           <Link
             href={getAllHref()}
             prefetch={true}
             onClick={handleAllClick}
-            className={`flex-shrink-0 px-4 py-2 rounded-xl text-xs sm:text-sm font-semibold transition-colors duration-150 select-none ${
+            className={`flex-shrink-0 px-3.5 py-1.5 sm:px-4 sm:py-2 rounded-xl text-xs sm:text-sm font-semibold transition-colors duration-150 select-none ${
               !optimisticActiveId
                 ? isTV
                   ? 'text-white shadow-md shadow-pink-500/20'
@@ -184,7 +184,7 @@ export default function GenreFilter({
                 href={getGenreHref(genre.id)}
                 prefetch={true}
                 onClick={(e) => handleGenreClick(e, genre.id)}
-                className={`flex-shrink-0 px-4 py-2 rounded-xl text-xs sm:text-sm font-medium transition-colors duration-150 select-none ${
+                className={`flex-shrink-0 px-3.5 py-1.5 sm:px-4 sm:py-2 rounded-xl text-xs sm:text-sm font-medium transition-colors duration-150 select-none ${
                   isActive
                     ? isTV
                       ? 'text-white font-semibold shadow-md shadow-pink-500/20'

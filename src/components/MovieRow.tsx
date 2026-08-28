@@ -57,8 +57,8 @@ export default function MovieRow({
   return (
     <section className="relative w-full max-w-full overflow-hidden">
       {/* Header with section-title style (vertical gradient accent on the left) */}
-      <div className={`flex items-center justify-between mb-4 ${noPadding ? 'px-0' : 'px-4 sm:px-6 md:px-8 lg:px-10 xl:px-12 2xl:px-14'}`}>
-        <h2 className="section-title text-xl sm:text-2xl font-bold text-neo-text-primary">
+      <div className={`flex items-center justify-between mb-2.5 sm:mb-4 ${noPadding ? 'px-0' : 'px-3 sm:px-6 md:px-8 lg:px-10 xl:px-12 2xl:px-14'}`}>
+        <h2 className="section-title text-lg sm:text-xl md:text-2xl font-bold text-neo-text-primary">
           {title}
         </h2>
         {seeAllHref && (
@@ -73,8 +73,8 @@ export default function MovieRow({
         )}
       </div>
 
-      {/* Scroll container */}
-      <div className="relative group w-full max-w-full">
+      {/* Scroll container with isolated row group */}
+      <div className="relative group/row w-full max-w-full">
         {/* Left arrow */}
         {canScrollLeft && (
           <button
@@ -82,7 +82,7 @@ export default function MovieRow({
             className={`absolute left-2 sm:left-4 md:left-6 top-1/2 -translate-y-1/2 z-20 w-10 h-10 rounded-xl flex items-center justify-center transition-all duration-300 hover:scale-110 shadow-lg cursor-pointer ${
               isScrolling
                 ? 'opacity-100 pointer-events-auto'
-                : 'opacity-0 group-hover:opacity-100 pointer-events-none group-hover:pointer-events-auto'
+                : 'opacity-0 group-hover/row:opacity-100 pointer-events-none group-hover/row:pointer-events-auto'
             }`}
             style={{
               background: 'rgba(11, 16, 32, 0.9)',
@@ -103,7 +103,7 @@ export default function MovieRow({
             className={`absolute right-2 sm:right-4 md:right-6 top-1/2 -translate-y-1/2 z-20 w-10 h-10 rounded-xl flex items-center justify-center transition-all duration-300 hover:scale-110 shadow-lg cursor-pointer ${
               isScrolling
                 ? 'opacity-100 pointer-events-auto'
-                : 'opacity-0 group-hover:opacity-100 pointer-events-none group-hover:pointer-events-auto'
+                : 'opacity-0 group-hover/row:opacity-100 pointer-events-none group-hover/row:pointer-events-auto'
             }`}
             style={{
               background: 'rgba(11, 16, 32, 0.9)',
@@ -120,7 +120,7 @@ export default function MovieRow({
         {/* Left fade */}
         {canScrollLeft && (
           <div
-            className="absolute left-0 top-0 bottom-0 w-12 sm:w-16 md:w-20 z-[5] pointer-events-none"
+            className="absolute left-0 top-0 bottom-0 w-10 sm:w-16 md:w-20 z-[5] pointer-events-none"
             style={{
               background: 'linear-gradient(to right, #050816, transparent)',
             }}
@@ -130,7 +130,7 @@ export default function MovieRow({
         {/* Right fade */}
         {canScrollRight && (
           <div
-            className="absolute right-0 top-0 bottom-0 w-12 sm:w-16 md:w-20 z-[5] pointer-events-none"
+            className="absolute right-0 top-0 bottom-0 w-10 sm:w-16 md:w-20 z-[5] pointer-events-none"
             style={{
               background: 'linear-gradient(to left, #050816, transparent)',
             }}
@@ -143,10 +143,10 @@ export default function MovieRow({
           onTouchStart={triggerScrollState}
           onTouchMove={handleScroll}
           style={{ overscrollBehaviorX: 'contain' }}
-          className={`flex gap-3 sm:gap-4 md:gap-5 overflow-x-auto hide-scrollbar ${noPadding ? 'px-0' : 'px-4 sm:px-6 md:px-8 lg:px-10 xl:px-12 2xl:px-14'} pb-3`}
+          className={`flex gap-2.5 sm:gap-4 md:gap-5 overflow-x-auto hide-scrollbar ${noPadding ? 'px-0' : 'px-3 sm:px-6 md:px-8 lg:px-10 xl:px-12 2xl:px-14'} pb-2.5 sm:pb-3`}
         >
           {items.map((item) => (
-            <div key={item.id} className="flex-shrink-0 w-[160px] xs:w-[178px] sm:w-[195px] md:w-[215px] lg:w-[230px] xl:w-[245px]">
+            <div key={item.id} className="flex-shrink-0 w-[135px] xs:w-[155px] sm:w-[185px] md:w-[205px] lg:w-[225px] xl:w-[240px]">
               <MovieCard item={item} type={type} />
             </div>
           ))}
