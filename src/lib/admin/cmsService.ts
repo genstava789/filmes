@@ -36,6 +36,7 @@ import {
   deleteMongoEpisode,
   syncMongoDBToGitHub,
 } from '@/lib/mongodb/service';
+import { STATIC_MOVIE_FILES, STATIC_TV_FILES } from '@/lib/staticContentRegistry';
 
 const VIDEO_DIR = path.join(process.cwd(), 'video');
 const TV_DIR = path.join(process.cwd(), 'tv');
@@ -172,6 +173,29 @@ export async function fetchPaginatedAdminContent(
             }).filter(Boolean) as any[];
           }
 
+          // Fallback to static registry for Cloudflare Workers / Edge where local filesystem is unavailable
+          if (diskMovies.length === 0 && typeof STATIC_MOVIE_FILES === 'object') {
+            const seenSlugs = new Set<string>();
+            for (const [key, raw] of Object.entries(STATIC_MOVIE_FILES)) {
+              const normKey = key.replace(/\\/g, '/');
+              const file = path.basename(normKey);
+              const slug = file.replace(/\.(md|markdown)$/i, '');
+              if (seenSlugs.has(slug)) continue;
+              seenSlugs.add(slug);
+              try {
+                const { data, content } = matter(raw);
+                diskMovies.push({
+                  filename: file,
+                  slug,
+                  relativePath: `video/${file}`,
+                  frontmatter: data || {},
+                  content: content || '',
+                  updatedAt: Date.now(),
+                });
+              } catch {}
+            }
+          }
+
           if (fs.existsSync(TV_DIR)) {
             const dirs = fs.readdirSync(TV_DIR, { withFileTypes: true }).filter((d) => d.isDirectory());
             for (const d of dirs) {
@@ -228,6 +252,57 @@ export async function fetchPaginatedAdminContent(
                 episodes,
               });
             }
+          }
+
+          // Fallback to static registry for Cloudflare Workers / Edge
+          if (diskTV.length === 0 && typeof STATIC_TV_FILES === 'object') {
+            const showsMap = new Map<string, any>();
+            for (const [key, raw] of Object.entries(STATIC_TV_FILES)) {
+              const normKey = key.replace(/\\/g, '/');
+              const parts = normKey.split('/');
+              if (parts[0] !== 'tv' || parts.length < 2) continue;
+              const showSlug = parts[1];
+              if (!showsMap.has(showSlug)) {
+                showsMap.set(showSlug, {
+                  showSlug,
+                  relativePath: `tv/${showSlug}/_index.md`,
+                  indexFrontmatter: {},
+                  indexContent: '',
+                  updatedAt: Date.now(),
+                  episodes: [],
+                });
+              }
+              const show = showsMap.get(showSlug);
+              const lastPart = parts[parts.length - 1];
+              if (lastPart === '_index.md' || lastPart === 'index.md') {
+                try {
+                  const { data, content } = matter(raw);
+                  show.indexFrontmatter = data || {};
+                  show.indexContent = content || '';
+                } catch {}
+              } else if (/\.(md|markdown)$/i.test(lastPart)) {
+                try {
+                  const { data, content } = matter(raw);
+                  const seasonFolder = parts.length > 3 ? parts[2] : 's1';
+                  const epSlug = lastPart.replace(/\.(md|markdown)$/i, '');
+                  if (!show.episodes.some((e: any) => e.slug === epSlug && e.seasonFolder === seasonFolder)) {
+                    show.episodes.push({
+                      showSlug,
+                      seasonFolder,
+                      filename: lastPart,
+                      slug: epSlug,
+                      relativePath: `tv/${showSlug}/${seasonFolder}/${lastPart}`,
+                      frontmatter: data || {},
+                      content: content || '',
+                      displayTitle: data?.title || epSlug,
+                      posterUrl: data?.image_url ? getImageUrl(data.image_url, 'w500') : null,
+                      updatedAt: Date.now(),
+                    });
+                  }
+                } catch {}
+              }
+            }
+            diskTV = Array.from(showsMap.values());
           }
           return { movies: diskMovies, tvShows: diskTV };
         },
@@ -697,6 +772,77 @@ export async function fetchAllAdminContent(ghConfig: GitHubOptions) {
       updatedAt,
       episodes,
     });
+  }
+
+  // Fallback to static registry for Cloudflare Workers / Edge
+  if (localMoviesMap.size === 0 && typeof STATIC_MOVIE_FILES === 'object') {
+    for (const [key, raw] of Object.entries(STATIC_MOVIE_FILES)) {
+      const normKey = key.replace(/\\/g, '/');
+      const file = path.basename(normKey);
+      const slug = file.replace(/\.(md|markdown)$/i, '');
+      const rel = `video/${file}`;
+      if (!localMoviesMap.has(rel)) {
+        try {
+          const { data, content } = matter(raw);
+          localMoviesMap.set(rel, {
+            filename: file,
+            slug,
+            relativePath: rel,
+            frontmatter: data || {},
+            content: content || '',
+            updatedAt: Date.now(),
+          });
+        } catch {}
+      }
+    }
+  }
+
+  if (localTvShowsMap.size === 0 && typeof STATIC_TV_FILES === 'object') {
+    for (const [key, raw] of Object.entries(STATIC_TV_FILES)) {
+      const normKey = key.replace(/\\/g, '/');
+      const parts = normKey.split('/');
+      if (parts[0] !== 'tv' || parts.length < 2) continue;
+      const showSlug = parts[1];
+      if (!localTvShowsMap.has(showSlug)) {
+        localTvShowsMap.set(showSlug, {
+          showSlug,
+          relativePath: `tv/${showSlug}/_index.md`,
+          indexFrontmatter: {},
+          indexContent: '',
+          updatedAt: Date.now(),
+          episodes: [],
+        });
+      }
+      const show = localTvShowsMap.get(showSlug);
+      const lastPart = parts[parts.length - 1];
+      if (lastPart === '_index.md' || lastPart === 'index.md') {
+        try {
+          const { data, content } = matter(raw);
+          show.indexFrontmatter = data || {};
+          show.indexContent = content || '';
+        } catch {}
+      } else if (/\.(md|markdown)$/i.test(lastPart)) {
+        try {
+          const { data, content } = matter(raw);
+          const seasonFolder = parts.length > 3 ? parts[2] : 's1';
+          const epSlug = lastPart.replace(/\.(md|markdown)$/i, '');
+          if (!show.episodes.some((e: any) => e.slug === epSlug && e.seasonFolder === seasonFolder)) {
+            show.episodes.push({
+              showSlug,
+              seasonFolder,
+              filename: lastPart,
+              slug: epSlug,
+              relativePath: `tv/${showSlug}/${seasonFolder}/${lastPart}`,
+              frontmatter: data || {},
+              content: content || '',
+              displayTitle: data?.title || epSlug,
+              posterUrl: data?.image_url ? getImageUrl(data.image_url, 'w500') : null,
+              updatedAt: Date.now(),
+            });
+          }
+        } catch {}
+      }
+    }
   }
 
   const rawMovies = Array.from(localMoviesMap.values());
