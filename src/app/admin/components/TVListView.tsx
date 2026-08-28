@@ -278,12 +278,12 @@ export const TVListView: React.FC<TVListViewProps> = ({
                       </span>
                       {weight !== undefined && weight !== null && (
                         <span className="px-1.5 py-0.2 rounded text-[9.5px] font-bold bg-purple-500/20 text-purple-300 border border-purple-500/30" title="Prioritas Weight">
-                          🎯 W: {weight}
+                          W: {weight}
                         </span>
                       )}
                       {Boolean(show.frontmatter.trending) && (
-                        <span className="px-1.5 py-0.2 rounded text-[9.5px] font-bold bg-rose-500/20 text-rose-300 border border-rose-500/30 flex items-center gap-0.5">
-                          🔥 Trending
+                        <span className="px-1.5 py-0.2 rounded text-[9.5px] font-bold bg-rose-500/20 text-rose-300 border border-rose-500/30">
+                          Trending
                         </span>
                       )}
                       {Boolean(show.frontmatter.featured) && (
