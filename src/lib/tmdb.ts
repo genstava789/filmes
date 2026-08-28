@@ -54,7 +54,12 @@ export function getImageUrl(path: string | null | undefined, size: ImageSize = '
 
   const trimmed = path.trim();
 
-  // If already a full URL (http or https), return as is
+  // If already a TMDB full URL, update it to the requested resolution size
+  if (trimmed.includes('image.tmdb.org/t/p/')) {
+    return trimmed.replace(/\/t\/p\/[^\/]+/, `/t/p/${size}`);
+  }
+
+  // If already another full URL (http or https), return as is
   if (trimmed.startsWith('http://') || trimmed.startsWith('https://')) {
     return trimmed;
   }
@@ -73,7 +78,7 @@ export function getImageUrl(path: string | null | undefined, size: ImageSize = '
 
   // If path already starts with /t/p/ (TMDB partial path)
   if (trimmed.startsWith('/t/p/')) {
-    return `https://image.tmdb.org${trimmed}`;
+    return `https://image.tmdb.org${trimmed.replace(/\/t\/p\/[^\/]+/, `/t/p/${size}`)}`;
   }
 
   const cleanPath = trimmed.startsWith('/') ? trimmed : `/${trimmed}`;

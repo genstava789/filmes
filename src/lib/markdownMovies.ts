@@ -625,7 +625,7 @@ export async function getAllFeaturedCustomMovies(): Promise<FeaturedItem[]> {
             let rating = m.rating || 0;
             let genres: string[] = [];
             let posterUrl = m.image_url ? getImageUrl(m.image_url, 'w500') : '/placeholder-poster.svg';
-            let backdropUrl = m.image_url ? getImageUrl(m.image_url, 'w1280') : '/placeholder-poster.svg';
+            let backdropUrl = m.image_url ? getImageUrl(m.image_url, 'original') : '/placeholder-poster.svg';
 
             if (m.tmdb_id) {
               try {
@@ -637,11 +637,13 @@ export async function getAllFeaturedCustomMovies(): Promise<FeaturedItem[]> {
                   600_000
                 );
                 if (tmdb) {
-                  if (posterUrl === '/placeholder-poster.svg' && tmdb.poster_path) {
-                    posterUrl = getImageUrl(tmdb.poster_path, 'w500');
+                  if (tmdb.backdrop_path) {
+                    backdropUrl = getImageUrl(tmdb.backdrop_path, 'original');
+                  } else if (backdropUrl === '/placeholder-poster.svg' && tmdb.poster_path) {
+                    backdropUrl = getImageUrl(tmdb.poster_path, 'original');
                   }
-                  if (backdropUrl === '/placeholder-poster.svg' && tmdb.backdrop_path) {
-                    backdropUrl = getImageUrl(tmdb.backdrop_path, 'w1280');
+                  if (tmdb.poster_path) {
+                    posterUrl = getImageUrl(tmdb.poster_path, 'w500');
                   }
                   if (!overview && tmdb.overview) overview = tmdb.overview;
                   if (!rating && tmdb.vote_average) rating = Math.round(tmdb.vote_average * 10) / 10;
