@@ -146,7 +146,7 @@ export default function MovieRow({
           className={`flex gap-2.5 sm:gap-4 md:gap-5 overflow-x-auto hide-scrollbar ${noPadding ? 'px-0' : 'px-3 sm:px-6 md:px-8 lg:px-10 xl:px-12 2xl:px-14'} pb-2.5 sm:pb-3`}
         >
           {items.map((item) => (
-            <div key={item.id} className="flex-shrink-0 w-[135px] xs:w-[155px] sm:w-[185px] md:w-[205px] lg:w-[225px] xl:w-[240px]">
+            <div key={item.id} className="flex-shrink-0 w-[160px] xs:w-[178px] sm:w-[195px] md:w-[215px] lg:w-[230px] xl:w-[245px]">
               <MovieCard item={item} type={type} />
             </div>
           ))}
