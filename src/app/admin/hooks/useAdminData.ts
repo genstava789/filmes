@@ -120,22 +120,24 @@ export function useAdminData() {
         setPageLoading(true);
       }
 
-      // Check client cache for instant render
+      // Check client cache for instant render only if it contains complete data
       if (adminClientCache.has(cacheKey) && !options.force) {
         const cached = adminClientCache.get(cacheKey);
-        setMovies(cached.movies || []);
-        setTvShows(cached.tvShows || []);
-        setTotalMovies(cached.totalMovies || 0);
-        setTotalTvShows(cached.totalTvShows || 0);
-        setTotalMoviePages(cached.totalMoviePages || 1);
-        setTotalTvPages(cached.totalTvPages || 1);
-        setTotalAllMoviesCount(cached.totalAllMoviesCount !== undefined ? cached.totalAllMoviesCount : (cached.totalMovies || 0));
-        setTotalAllTvShowsCount(cached.totalAllTvShowsCount !== undefined ? cached.totalAllTvShowsCount : (cached.totalTvShows || 0));
-        setTotalEpisodesCount(cached.totalEpisodesCount || 0);
-        setLoading(false);
-        setPageLoading(false);
-        setIsInitialLoad(false);
-        return;
+        if (cached && Array.isArray(cached.movies) && Array.isArray(cached.tvShows)) {
+          setMovies(cached.movies);
+          setTvShows(cached.tvShows);
+          setTotalMovies(cached.totalMovies || 0);
+          setTotalTvShows(cached.totalTvShows || 0);
+          setTotalMoviePages(cached.totalMoviePages || 1);
+          setTotalTvPages(cached.totalTvPages || 1);
+          setTotalAllMoviesCount(cached.totalAllMoviesCount !== undefined ? cached.totalAllMoviesCount : (cached.totalMovies || 0));
+          setTotalAllTvShowsCount(cached.totalAllTvShowsCount !== undefined ? cached.totalAllTvShowsCount : (cached.totalTvShows || 0));
+          setTotalEpisodesCount(cached.totalEpisodesCount || 0);
+          setLoading(false);
+          setPageLoading(false);
+          setIsInitialLoad(false);
+          return;
+        }
       }
 
       if (!options.silent) {
@@ -158,18 +160,20 @@ export function useAdminData() {
 
         if (res.ok) {
           const data = await res.json();
-          adminClientCache.set(cacheKey, data);
-          setMovies(data.movies || []);
-          setTvShows(data.tvShows || []);
-          setTotalMovies(data.totalMovies || 0);
-          setTotalTvShows(data.totalTvShows || 0);
-          setTotalMoviePages(data.totalMoviePages || 1);
-          setTotalTvPages(data.totalTvPages || 1);
-          setTotalAllMoviesCount(data.totalAllMoviesCount !== undefined ? data.totalAllMoviesCount : (data.totalMovies || 0));
-          setTotalAllTvShowsCount(data.totalAllTvShowsCount !== undefined ? data.totalAllTvShowsCount : (data.totalTvShows || 0));
-          setTotalEpisodesCount(data.totalEpisodesCount || 0);
-          if (options.force) {
-            showToast('Data berhasil diperbarui!');
+          if (data && Array.isArray(data.movies) && Array.isArray(data.tvShows)) {
+            adminClientCache.set(cacheKey, data);
+            setMovies(data.movies);
+            setTvShows(data.tvShows);
+            setTotalMovies(data.totalMovies || 0);
+            setTotalTvShows(data.totalTvShows || 0);
+            setTotalMoviePages(data.totalMoviePages || 1);
+            setTotalTvPages(data.totalTvPages || 1);
+            setTotalAllMoviesCount(data.totalAllMoviesCount !== undefined ? data.totalAllMoviesCount : (data.totalMovies || 0));
+            setTotalAllTvShowsCount(data.totalAllTvShowsCount !== undefined ? data.totalAllTvShowsCount : (data.totalTvShows || 0));
+            setTotalEpisodesCount(data.totalEpisodesCount || 0);
+            if (options.force) {
+              showToast('Data berhasil diperbarui!');
+            }
           }
         } else {
           showToast('Gagal memuat konten admin', 'error');

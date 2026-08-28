@@ -135,8 +135,8 @@ export async function fetchPaginatedAdminContent(
     getMongoContentCounts(),
   ]);
 
-  const hasMongoMovies = mongoMoviesPaged.total > 0 || (counts.totalMovies || 0) > 0;
-  const hasMongoTV = mongoTVPaged.total > 0 || (counts.totalTVShows || 0) > 0;
+  const hasMongoMovies = mongoMoviesPaged.items.length > 0;
+  const hasMongoTV = mongoTVPaged.items.length > 0;
 
   let localDiskMovies: any[] = [];
   let localDiskTVShows: any[] = [];
@@ -276,7 +276,9 @@ export async function fetchPaginatedAdminContent(
     totalMovies = mongoMoviesPaged.total;
     totalMoviePages = mongoMoviesPaged.totalPages;
     totalAllMoviesCount = counts.totalMovies || totalMovies;
-  } else if (localDiskMovies.length > 0) {
+  }
+
+  if (rawMovies.length === 0 && localDiskMovies.length > 0) {
     let filtered = localDiskMovies;
     if (search) {
       filtered = filtered.filter(
@@ -343,7 +345,9 @@ export async function fetchPaginatedAdminContent(
     totalTvShows = mongoTVPaged.total;
     totalTvPages = mongoTVPaged.totalPages;
     totalAllTvShowsCount = counts.totalTVShows || totalTvShows;
-  } else if (localDiskTVShows.length > 0) {
+  }
+
+  if (rawTvShows.length === 0 && localDiskTVShows.length > 0) {
     let filtered = localDiskTVShows;
     if (search) {
       filtered = filtered.filter(

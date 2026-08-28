@@ -359,7 +359,7 @@ export async function getPaginatedMongoMovies(
         return { items: [], total: 0, page, limit, totalPages: 1 };
       }
     })(),
-    4000,
+    12000,
     { items: [], total: 0, page, limit, totalPages: 1 }
   );
 }
@@ -538,7 +538,7 @@ export async function getPaginatedMongoTVShows(
         return { items: [], total: 0, page, limit, totalPages: 1 };
       }
     })(),
-    4000,
+    12000,
     { items: [], total: 0, page, limit, totalPages: 1 }
   );
 }
