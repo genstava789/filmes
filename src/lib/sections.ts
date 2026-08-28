@@ -221,19 +221,16 @@ export async function getResolvedSections(page: 'home' | 'movie' | 'tv'): Promis
         const selectedLocal = deduplicatedLocal.slice(0, limit);
         let finalItems = [...selectedLocal];
 
-        // 4. TMDB Fallback: only if local count < limit AND fallback is enabled
-        if (finalItems.length < limit && section.fallback?.enabled) {
-          const shortfall = limit - finalItems.length;
+        // 4. TMDB Fallback: ONLY if there are 0 local items for this section AND fallback is enabled
+        if (finalItems.length === 0 && section.fallback?.enabled) {
           const fallbackCandidates = await fetchTMDBFallback(section.fallback);
 
-          // Deduplicate against local items already selected or in pool
-          const existingIds = new Set(
-            pool.map((p) => String(p.id)).concat(finalItems.map((f) => String(f.id)))
-          );
+          // Deduplicate against local items in pool
+          const existingIds = new Set(pool.map((p) => String(p.id)));
 
           const addedFromTMDB: (Movie | TVShow)[] = [];
           for (const cand of fallbackCandidates) {
-            if (addedFromTMDB.length >= shortfall) break;
+            if (addedFromTMDB.length >= limit) break;
             const candId = String(cand.id);
             if (!existingIds.has(candId)) {
               existingIds.add(candId);
@@ -241,7 +238,7 @@ export async function getResolvedSections(page: 'home' | 'movie' | 'tv'): Promis
             }
           }
 
-          finalItems = [...finalItems, ...addedFromTMDB];
+          finalItems = addedFromTMDB;
         }
 
         if (finalItems.length > 0) {
