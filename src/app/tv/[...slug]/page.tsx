@@ -2,7 +2,7 @@ import React from 'react';
 import Image from 'next/image';
 import Link from 'next/link';
 import { Metadata } from 'next';
-import { Calendar, Clock, Sparkles, Users, Folder, ChevronLeft } from 'lucide-react';
+import { Calendar, Clock, Sparkles, Users, Folder, ChevronLeft, AlertTriangle } from 'lucide-react';
 import { getImageUrl } from '@/lib/tmdb';
 import {
   getTVShowDetailsWithCustomOverride,
@@ -246,6 +246,25 @@ export default async function TVShowPage({ params }: PageProps) {
 
   return (
     <div className="min-h-screen pb-12" style={{ background: '#050816' }}>
+      {/* Warning banner for non-local TV series */}
+      {!data.isCustomTV && (
+        <div className="w-full px-4 sm:px-6 md:px-8 lg:px-10 xl:px-12 2xl:px-14 pt-20 sm:pt-24 pb-2">
+          <div className="p-4 sm:p-5 rounded-2xl bg-amber-500/10 border border-amber-500/30 flex items-start sm:items-center gap-3.5 backdrop-blur-md shadow-lg shadow-amber-950/20">
+            <div className="w-10 h-10 rounded-xl bg-amber-500/20 border border-amber-500/40 flex items-center justify-center flex-shrink-0 text-amber-400">
+              <AlertTriangle size={22} />
+            </div>
+            <div className="flex-1 min-w-0">
+              <h3 className="text-sm sm:text-base font-extrabold text-amber-300">
+                Serial ini belum ditambahkan ke database
+              </h3>
+              <p className="text-xs sm:text-sm text-amber-200/70 mt-0.5">
+                Konten episode dan video lokal untuk serial TV ini belum tersedia. Halaman ini hanya menampilkan informasi baseline dari TMDB.
+              </p>
+            </div>
+          </div>
+        </div>
+      )}
+
       {/* OpenGraph Video & Schema.org VideoObject (Only on Episode page with video) */}
       {isEpisodePage && videoUrl && (
         <>
@@ -411,7 +430,7 @@ export default async function TVShowPage({ params }: PageProps) {
                       {data.genres.map((genre) => (
                         <Link
                           key={genre.id}
-                          href={`/genre/${genre.id}`}
+                          href={`/genre/${genre.id}?type=tv`}
                           className="px-3 py-1 rounded-full text-xs font-semibold transition-all duration-200 hover:scale-105"
                           style={{
                             background: 'rgba(124,58,237,0.15)',

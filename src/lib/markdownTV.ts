@@ -982,6 +982,8 @@ export async function getAllCustomTVShowsForList(): Promise<any[]> {
             let backdrop: string | null = null;
             let rating = s.rating || 0;
             let overview = s.deskripsi || '';
+            let genreIds: number[] = [];
+            let firstAirDate = '2026-01-01';
 
             if (s.tmdb_id) {
               try {
@@ -991,6 +993,12 @@ export async function getAllCustomTVShowsForList(): Promise<any[]> {
                   backdrop = tmdb.backdrop_path || null;
                   if (!overview && tmdb.overview) overview = tmdb.overview;
                   if (!rating && tmdb.vote_average) rating = Math.round(tmdb.vote_average * 10) / 10;
+                  if (tmdb.first_air_date) firstAirDate = tmdb.first_air_date;
+                  if (Array.isArray(tmdb.genres)) {
+                    genreIds = tmdb.genres.map((g: any) => g.id);
+                  } else if (Array.isArray((tmdb as any).genre_ids)) {
+                    genreIds = (tmdb as any).genre_ids;
+                  }
                 }
               } catch {}
             }
@@ -1002,10 +1010,10 @@ export async function getAllCustomTVShowsForList(): Promise<any[]> {
               overview,
               poster_path: poster,
               backdrop_path: backdrop,
-              first_air_date: '2026-01-01',
+              first_air_date: firstAirDate,
               vote_average: rating,
               vote_count: 0,
-              genre_ids: [],
+              genre_ids: genreIds,
               popularity: 100,
               isCustomTV: true,
               media_type: 'tv',

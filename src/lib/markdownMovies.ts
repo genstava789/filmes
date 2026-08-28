@@ -712,6 +712,8 @@ export async function getAllCustomMoviesForList(): Promise<any[]> {
             let backdrop: string | null = null;
             let rating = m.rating || 0;
             let overview = m.deskripsi || '';
+            let genreIds: number[] = [];
+            let releaseDate = '2026-01-01';
 
             if (m.tmdb_id) {
               try {
@@ -721,6 +723,12 @@ export async function getAllCustomMoviesForList(): Promise<any[]> {
                   backdrop = tmdb.backdrop_path || null;
                   if (!overview && tmdb.overview) overview = tmdb.overview;
                   if (!rating && tmdb.vote_average) rating = Math.round(tmdb.vote_average * 10) / 10;
+                  if (tmdb.release_date) releaseDate = tmdb.release_date;
+                  if (Array.isArray(tmdb.genres)) {
+                    genreIds = tmdb.genres.map((g: any) => g.id);
+                  } else if (Array.isArray((tmdb as any).genre_ids)) {
+                    genreIds = (tmdb as any).genre_ids;
+                  }
                 }
               } catch {}
             }
@@ -731,10 +739,10 @@ export async function getAllCustomMoviesForList(): Promise<any[]> {
               overview,
               poster_path: poster,
               backdrop_path: backdrop,
-              release_date: '2026-01-01',
+              release_date: releaseDate,
               vote_average: rating,
               vote_count: 0,
-              genre_ids: [],
+              genre_ids: genreIds,
               popularity: 100,
               adult: false,
               video: false,
