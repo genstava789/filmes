@@ -308,6 +308,17 @@ export function useAdminData() {
   const filteredMovies = processedMovies;
   const filteredTvShows = processedTvShows;
 
+  const parseResponseSafe = async (res: Response) => {
+    const contentType = res.headers.get('content-type') || '';
+    if (contentType.includes('application/json')) {
+      try {
+        return await res.json();
+      } catch {}
+    }
+    const text = await res.text().catch(() => '');
+    return { error: text || `HTTP ${res.status} ${res.statusText}` };
+  };
+
   // CRUD Handlers
   const handleCreateSubmit = async (payload: any) => {
     showToast('Menyimpan konten baru...');
@@ -317,7 +328,7 @@ export function useAdminData() {
       body: JSON.stringify(payload),
     });
 
-    const result = await res.json();
+    const result = await parseResponseSafe(res);
     if (!res.ok) {
       if (result.requiresToken) setIsSettingsOpen(true);
       throw new Error(result.error || 'Gagal membuat konten');
@@ -343,7 +354,7 @@ export function useAdminData() {
       }),
     });
 
-    const result = await res.json();
+    const result = await parseResponseSafe(res);
     if (!res.ok) {
       if (result.requiresToken) setIsSettingsOpen(true);
       throw new Error(result.error || 'Gagal menyimpan perubahan');
@@ -368,7 +379,7 @@ export function useAdminData() {
         body: JSON.stringify(isBatch ? { paths: selectedBatchPaths } : { path }),
       });
 
-      const result = await res.json();
+      const result = await parseResponseSafe(res);
       if (!res.ok) {
         if (result.requiresToken) setIsSettingsOpen(true);
         throw new Error(result.error || 'Gagal menghapus konten');
