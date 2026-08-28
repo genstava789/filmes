@@ -2,7 +2,7 @@
 
 import React, { useState, useEffect, useRef } from 'react';
 import { useRouter, useSearchParams } from 'next/navigation';
-import { SlidersHorizontal, ChevronLeft, ChevronRight, Film } from 'lucide-react';
+import { SlidersHorizontal, ChevronLeft, ChevronRight, Film, Globe } from 'lucide-react';
 import { Movie, Genre } from '@/types/tmdb';
 import { discoverMovies, getGenres, prefetchImages } from '@/lib/tmdb';
 import MovieCard, { MovieCardSkeleton } from '@/components/MovieCard';
@@ -45,6 +45,12 @@ function sortLocalMovies(items: Movie[], sortOption: string): Movie[] {
   return copy;
 }
 
+function filterByLanguage(items: Movie[], lang: 'all' | 'en' | 'id'): Movie[] {
+  if (lang === 'en') return items.filter((m: any) => (m.language || 'ID').toUpperCase() === 'EN');
+  if (lang === 'id') return items.filter((m: any) => (m.language || 'ID').toUpperCase() === 'ID');
+  return items;
+}
+
 export default function MoviePageClient({
   initialMovies = [],
   totalPages: initialTotalPages = 1,
@@ -58,16 +64,17 @@ export default function MoviePageClient({
   const searchParams = useSearchParams();
 
   const [genres, setGenres] = useState<Genre[]>(propGenres);
-  const [movies, setMovies] = useState<Movie[]>(() =>
-    initialMovies.length > 0 ? sortLocalMovies(initialMovies, initialSort) : []
-  );
+  const [languageFilter, setLanguageFilter] = useState<'all' | 'en' | 'id'>('en');
   const [page, setPage] = useState(initialPage);
   const [sort, setSort] = useState(initialSort);
   const [genreId, setGenreId] = useState<number | undefined>(initialGenreId);
-  const [totalPages, setTotalPages] = useState(
-    initialMovies.length > 0 ? Math.max(1, Math.ceil(initialMovies.length / 20)) : Math.min(initialTotalPages, 500)
-  );
-  const [totalResults, setTotalResults] = useState(initialMovies.length > 0 ? initialMovies.length : initialTotalResults);
+  const [movies, setMovies] = useState<Movie[]>(() => {
+    if (initialMovies.length === 0) return [];
+    const filtered = filterByLanguage(initialMovies, 'en');
+    return sortLocalMovies(filtered, initialSort);
+  });
+  const [totalPages, setTotalPages] = useState(1);
+  const [totalResults, setTotalResults] = useState(0);
   const [loading, setLoading] = useState(false);
   const [sortOpen, setSortOpen] = useState(false);
 
@@ -98,35 +105,31 @@ export default function MoviePageClient({
     const p = Number(searchParams.get('page')) || 1;
     const s = searchParams.get('sort') || 'popularity.desc';
     const g = searchParams.get('genre') ? Number(searchParams.get('genre')) : undefined;
+    const l = (searchParams.get('lang') as 'all' | 'en' | 'id') || 'en';
 
     setPage(p);
     setSort(s);
     setGenreId(g);
+    if (l === 'en' || l === 'id' || l === 'all') {
+      setLanguageFilter(l);
+    }
   }, [searchParams]);
 
-  // Fetch or filter movies when filter/sort/page change
+  // Fetch or filter movies when filter/sort/page/language change
   useEffect(() => {
-    // 1. If browsing page 1 without genre filter and local movies exist:
-    if (page === 1 && !genreId && initialMovies.length > 0) {
-      const sorted = sortLocalMovies(initialMovies, sort);
-      setMovies(sorted);
-      setTotalPages(Math.max(1, Math.ceil(initialMovies.length / 20)));
-      setTotalResults(initialMovies.length);
+    // 1. If local movies exist:
+    if (initialMovies.length > 0) {
+      let filtered = filterByLanguage(initialMovies, languageFilter);
+      if (genreId) {
+        filtered = filtered.filter((m) => m.genre_ids && m.genre_ids.includes(genreId));
+      }
+      const sorted = sortLocalMovies(filtered, sort);
+      const start = (page - 1) * 20;
+      setMovies(sorted.slice(start, start + 20));
+      setTotalPages(Math.max(1, Math.ceil(sorted.length / 20)));
+      setTotalResults(sorted.length);
       setLoading(false);
       return;
-    }
-
-    // 2. If genre filter is active and local movies match that genre:
-    if (genreId && initialMovies.length > 0) {
-      const localGenreMatches = initialMovies.filter((m) => m.genre_ids && m.genre_ids.includes(genreId));
-      if (localGenreMatches.length > 0 && page === 1) {
-        const sorted = sortLocalMovies(localGenreMatches, sort);
-        setMovies(sorted);
-        setTotalPages(Math.max(1, Math.ceil(localGenreMatches.length / 20)));
-        setTotalResults(localGenreMatches.length);
-        setLoading(false);
-        return;
-      }
     }
 
     const cacheKey = `${page}_${sort}_${genreId || 'all'}`;
@@ -151,32 +154,60 @@ export default function MoviePageClient({
       })
       .catch(() => setMovies([]))
       .finally(() => setLoading(false));
-  }, [page, sort, genreId, initialMovies]);
+  }, [page, sort, genreId, languageFilter, initialMovies]);
 
-  const updateUrl = (newPage: number, newSort: string, newGenreId?: number) => {
+  const updateUrl = (newPage: number, newSort: string, newGenreId?: number, newLang: string = languageFilter) => {
     const params = new URLSearchParams();
     if (newSort && newSort !== 'popularity.desc') params.set('sort', newSort);
     if (newPage > 1) params.set('page', String(newPage));
     if (newGenreId) params.set('genre', String(newGenreId));
+    if (newLang && newLang !== 'en') params.set('lang', newLang);
 
     const qs = params.toString();
-    router.push(qs ? `/movie?${qs}` : '/movie', { scroll: false });
+    if (typeof window !== 'undefined') {
+      window.history.pushState(null, '', qs ? `/movie?${qs}` : '/movie');
+    }
+  };
+
+  const handleLanguageChange = (newLang: 'all' | 'en' | 'id') => {
+    setLanguageFilter(newLang);
+    setPage(1);
+    updateUrl(1, sort, genreId, newLang);
   };
 
   const handleSortChange = (newSort: string) => {
     setSort(newSort);
     setPage(1);
     setSortOpen(false);
-    updateUrl(1, newSort, genreId);
+    updateUrl(1, newSort, genreId, languageFilter);
     if (typeof window !== 'undefined') {
       window.scrollTo({ top: 0, behavior: 'smooth' });
     }
   };
 
+  const handleGenreSelect = (gId: number) => {
+    const localMatches = initialMovies.filter((m) => m.genre_ids && m.genre_ids.includes(gId));
+    if (localMatches.length === 0) {
+      setGenreId(undefined);
+      setPage(1);
+      updateUrl(1, sort, undefined, languageFilter);
+      return;
+    }
+    setGenreId(gId);
+    setPage(1);
+    updateUrl(1, sort, gId, languageFilter);
+  };
+
+  const handleAllSelect = () => {
+    setGenreId(undefined);
+    setPage(1);
+    updateUrl(1, sort, undefined, languageFilter);
+  };
+
   const handlePageChange = (newPage: number) => {
     if (newPage === page || newPage < 1 || newPage > totalPages) return;
     setPage(newPage);
-    updateUrl(newPage, sort, genreId);
+    updateUrl(newPage, sort, genreId, languageFilter);
     if (typeof window !== 'undefined') {
       window.scrollTo({ top: 0, behavior: 'smooth' });
     }
@@ -202,9 +233,9 @@ export default function MoviePageClient({
     <div className="min-h-screen pt-20 sm:pt-24 pb-4 sm:pb-6" style={{ background: '#050816' }}>
       <div className="w-full px-4 sm:px-6 md:px-8 lg:px-10 xl:px-12 2xl:px-14">
         
-        {/* ── Page Header: Title on Left, Sort Dropdown on Right ── */}
+        {/* ── Page Header: Title on Left, Language & Sort Controls on Right ── */}
         <div className="mb-6 sm:mb-8">
-          <div className="flex items-center justify-between gap-3">
+          <div className="flex flex-col md:flex-row md:items-center justify-between gap-4">
             <div className="flex-1 min-w-0">
               <h1 className="text-xl sm:text-3xl md:text-4xl font-black truncate sm:whitespace-normal mb-1">
                 <span
@@ -219,54 +250,98 @@ export default function MoviePageClient({
                 </span>
               </h1>
               <p className="text-xs sm:text-sm font-medium" style={{ color: '#94a3b8' }}>
-                Jelajahi <span className="text-cyan-400 font-bold">{totalResults > 0 ? totalResults.toLocaleString() : '129'}</span> movie untuk ditonton
+                Jelajahi <span className="text-cyan-400 font-bold">{totalResults > 0 ? totalResults.toLocaleString() : '0'}</span> movie untuk ditonton
               </p>
             </div>
 
-            {/* Sort Dropdown - pinned to top right */}
-            <div className="relative flex-shrink-0" ref={sortRef}>
-              <button
-                onClick={() => setSortOpen(!sortOpen)}
-                className="flex items-center gap-1.5 sm:gap-2 px-3 py-2 sm:px-4 sm:py-2.5 rounded-xl text-xs sm:text-sm font-medium transition-all duration-200"
-                style={{
-                  background: 'rgba(255,255,255,0.06)',
-                  border: '1px solid rgba(255,255,255,0.1)',
-                  color: '#94a3b8',
-                }}
-              >
-                <SlidersHorizontal size={14} className="sm:w-[15px] sm:h-[15px] text-cyan-400" />
-                <span className="whitespace-nowrap">{currentSortLabel}</span>
-                <ChevronRight
-                  size={13}
-                  className="transition-transform duration-200"
-                  style={{ transform: sortOpen ? 'rotate(90deg)' : 'rotate(0deg)' }}
-                />
-              </button>
+            {/* Right: Language Filter & Sort Controls */}
+            <div className="flex items-center gap-2.5 sm:gap-3 flex-wrap">
+              {/* Language Filter Pills: EN (default), ID, All */}
+              <div className="flex items-center p-1 rounded-xl bg-white/[0.06] border border-white/10 text-xs font-bold shadow-sm">
+                <div className="flex items-center gap-1 px-2 text-slate-400 hidden xs:flex">
+                  <Globe size={13} />
+                  <span className="text-[11px] uppercase tracking-wider font-semibold">Bahasa:</span>
+                </div>
+                <button
+                  onClick={() => handleLanguageChange('en')}
+                  className={`px-3 py-1.5 rounded-lg transition-all text-xs font-bold ${
+                    languageFilter === 'en'
+                      ? 'bg-cyan-500 text-black shadow-md shadow-cyan-500/30'
+                      : 'text-slate-400 hover:text-white'
+                  }`}
+                  title="Bahasa Inggris (English)"
+                >
+                  EN
+                </button>
+                <button
+                  onClick={() => handleLanguageChange('id')}
+                  className={`px-3 py-1.5 rounded-lg transition-all text-xs font-bold ${
+                    languageFilter === 'id'
+                      ? 'bg-cyan-500 text-black shadow-md shadow-cyan-500/30'
+                      : 'text-slate-400 hover:text-white'
+                  }`}
+                  title="Bahasa Indonesia"
+                >
+                  ID
+                </button>
+                <button
+                  onClick={() => handleLanguageChange('all')}
+                  className={`px-3 py-1.5 rounded-lg transition-all text-xs font-bold ${
+                    languageFilter === 'all'
+                      ? 'bg-cyan-500 text-black shadow-md shadow-cyan-500/30'
+                      : 'text-slate-400 hover:text-white'
+                  }`}
+                  title="Semua Bahasa"
+                >
+                  All
+                </button>
+              </div>
 
-              {sortOpen && (
-                <div
-                  className="absolute right-0 top-full mt-2 w-44 sm:w-48 rounded-xl overflow-hidden z-30"
+              {/* Sort Dropdown */}
+              <div className="relative flex-shrink-0" ref={sortRef}>
+                <button
+                  onClick={() => setSortOpen(!sortOpen)}
+                  className="flex items-center gap-1.5 sm:gap-2 px-3 py-2 sm:px-4 sm:py-2.5 rounded-xl text-xs sm:text-sm font-medium transition-all duration-200"
                   style={{
-                    background: '#0B1020',
-                    border: '1px solid rgba(6,182,212,0.3)',
-                    boxShadow: '0 20px 40px rgba(0,0,0,0.6)',
+                    background: 'rgba(255,255,255,0.06)',
+                    border: '1px solid rgba(255,255,255,0.1)',
+                    color: '#94a3b8',
                   }}
                 >
-                  {SORT_OPTIONS.map((option) => (
-                    <button
-                      key={option.value}
-                      onClick={() => handleSortChange(option.value)}
-                      className="w-full px-3.5 py-2.5 sm:px-4 sm:py-3 text-left text-xs sm:text-sm transition-colors duration-150 hover:bg-white/5"
-                      style={{
-                        color: sort === option.value ? '#06b6d4' : '#94a3b8',
-                        fontWeight: sort === option.value ? 600 : 400,
-                      }}
-                    >
-                      {option.label}
-                    </button>
-                  ))}
-                </div>
-              )}
+                  <SlidersHorizontal size={14} className="sm:w-[15px] sm:h-[15px] text-cyan-400" />
+                  <span className="whitespace-nowrap">{currentSortLabel}</span>
+                  <ChevronRight
+                    size={13}
+                    className="transition-transform duration-200"
+                    style={{ transform: sortOpen ? 'rotate(90deg)' : 'rotate(0deg)' }}
+                  />
+                </button>
+
+                {sortOpen && (
+                  <div
+                    className="absolute right-0 top-full mt-2 w-44 sm:w-48 rounded-xl overflow-hidden z-30"
+                    style={{
+                      background: '#0B1020',
+                      border: '1px solid rgba(6,182,212,0.3)',
+                      boxShadow: '0 20px 40px rgba(0,0,0,0.6)',
+                    }}
+                  >
+                    {SORT_OPTIONS.map((option) => (
+                      <button
+                        key={option.value}
+                        onClick={() => handleSortChange(option.value)}
+                        className="w-full px-3.5 py-2.5 sm:px-4 sm:py-3 text-left text-xs sm:text-sm transition-colors duration-150 hover:bg-white/5"
+                        style={{
+                          color: sort === option.value ? '#06b6d4' : '#94a3b8',
+                          fontWeight: sort === option.value ? 600 : 400,
+                        }}
+                      >
+                        {option.label}
+                      </button>
+                    ))}
+                  </div>
+                )}
+              </div>
             </div>
           </div>
         </div>
@@ -280,6 +355,8 @@ export default function MoviePageClient({
               type="movie"
               allHref="/movie"
               hideTitle={true}
+              onGenreSelect={handleGenreSelect}
+              onAllSelect={handleAllSelect}
             />
           </div>
         )}

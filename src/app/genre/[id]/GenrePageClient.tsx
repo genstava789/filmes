@@ -57,6 +57,9 @@ export default function GenrePageClient({
 
   // Active genre metadata
   const currentGenre = useMemo(() => {
+    if (!activeGenreId) {
+      return { id: 0, name: 'All' };
+    }
     return allGenres.find((g) => g.id === activeGenreId) || genre;
   }, [allGenres, activeGenreId, genre]);
 
@@ -73,7 +76,7 @@ export default function GenrePageClient({
 
   // Filter & Sort local items strictly by genre and selected language
   const filteredAndSortedItems = useMemo(() => {
-    // 1. Filter by Active Genre ID
+    // 1. Filter by Active Genre ID (if null, show all local items)
     let list = activeGenreId
       ? allLocalItems.filter(
           (item: any) => Array.isArray(item.genre_ids) && item.genre_ids.includes(activeGenreId)
@@ -133,9 +136,7 @@ export default function GenrePageClient({
     const queryString = query.toString();
     const targetUrl = newGenreId
       ? `/genre/${newGenreId}${queryString ? `?${queryString}` : ''}`
-      : isTV
-      ? `/tv/browse${queryString ? `?${queryString}` : ''}`
-      : `/movie${queryString ? `?${queryString}` : ''}`;
+      : `/genre/all${queryString ? `?${queryString}` : ''}`;
 
     if (typeof window !== 'undefined') {
       window.history.pushState(null, '', targetUrl);
@@ -148,9 +149,11 @@ export default function GenrePageClient({
       (item: any) => Array.isArray(item.genre_ids) && item.genre_ids.includes(genreId)
     );
 
-    // Genre yang belum ada datanya diarahkan ke all genre
+    // Genre yang belum ada datanya diarahkan ke all genre secara instan
     if (matching.length === 0) {
-      router.push(isTV ? '/tv/browse' : '/movie');
+      setActiveGenreId(null);
+      setPage(1);
+      updateUrl(null, languageFilter, sort);
       return;
     }
 
@@ -160,7 +163,9 @@ export default function GenrePageClient({
   };
 
   const handleAllSelect = () => {
-    router.push(isTV ? '/tv/browse' : '/movie');
+    setActiveGenreId(null);
+    setPage(1);
+    updateUrl(null, languageFilter, sort);
   };
 
   const handleLanguageChange = (newLang: 'all' | 'en' | 'id') => {

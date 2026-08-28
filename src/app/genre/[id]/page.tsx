@@ -19,8 +19,11 @@ interface PageProps {
 
 export async function generateMetadata({ params, searchParams }: PageProps): Promise<Metadata> {
   const isTV = searchParams.type === 'tv';
-  const genreId = Number(params.id);
-  const genre = isTV
+  const isAll = params.id.toLowerCase() === 'all';
+  const genreId = isAll ? 0 : Number(params.id);
+  const genre = isAll
+    ? { id: 0, name: 'All' }
+    : isTV
     ? await getTVGenreById(genreId).catch(() => null)
     : await getGenreById(genreId).catch(() => null);
 
@@ -37,46 +40,50 @@ export async function generateMetadata({ params, searchParams }: PageProps): Pro
 export const revalidate = 15;
 
 export default async function GenrePage({ params, searchParams }: PageProps) {
-  const genreId = Number(params.id);
-  if (isNaN(genreId)) notFound();
-
   const isTV = searchParams.type === 'tv';
+  const isAll = params.id.toLowerCase() === 'all';
+  const genreId = isAll ? 0 : Number(params.id);
+  if (!isAll && isNaN(genreId)) notFound();
+
   const page = Number(searchParams.page) || 1;
   const sort = searchParams.sort || 'popularity.desc';
   const initialLang = (searchParams.lang || 'en').toLowerCase();
 
   const [genreData, localItemsData, allGenres] = await Promise.allSettled([
-    isTV ? getTVGenreById(genreId) : getGenreById(genreId),
+    !isAll ? (isTV ? getTVGenreById(genreId) : getGenreById(genreId)) : Promise.resolve({ id: 0, name: 'All' }),
     isTV ? getAllCustomTVShowsForList() : getAllCustomMoviesForList(),
     isTV ? getTVGenres().catch(() => getGenres()) : getGenres(),
   ]);
 
-  const genre =
-    genreData.status === 'fulfilled' && genreData.value
-      ? genreData.value
-      : isTV
-      ? await getGenreById(genreId).catch(() => null)
-      : null;
+  const genre = isAll
+    ? { id: 0, name: 'All' }
+    : genreData.status === 'fulfilled' && genreData.value
+    ? genreData.value
+    : isTV
+    ? await getGenreById(genreId).catch(() => null)
+    : null;
 
   const rawLocalItems = localItemsData.status === 'fulfilled' ? localItemsData.value : [];
   const genres = allGenres.status === 'fulfilled' ? allGenres.value : [];
 
   if (!genre) notFound();
 
-  // Filter local items strictly matching this genre ID
-  const genreMatchedItems = rawLocalItems.filter(
-    (item: any) => Array.isArray(item.genre_ids) && item.genre_ids.includes(genreId)
-  );
+  // Filter local items strictly matching this genre ID (or all items if isAll)
+  const genreMatchedItems = isAll
+    ? rawLocalItems
+    : rawLocalItems.filter(
+        (item: any) => Array.isArray(item.genre_ids) && item.genre_ids.includes(genreId)
+      );
 
-  // If this genre has no local data, redirect to All Genres (/movie or /tv/browse)
-  if (genreMatchedItems.length === 0) {
-    redirect(isTV ? '/tv/browse' : '/movie');
+  // If this specific genre has no local data, redirect to All Genres
+  if (!isAll && genreMatchedItems.length === 0) {
+    redirect(isTV ? '/genre/all?type=tv' : '/genre/all');
   }
 
   return (
     <GenrePageClient
       genre={genre}
-      initialGenreId={genreId}
+      initialGenreId={isAll ? null : genreId}
       allLocalItems={rawLocalItems}
       initialPage={page}
       initialSort={sort}
