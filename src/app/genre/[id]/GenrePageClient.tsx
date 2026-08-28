@@ -40,7 +40,7 @@ export default function GenrePageClient({
   allLocalItems,
   initialPage = 1,
   initialSort = 'popularity.desc',
-  initialLanguage = 'en',
+  initialLanguage = 'all',
   allGenres,
   type = 'movie',
 }: GenrePageClientProps) {
@@ -83,7 +83,7 @@ export default function GenrePageClient({
         )
       : [...allLocalItems];
 
-    // 2. Language Filter (All, EN, ID - default is EN)
+    // 2. Language Filter (All (default), EN, ID)
     if (languageFilter === 'en') {
       list = list.filter((item: any) => (item.language || 'ID').toUpperCase() === 'EN');
     } else if (languageFilter === 'id') {
@@ -132,7 +132,7 @@ export default function GenrePageClient({
     const query = new URLSearchParams();
     if (isTV) query.set('type', 'tv');
     if (newSort !== 'popularity.desc') query.set('sort', newSort);
-    if (newLang !== 'en') query.set('lang', newLang);
+    if (newLang !== 'all') query.set('lang', newLang);
     const queryString = query.toString();
     const targetUrl = newGenreId
       ? `/genre/${newGenreId}${queryString ? `?${queryString}` : ''}`
@@ -235,12 +235,25 @@ export default function GenrePageClient({
 
             {/* Right: Language Filter & Sort Controls */}
             <div className="flex items-center gap-2.5 sm:gap-3 flex-wrap">
-              {/* Language Filter Pills: EN (default), ID, All */}
+              {/* Language Filter Pills: All (default, left), EN, ID */}
               <div className="flex items-center p-1 rounded-xl bg-white/[0.06] border border-white/10 text-xs font-bold shadow-sm">
                 <div className="flex items-center gap-1 px-2 text-slate-400 hidden xs:flex">
                   <Globe size={13} />
                   <span className="text-[11px] uppercase tracking-wider font-semibold">Bahasa:</span>
                 </div>
+                <button
+                  onClick={() => handleLanguageChange('all')}
+                  className={`px-3 py-1.5 rounded-lg transition-all text-xs font-bold ${
+                    languageFilter === 'all'
+                      ? isTV
+                        ? 'bg-pink-500 text-white shadow-md shadow-pink-500/30'
+                        : 'bg-cyan-500 text-black shadow-md shadow-cyan-500/30'
+                      : 'text-slate-400 hover:text-white'
+                  }`}
+                  title="Semua Bahasa"
+                >
+                  All
+                </button>
                 <button
                   onClick={() => handleLanguageChange('en')}
                   className={`px-3 py-1.5 rounded-lg transition-all text-xs font-bold ${
@@ -266,19 +279,6 @@ export default function GenrePageClient({
                   title="Bahasa Indonesia"
                 >
                   ID
-                </button>
-                <button
-                  onClick={() => handleLanguageChange('all')}
-                  className={`px-3 py-1.5 rounded-lg transition-all text-xs font-bold ${
-                    languageFilter === 'all'
-                      ? isTV
-                        ? 'bg-pink-500 text-white shadow-md shadow-pink-500/30'
-                        : 'bg-cyan-500 text-black shadow-md shadow-cyan-500/30'
-                      : 'text-slate-400 hover:text-white'
-                  }`}
-                  title="Semua Bahasa"
-                >
-                  All
                 </button>
               </div>
 

@@ -64,13 +64,13 @@ export default function MoviePageClient({
   const searchParams = useSearchParams();
 
   const [genres, setGenres] = useState<Genre[]>(propGenres);
-  const [languageFilter, setLanguageFilter] = useState<'all' | 'en' | 'id'>('en');
+  const [languageFilter, setLanguageFilter] = useState<'all' | 'en' | 'id'>('all');
   const [page, setPage] = useState(initialPage);
   const [sort, setSort] = useState(initialSort);
   const [genreId, setGenreId] = useState<number | undefined>(initialGenreId);
   const [movies, setMovies] = useState<Movie[]>(() => {
     if (initialMovies.length === 0) return [];
-    const filtered = filterByLanguage(initialMovies, 'en');
+    const filtered = filterByLanguage(initialMovies, 'all');
     return sortLocalMovies(filtered, initialSort);
   });
   const [totalPages, setTotalPages] = useState(1);
@@ -105,7 +105,7 @@ export default function MoviePageClient({
     const p = Number(searchParams.get('page')) || 1;
     const s = searchParams.get('sort') || 'popularity.desc';
     const g = searchParams.get('genre') ? Number(searchParams.get('genre')) : undefined;
-    const l = (searchParams.get('lang') as 'all' | 'en' | 'id') || 'en';
+    const l = (searchParams.get('lang') as 'all' | 'en' | 'id') || 'all';
 
     setPage(p);
     setSort(s);
@@ -161,7 +161,7 @@ export default function MoviePageClient({
     if (newSort && newSort !== 'popularity.desc') params.set('sort', newSort);
     if (newPage > 1) params.set('page', String(newPage));
     if (newGenreId) params.set('genre', String(newGenreId));
-    if (newLang && newLang !== 'en') params.set('lang', newLang);
+    if (newLang && newLang !== 'all') params.set('lang', newLang);
 
     const qs = params.toString();
     if (typeof window !== 'undefined') {
@@ -214,6 +214,7 @@ export default function MoviePageClient({
   };
 
   const currentSortLabel = SORT_OPTIONS.find((o) => o.value === sort)?.label || 'Sort';
+  const selectedGenreName = genres.find((g) => g.id === genreId)?.name;
 
   // Helper to build page numbers array with ellipsis
   const getPageNumbers = () => {
@@ -256,12 +257,23 @@ export default function MoviePageClient({
 
             {/* Right: Language Filter & Sort Controls */}
             <div className="flex items-center gap-2.5 sm:gap-3 flex-wrap">
-              {/* Language Filter Pills: EN (default), ID, All */}
+              {/* Language Filter Pills: All (default, left), EN, ID */}
               <div className="flex items-center p-1 rounded-xl bg-white/[0.06] border border-white/10 text-xs font-bold shadow-sm">
                 <div className="flex items-center gap-1 px-2 text-slate-400 hidden xs:flex">
                   <Globe size={13} />
                   <span className="text-[11px] uppercase tracking-wider font-semibold">Bahasa:</span>
                 </div>
+                <button
+                  onClick={() => handleLanguageChange('all')}
+                  className={`px-3 py-1.5 rounded-lg transition-all text-xs font-bold ${
+                    languageFilter === 'all'
+                      ? 'bg-cyan-500 text-black shadow-md shadow-cyan-500/30'
+                      : 'text-slate-400 hover:text-white'
+                  }`}
+                  title="Semua Bahasa"
+                >
+                  All
+                </button>
                 <button
                   onClick={() => handleLanguageChange('en')}
                   className={`px-3 py-1.5 rounded-lg transition-all text-xs font-bold ${
@@ -283,17 +295,6 @@ export default function MoviePageClient({
                   title="Bahasa Indonesia"
                 >
                   ID
-                </button>
-                <button
-                  onClick={() => handleLanguageChange('all')}
-                  className={`px-3 py-1.5 rounded-lg transition-all text-xs font-bold ${
-                    languageFilter === 'all'
-                      ? 'bg-cyan-500 text-black shadow-md shadow-cyan-500/30'
-                      : 'text-slate-400 hover:text-white'
-                  }`}
-                  title="Semua Bahasa"
-                >
-                  All
                 </button>
               </div>
 
@@ -375,11 +376,39 @@ export default function MoviePageClient({
             ))}
           </div>
         ) : (
-          <div className="flex flex-col items-center justify-center py-20 gap-4">
-            <div className="p-6 rounded-full" style={{ background: 'rgba(255,255,255,0.04)' }}>
-              <Film size={48} style={{ color: '#475569' }} />
+          <div className="flex flex-col items-center justify-center py-20 px-4 text-center bg-[#090e1f] rounded-2xl border border-white/5 max-w-2xl mx-auto my-8">
+            <div className="w-14 h-14 rounded-2xl bg-white/5 flex items-center justify-center text-slate-500 mb-4">
+              <Film size={28} />
             </div>
-            <p className="text-neo-text-secondary text-lg">No movies found.</p>
+            <h3 className="text-base sm:text-lg font-bold text-white mb-2">
+              Tidak Ada Film Ditemukan
+            </h3>
+            <p className="text-xs sm:text-sm text-slate-400 mb-5 max-w-md">
+              Belum ada film {languageFilter === 'en' ? 'Bahasa Inggris (EN)' : languageFilter === 'id' ? 'Bahasa Indonesia (ID)' : ''}{' '}
+              {selectedGenreName ? (
+                <>untuk genre <span className="text-white font-semibold">{selectedGenreName}</span></>
+              ) : null}{' '}
+              di database lokal.
+            </p>
+            <div className="flex items-center gap-3 flex-wrap justify-center">
+              {languageFilter !== 'all' && (
+                <button
+                  onClick={() => handleLanguageChange('all')}
+                  className="inline-flex items-center gap-2 px-4 py-2 rounded-xl text-xs font-bold transition-all shadow-md active:scale-95 bg-cyan-500 hover:bg-cyan-400 text-black shadow-cyan-500/20"
+                >
+                  <Globe size={14} />
+                  <span>Lihat Semua Bahasa (All)</span>
+                </button>
+              )}
+              {genreId && (
+                <button
+                  onClick={handleAllSelect}
+                  className="inline-flex items-center gap-2 px-4 py-2 rounded-xl text-xs font-bold transition-all bg-white/10 hover:bg-white/20 text-white border border-white/10"
+                >
+                  <span>Lihat Semua Genre</span>
+                </button>
+              )}
+            </div>
           </div>
         )}
 

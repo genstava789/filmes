@@ -47,7 +47,7 @@ export default async function GenrePage({ params, searchParams }: PageProps) {
 
   const page = Number(searchParams.page) || 1;
   const sort = searchParams.sort || 'popularity.desc';
-  const initialLang = (searchParams.lang || 'en').toLowerCase();
+  const initialLang = (searchParams.lang || 'all').toLowerCase();
 
   const [genreData, localItemsData, allGenres] = await Promise.allSettled([
     !isAll ? (isTV ? getTVGenreById(genreId) : getGenreById(genreId)) : Promise.resolve({ id: 0, name: 'All' }),
@@ -87,7 +87,7 @@ export default async function GenrePage({ params, searchParams }: PageProps) {
       allLocalItems={rawLocalItems}
       initialPage={page}
       initialSort={sort}
-      initialLanguage={initialLang === 'id' ? 'id' : initialLang === 'all' ? 'all' : 'en'}
+      initialLanguage={initialLang === 'id' ? 'id' : initialLang === 'en' ? 'en' : 'all'}
       allGenres={genres}
       type={isTV ? 'tv' : 'movie'}
     />
