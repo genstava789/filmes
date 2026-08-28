@@ -10,5 +10,6 @@ deskripsi: >-
 image_url: 'https://image.tmdb.org/t/p/w500/2EewmxXe72ogD0EaWM8gqa0ccIw.jpg'
 rating: 0
 featured: true
+language: JP
 ---
 
