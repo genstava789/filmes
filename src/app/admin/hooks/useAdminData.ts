@@ -336,9 +336,14 @@ export function useAdminData() {
 
     showToast('Konten berhasil dibuat & live!');
     adminClientCache.clear();
+    setPageLoading(true);
     setMoviePage(1);
     setTvPage(1);
-    fetchContent({ silent: true, customMoviePage: 1, customTvPage: 1, force: true });
+    try {
+      await fetchContent({ customMoviePage: 1, customTvPage: 1, force: true });
+    } finally {
+      setPageLoading(false);
+    }
   };
 
   const handleEditSubmit = async (item: any) => {
@@ -362,7 +367,12 @@ export function useAdminData() {
 
     showToast('Perubahan berhasil disimpan & live!');
     adminClientCache.clear();
-    fetchContent({ silent: true, force: true });
+    setPageLoading(true);
+    try {
+      await fetchContent({ force: true });
+    } finally {
+      setPageLoading(false);
+    }
   };
 
   const handleDeleteConfirm = async () => {
@@ -388,7 +398,12 @@ export function useAdminData() {
       showToast(isBatch ? `${count} konten berhasil dihapus!` : 'Konten berhasil dihapus!');
       setSelectedBatchPaths([]);
       adminClientCache.clear();
-      fetchContent({ silent: true, force: true });
+      setPageLoading(true);
+      try {
+        await fetchContent({ force: true });
+      } finally {
+        setPageLoading(false);
+      }
     } catch (err: any) {
       showToast(err.message || 'Gagal menghapus', 'error');
     }

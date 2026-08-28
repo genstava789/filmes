@@ -311,6 +311,9 @@ export async function fetchPaginatedAdminContent(
             }
             diskTV = Array.from(showsMap.values());
           }
+
+          diskMovies.sort((a, b) => (b.updatedAt || 0) - (a.updatedAt || 0));
+          diskTV.sort((a, b) => (b.updatedAt || 0) - (a.updatedAt || 0));
           return { movies: diskMovies, tvShows: diskTV };
         },
         60_000,

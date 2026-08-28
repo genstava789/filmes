@@ -199,11 +199,23 @@ export async function getResolvedSections(page: 'home' | 'movie' | 'tv'): Promis
           }
         }
 
-        // Sort local items: items with weight come first ordered by weight ASC (smaller number = higher priority)
+        // Sort local items: explicit weight first, then newest updated/created timestamp at the very top
         deduplicatedLocal.sort((a, b) => {
-          const wA = a.weight !== undefined && a.weight !== null ? Number(a.weight) : 999999;
-          const wB = b.weight !== undefined && b.weight !== null ? Number(b.weight) : 999999;
-          return wA - wB;
+          const wA = a.weight !== undefined && a.weight !== null && a.weight !== '' ? Number(a.weight) : 999999;
+          const wB = b.weight !== undefined && b.weight !== null && b.weight !== '' ? Number(b.weight) : 999999;
+          if (wA !== wB) return wA - wB;
+
+          const timeB = Math.max(
+            Number(b.updatedAt) || 0,
+            Number(b.createdAt) || 0,
+            new Date(b.release_date || b.first_air_date || 0).getTime()
+          );
+          const timeA = Math.max(
+            Number(a.updatedAt) || 0,
+            Number(a.createdAt) || 0,
+            new Date(a.release_date || a.first_air_date || 0).getTime()
+          );
+          return timeB - timeA;
         });
 
         const selectedLocal = deduplicatedLocal.slice(0, limit);
