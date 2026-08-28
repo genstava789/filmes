@@ -9,11 +9,11 @@ import GenreFilter from '@/components/GenreFilter';
 
 interface GenrePageClientProps {
   genre: Genre;
-  allItems: (Movie | TVShow)[];
+  initialGenreId: number;
+  allLocalItems: (Movie | TVShow)[];
   initialPage?: number;
   initialSort?: string;
   initialLanguage?: 'all' | 'en' | 'id';
-  genreId: number;
   allGenres: Genre[];
   type?: 'movie' | 'tv';
 }
@@ -36,11 +36,11 @@ const TV_SORT_OPTIONS = [
 
 export default function GenrePageClient({
   genre,
-  allItems,
+  initialGenreId,
+  allLocalItems,
   initialPage = 1,
   initialSort = 'popularity.desc',
   initialLanguage = 'en',
-  genreId,
   allGenres,
   type = 'movie',
 }: GenrePageClientProps) {
@@ -48,11 +48,17 @@ export default function GenrePageClient({
   const isTV = type === 'tv';
   const sortOptions = isTV ? TV_SORT_OPTIONS : MOVIE_SORT_OPTIONS;
 
+  const [activeGenreId, setActiveGenreId] = useState<number | null>(initialGenreId);
   const [languageFilter, setLanguageFilter] = useState<'all' | 'en' | 'id'>(initialLanguage);
   const [sort, setSort] = useState(initialSort);
   const [page, setPage] = useState(initialPage);
   const [sortOpen, setSortOpen] = useState(false);
   const sortRef = useRef<HTMLDivElement>(null);
+
+  // Active genre metadata
+  const currentGenre = useMemo(() => {
+    return allGenres.find((g) => g.id === activeGenreId) || genre;
+  }, [allGenres, activeGenreId, genre]);
 
   // Close sort dropdown on click outside
   useEffect(() => {
@@ -67,16 +73,21 @@ export default function GenrePageClient({
 
   // Filter & Sort local items strictly by genre and selected language
   const filteredAndSortedItems = useMemo(() => {
-    let list = [...allItems];
+    // 1. Filter by Active Genre ID
+    let list = activeGenreId
+      ? allLocalItems.filter(
+          (item: any) => Array.isArray(item.genre_ids) && item.genre_ids.includes(activeGenreId)
+        )
+      : [...allLocalItems];
 
-    // 1. Language Filter (All, EN, ID - default is EN)
+    // 2. Language Filter (All, EN, ID - default is EN)
     if (languageFilter === 'en') {
       list = list.filter((item: any) => (item.language || 'ID').toUpperCase() === 'EN');
     } else if (languageFilter === 'id') {
       list = list.filter((item: any) => (item.language || 'ID').toUpperCase() === 'ID');
     }
 
-    // 2. Sort
+    // 3. Sort
     if (sort === 'vote_average.desc') {
       list.sort((a, b) => (b.vote_average || 0) - (a.vote_average || 0));
     } else if (sort === 'release_date.desc' || sort === 'first_air_date.desc') {
@@ -102,7 +113,7 @@ export default function GenrePageClient({
     }
 
     return list;
-  }, [allItems, languageFilter, sort]);
+  }, [allLocalItems, activeGenreId, languageFilter, sort]);
 
   const totalResults = filteredAndSortedItems.length;
   const totalPages = Math.max(1, Math.ceil(totalResults / ITEMS_PER_PAGE));
@@ -113,27 +124,56 @@ export default function GenrePageClient({
     return filteredAndSortedItems.slice(start, start + ITEMS_PER_PAGE);
   }, [filteredAndSortedItems, page]);
 
+  // Helper to build URL query
+  const updateUrl = (newGenreId: number | null, newLang: string, newSort: string) => {
+    const query = new URLSearchParams();
+    if (isTV) query.set('type', 'tv');
+    if (newSort !== 'popularity.desc') query.set('sort', newSort);
+    if (newLang !== 'en') query.set('lang', newLang);
+    const queryString = query.toString();
+    const targetUrl = newGenreId
+      ? `/genre/${newGenreId}${queryString ? `?${queryString}` : ''}`
+      : isTV
+      ? `/tv/browse${queryString ? `?${queryString}` : ''}`
+      : `/movie${queryString ? `?${queryString}` : ''}`;
+
+    if (typeof window !== 'undefined') {
+      window.history.pushState(null, '', targetUrl);
+    }
+  };
+
+  // Instant client-side genre switching with empty genre auto-redirection
+  const handleGenreSelect = (genreId: number) => {
+    const matching = allLocalItems.filter(
+      (item: any) => Array.isArray(item.genre_ids) && item.genre_ids.includes(genreId)
+    );
+
+    // Genre yang belum ada datanya diarahkan ke all genre
+    if (matching.length === 0) {
+      router.push(isTV ? '/tv/browse' : '/movie');
+      return;
+    }
+
+    setActiveGenreId(genreId);
+    setPage(1);
+    updateUrl(genreId, languageFilter, sort);
+  };
+
+  const handleAllSelect = () => {
+    router.push(isTV ? '/tv/browse' : '/movie');
+  };
+
   const handleLanguageChange = (newLang: 'all' | 'en' | 'id') => {
     setLanguageFilter(newLang);
     setPage(1);
-    const query = new URLSearchParams();
-    if (isTV) query.set('type', 'tv');
-    if (sort !== 'popularity.desc') query.set('sort', sort);
-    if (newLang !== 'en') query.set('lang', newLang);
-    const queryString = query.toString();
-    router.push(`/genre/${genreId}${queryString ? `?${queryString}` : ''}`, { scroll: false });
+    updateUrl(activeGenreId, newLang, sort);
   };
 
   const handleSortChange = (newSort: string) => {
     setSort(newSort);
     setPage(1);
     setSortOpen(false);
-    const query = new URLSearchParams();
-    if (isTV) query.set('type', 'tv');
-    if (newSort !== 'popularity.desc') query.set('sort', newSort);
-    if (languageFilter !== 'en') query.set('lang', languageFilter);
-    const queryString = query.toString();
-    router.push(`/genre/${genreId}${queryString ? `?${queryString}` : ''}`, { scroll: false });
+    updateUrl(activeGenreId, languageFilter, newSort);
   };
 
   const handlePageChange = (newPage: number) => {
@@ -179,7 +219,7 @@ export default function GenrePageClient({
                     backgroundClip: 'text',
                   }}
                 >
-                  {genre.name}
+                  {currentGenre.name}
                 </span>{' '}
                 <span style={{ color: '#f1f5f9' }}>{isTV ? 'TV Series' : 'Movies'}</span>
               </h1>
@@ -292,15 +332,17 @@ export default function GenrePageClient({
           </div>
         </div>
 
-        {/* Genre filter list */}
+        {/* Genre filter list with instant callback */}
         {allGenres.length > 0 && (
           <div className="mb-8">
             <GenreFilter
               genres={allGenres}
-              activeGenreId={genreId}
+              activeGenreId={activeGenreId}
               type={isTV ? 'tv' : 'movie'}
               allHref={isTV ? '/tv/browse' : '/movie'}
               hideTitle={true}
+              onGenreSelect={handleGenreSelect}
+              onAllSelect={handleAllSelect}
             />
           </div>
         )}
@@ -323,7 +365,7 @@ export default function GenrePageClient({
             <p className="text-xs sm:text-sm text-slate-400 mb-5 max-w-md">
               Belum ada {isTV ? 'serial TV' : 'film'}{' '}
               {languageFilter === 'en' ? 'Bahasa Inggris (EN)' : languageFilter === 'id' ? 'Bahasa Indonesia (ID)' : ''}{' '}
-              untuk genre <span className="text-white font-semibold">{genre.name}</span> di database lokal.
+              untuk genre <span className="text-white font-semibold">{currentGenre.name}</span> di database lokal.
             </p>
             {languageFilter !== 'all' && (
               <button

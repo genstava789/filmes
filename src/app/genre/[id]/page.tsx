@@ -1,5 +1,5 @@
 import React from 'react';
-import { notFound } from 'next/navigation';
+import { notFound, redirect } from 'next/navigation';
 import type { Metadata } from 'next';
 import {
   getGenres,
@@ -68,14 +68,19 @@ export default async function GenrePage({ params, searchParams }: PageProps) {
     (item: any) => Array.isArray(item.genre_ids) && item.genre_ids.includes(genreId)
   );
 
+  // If this genre has no local data, redirect to All Genres (/movie or /tv/browse)
+  if (genreMatchedItems.length === 0) {
+    redirect(isTV ? '/tv/browse' : '/movie');
+  }
+
   return (
     <GenrePageClient
       genre={genre}
-      allItems={genreMatchedItems}
+      initialGenreId={genreId}
+      allLocalItems={rawLocalItems}
       initialPage={page}
       initialSort={sort}
       initialLanguage={initialLang === 'id' ? 'id' : initialLang === 'all' ? 'all' : 'en'}
-      genreId={genreId}
       allGenres={genres}
       type={isTV ? 'tv' : 'movie'}
     />

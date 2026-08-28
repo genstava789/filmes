@@ -8,11 +8,13 @@ import siteConfig from '@/config';
 
 interface GenreFilterProps {
   genres: Genre[];
-  activeGenreId?: number;
+  activeGenreId?: number | null;
   title?: string;
   type?: 'movie' | 'tv';
   allHref?: string;
   hideTitle?: boolean;
+  onGenreSelect?: (genreId: number) => void;
+  onAllSelect?: () => void;
 }
 
 export default function GenreFilter({
@@ -22,6 +24,8 @@ export default function GenreFilter({
   type = 'movie',
   allHref,
   hideTitle = false,
+  onGenreSelect,
+  onAllSelect,
 }: GenreFilterProps) {
   const router = useRouter();
   const scrollRef = useRef<HTMLDivElement>(null);
@@ -59,6 +63,10 @@ export default function GenreFilter({
   };
 
   const handleGenreClick = (genreId: number) => {
+    if (onGenreSelect) {
+      onGenreSelect(genreId);
+      return;
+    }
     if (type === 'tv') {
       router.push(`/genre/${genreId}?type=tv`);
     } else {
@@ -67,6 +75,10 @@ export default function GenreFilter({
   };
 
   const handleAllClick = () => {
+    if (onAllSelect) {
+      onAllSelect();
+      return;
+    }
     if (allHref) {
       router.push(allHref);
     } else if (type === 'tv') {

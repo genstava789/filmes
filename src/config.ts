@@ -259,6 +259,30 @@ export const siteConfig = {
   links: {
     github: 'https://github.com/genstava789/filmes',
   },
+
+  // Customizable Warning Notice for Non-Local Content (Custom Pages)
+  nonLocalWarning: {
+    movie: {
+      id: {
+        title: 'Film ini belum di tambahkan ke database',
+        description: 'Konten video lokal untuk film ini belum tersedia. Halaman ini hanya menampilkan informasi baseline dari TMDB.',
+      },
+      en: {
+        title: 'This movie has not been added to the database',
+        description: 'Local video content for this movie is currently unavailable. This page only displays baseline information from TMDB.',
+      },
+    },
+    tv: {
+      id: {
+        title: 'Series ini belum ditambahkan ke database',
+        description: 'Konten episode dan video lokal untuk serial TV ini belum tersedia. Halaman ini hanya menampilkan informasi baseline dari TMDB.',
+      },
+      en: {
+        title: 'This series has not been added to the database',
+        description: 'Local episode and video content for this TV series is currently unavailable. This page only displays baseline information from TMDB.',
+      },
+    },
+  },
 };
 
 export type SiteConfig = typeof siteConfig;

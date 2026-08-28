@@ -14,6 +14,7 @@ import RatingBadge from '@/components/RatingBadge';
 import MarkdownRenderer from '@/components/MarkdownRenderer';
 import TVDetailClient, { TVDetailHeaderActions } from '@/components/TVDetailClient';
 import TVEpisodeList from '@/components/TVEpisodeList';
+import NonLocalWarning from '@/components/NonLocalWarning';
 import siteConfig from '@/config';
 
 export const dynamicParams = true;
@@ -246,25 +247,6 @@ export default async function TVShowPage({ params }: PageProps) {
 
   return (
     <div className="min-h-screen pb-12" style={{ background: '#050816' }}>
-      {/* Warning banner for non-local TV series */}
-      {!data.isCustomTV && (
-        <div className="w-full px-4 sm:px-6 md:px-8 lg:px-10 xl:px-12 2xl:px-14 pt-20 sm:pt-24 pb-2">
-          <div className="p-4 sm:p-5 rounded-2xl bg-amber-500/10 border border-amber-500/30 flex items-start sm:items-center gap-3.5 backdrop-blur-md shadow-lg shadow-amber-950/20">
-            <div className="w-10 h-10 rounded-xl bg-amber-500/20 border border-amber-500/40 flex items-center justify-center flex-shrink-0 text-amber-400">
-              <AlertTriangle size={22} />
-            </div>
-            <div className="flex-1 min-w-0">
-              <h3 className="text-sm sm:text-base font-extrabold text-amber-300">
-                Serial ini belum ditambahkan ke database
-              </h3>
-              <p className="text-xs sm:text-sm text-amber-200/70 mt-0.5">
-                Konten episode dan video lokal untuk serial TV ini belum tersedia. Halaman ini hanya menampilkan informasi baseline dari TMDB.
-              </p>
-            </div>
-          </div>
-        </div>
-      )}
-
       {/* OpenGraph Video & Schema.org VideoObject (Only on Episode page with video) */}
       {isEpisodePage && videoUrl && (
         <>
@@ -464,6 +446,13 @@ export default async function TVShowPage({ params }: PageProps) {
                       releaseDate={data.first_air_date}
                     />
                   </div>
+
+                  {/* Non-local Warning Notice */}
+                  {!data.isCustomTV && (
+                    <div className="mt-5 max-w-xl">
+                      <NonLocalWarning type="tv" />
+                    </div>
+                  )}
                 </div>
               </div>
             </div>
