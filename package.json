@@ -11,7 +11,8 @@
     "tina:build": "tinacms build",
     "build:worker": "opennextjs-cloudflare build",
     "preview:worker": "opennextjs-cloudflare preview",
-    "deploy:worker": "opennextjs-cloudflare deploy"
+    "deploy:worker": "opennextjs-cloudflare deploy",
+    "postinstall": "node scripts/patch-opennext.js"
   },
   "dependencies": {
     "autoprefixer": "^10.0.1",
