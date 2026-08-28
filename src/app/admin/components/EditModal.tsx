@@ -497,8 +497,8 @@ export const EditModal: React.FC<EditModalProps> = ({
                   )}
                 </div>
 
-              {/* Rating, Language, Subtitles, Duration */}
-              <div className="grid grid-cols-1 sm:grid-cols-3 gap-3">
+              {/* Rating, Language, Weight, Subtitles, Duration */}
+              <div className="grid grid-cols-1 sm:grid-cols-4 gap-3">
                 <div>
                   <label className="block text-xs font-bold text-slate-300 mb-1.5">
                     Rating (0 - 10)
@@ -525,13 +525,31 @@ export const EditModal: React.FC<EditModalProps> = ({
                       onChange={(e) => updateFrontmatter('language', e.target.value)}
                       className="w-full px-3.5 py-2.5 sm:py-3 bg-black/50 border border-white/10 rounded-xl text-xs sm:text-sm text-white focus:outline-none focus:border-cyan-500 min-h-[42px]"
                     >
-                      <option value="ID">ID - Indonesia (Film / Series Indonesia)</option>
-                      <option value="KR">KR - Korea (Drakor / K-Drama)</option>
-                      <option value="EN">EN - English (Hollywood / Barat)</option>
-                      <option value="JP">JP - Jepang (Anime / J-Drama)</option>
+                      <option value="ID">ID - Indonesia</option>
+                      <option value="KR">KR - Korea (Drakor)</option>
+                      <option value="EN">EN - English (Barat)</option>
+                      <option value="JP">JP - Jepang (Anime)</option>
                       <option value="TH">TH - Thailand</option>
                       <option value="CN">CN - China / Mandarin</option>
                     </select>
+                  </div>
+                )}
+
+                {editingItem.type !== 'tv_episode' && (
+                  <div>
+                    <label className="block text-xs font-bold text-slate-300 mb-1.5">
+                      Weight Prioritas
+                    </label>
+                    <input
+                      type="number"
+                      min="1"
+                      max="9999"
+                      value={editingItem.frontmatter.weight || ''}
+                      onChange={(e) => updateFrontmatter('weight', e.target.value ? Number(e.target.value) : undefined)}
+                      placeholder="Urutan (1, 2, ..)"
+                      className="w-full px-3.5 py-2.5 sm:py-3 bg-black/50 border border-white/10 rounded-xl text-xs sm:text-sm text-white focus:outline-none focus:border-cyan-500 min-h-[42px]"
+                      title="Angka lebih kecil = urutan lebih prioritas/paling depan di section"
+                    />
                   </div>
                 )}
 

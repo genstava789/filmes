@@ -199,6 +199,13 @@ export async function getResolvedSections(page: 'home' | 'movie' | 'tv'): Promis
           }
         }
 
+        // Sort local items: items with weight come first ordered by weight ASC (smaller number = higher priority)
+        deduplicatedLocal.sort((a, b) => {
+          const wA = a.weight !== undefined && a.weight !== null ? Number(a.weight) : 999999;
+          const wB = b.weight !== undefined && b.weight !== null ? Number(b.weight) : 999999;
+          return wA - wB;
+        });
+
         const selectedLocal = deduplicatedLocal.slice(0, limit);
         let finalItems = [...selectedLocal];
 

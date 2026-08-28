@@ -15,6 +15,7 @@ export interface TinaMovieFrontmatter {
   featured?: boolean;
   trending?: boolean;
   language?: string; // e.g. 'ID', 'KR', 'EN'
+  weight?: number; // Sorting priority (smaller = first)
   subtitles?: string;
   [key: string]: any;
 }
@@ -28,6 +29,7 @@ export interface TinaTVShowFrontmatter {
   featured?: boolean;
   trending?: boolean;
   language?: string; // e.g. 'ID', 'KR', 'EN'
+  weight?: number; // Sorting priority (smaller = first)
   [key: string]: any;
 }
 
@@ -75,6 +77,9 @@ export function serializeTinaMovie(
   if (frontmatter.language && String(frontmatter.language).trim()) {
     cleanData.language = String(frontmatter.language).trim().toUpperCase();
   }
+  if (frontmatter.weight !== undefined && frontmatter.weight !== null && frontmatter.weight !== '') {
+    cleanData.weight = Number(frontmatter.weight);
+  }
   if (frontmatter.subtitles && String(frontmatter.subtitles).trim()) {
     cleanData.subtitles = String(frontmatter.subtitles).trim();
   }
@@ -120,6 +125,9 @@ export function serializeTinaTVShow(
   }
   if (frontmatter.language && String(frontmatter.language).trim()) {
     cleanData.language = String(frontmatter.language).trim().toUpperCase();
+  }
+  if (frontmatter.weight !== undefined && frontmatter.weight !== null && frontmatter.weight !== '') {
+    cleanData.weight = Number(frontmatter.weight);
   }
 
   for (const [k, v] of Object.entries(frontmatter)) {

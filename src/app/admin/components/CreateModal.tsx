@@ -59,6 +59,7 @@ export const CreateModal: React.FC<CreateModalProps> = ({
   const [formFeatured, setFormFeatured] = useState(false);
   const [formTrending, setFormTrending] = useState(false);
   const [formLanguage, setFormLanguage] = useState('ID');
+  const [formWeight, setFormWeight] = useState('');
   const [formSubtitles, setFormSubtitles] = useState('');
   const [formDuration, setFormDuration] = useState('');
   const [formTvShowSlug, setFormTvShowSlug] = useState('');
@@ -113,6 +114,7 @@ export const CreateModal: React.FC<CreateModalProps> = ({
       setFormFeatured(false);
       setFormTrending(false);
       setFormLanguage('ID');
+      setFormWeight('');
       setFormSubtitles('');
       setFormDuration('');
       setSearchQuery('');
@@ -196,6 +198,16 @@ export const CreateModal: React.FC<CreateModalProps> = ({
         if (data.overview) setFormDesc(data.overview);
         if (data.posterUrl) setFormPoster(data.posterUrl);
         if (data.rating) setFormRating(String(data.rating));
+        if (data.originalLanguage) {
+          const l = data.originalLanguage.toLowerCase().trim();
+          if (l === 'id' || l === 'ind') setFormLanguage('ID');
+          else if (l === 'ko' || l === 'kr' || l === 'kor') setFormLanguage('KR');
+          else if (l === 'en' || l === 'eng') setFormLanguage('EN');
+          else if (l === 'ja' || l === 'jp' || l === 'jpn') setFormLanguage('JP');
+          else if (l === 'th' || l === 'tha') setFormLanguage('TH');
+          else if (l === 'zh' || l === 'cn' || l === 'zho' || l === 'chi') setFormLanguage('CN');
+          else setFormLanguage(data.originalLanguage.toUpperCase().slice(0, 2));
+        }
         showToast('Data TMDB berhasil diterapkan ke form!');
       } else {
         if (selectedTmdbResult) {
@@ -266,6 +278,7 @@ export const CreateModal: React.FC<CreateModalProps> = ({
         featured: formFeatured,
         trending: formTrending,
         language: formLanguage,
+        weight: formWeight ? Number(formWeight) : undefined,
         subtitles: formSubtitles,
         duration: formDuration,
         showSlug: formTvShowSlug,
@@ -721,8 +734,8 @@ export const CreateModal: React.FC<CreateModalProps> = ({
             )}
           </div>
 
-          {/* Rating, Language, Subtitles, Featured, Trending */}
-          <div className="grid grid-cols-1 sm:grid-cols-3 gap-3">
+          {/* Rating, Language, Weight, Subtitles */}
+          <div className="grid grid-cols-1 sm:grid-cols-4 gap-3">
             <div>
               <label className="block text-xs font-bold text-slate-300 mb-1.5">Rating (0 - 10)</label>
               <input
@@ -743,13 +756,28 @@ export const CreateModal: React.FC<CreateModalProps> = ({
                 onChange={(e) => setFormLanguage(e.target.value)}
                 className="w-full px-3.5 py-2.5 sm:py-3 bg-black/50 border border-white/10 rounded-xl text-xs sm:text-sm text-white focus:outline-none focus:border-cyan-500 min-h-[42px]"
               >
-                <option value="ID">ID - Indonesia (Film / Series Indonesia)</option>
-                <option value="KR">KR - Korea (Drakor / K-Drama)</option>
-                <option value="EN">EN - English (Hollywood / Barat)</option>
-                <option value="JP">JP - Jepang (Anime / J-Drama)</option>
+                <option value="ID">ID - Indonesia</option>
+                <option value="KR">KR - Korea (Drakor)</option>
+                <option value="EN">EN - English (Barat)</option>
+                <option value="JP">JP - Jepang (Anime)</option>
                 <option value="TH">TH - Thailand</option>
                 <option value="CN">CN - China / Mandarin</option>
               </select>
+            </div>
+            <div>
+              <label className="block text-xs font-bold text-slate-300 mb-1.5">
+                Weight Prioritas
+              </label>
+              <input
+                type="number"
+                min="1"
+                max="9999"
+                value={formWeight}
+                onChange={(e) => setFormWeight(e.target.value)}
+                placeholder="Urutan (1, 2, ..)"
+                className="w-full px-3.5 py-2.5 sm:py-3 bg-black/50 border border-white/10 rounded-xl text-xs sm:text-sm text-white focus:outline-none focus:border-cyan-500 min-h-[42px]"
+                title="Angka lebih kecil = urutan lebih prioritas/paling depan di section"
+              />
             </div>
             <div>
               <label className="block text-xs font-bold text-slate-300 mb-1.5">Subtitles (VTT/SRT)</label>

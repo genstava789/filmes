@@ -964,6 +964,7 @@ export async function getAllCustomTVShowsForList(): Promise<any[]> {
                   featured: Boolean(data.featured),
                   trending: Boolean(data.trending),
                   language: data.language ? String(data.language).trim().toUpperCase() : 'ID',
+                  weight: data.weight !== undefined && data.weight !== null && data.weight !== '' ? Number(data.weight) : undefined,
                   episodes: [],
                   createdAt: 0,
                   updatedAt: 0,
@@ -1013,6 +1014,7 @@ export async function getAllCustomTVShowsForList(): Promise<any[]> {
               featured: Boolean(s.featured),
               trending: Boolean(s.trending),
               language: s.language ? String(s.language).trim().toUpperCase() : 'ID',
+              weight: s.weight !== undefined && s.weight !== null ? Number(s.weight) : undefined,
               link: `/tv/${s.showSlug}`,
             };
           })

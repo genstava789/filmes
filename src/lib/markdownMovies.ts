@@ -696,6 +696,7 @@ export async function getAllCustomMoviesForList(): Promise<any[]> {
                 featured: Boolean(data.featured),
                 trending: Boolean(data.trending),
                 language: data.language ? String(data.language).trim().toUpperCase() : 'ID',
+                weight: data.weight !== undefined && data.weight !== null && data.weight !== '' ? Number(data.weight) : undefined,
                 createdAt: 0,
                 updatedAt: 0,
               });
@@ -745,6 +746,7 @@ export async function getAllCustomMoviesForList(): Promise<any[]> {
               featured: Boolean(m.featured),
               trending: Boolean(m.trending),
               language: m.language ? String(m.language).trim().toUpperCase() : 'ID',
+              weight: m.weight !== undefined && m.weight !== null ? Number(m.weight) : undefined,
             };
           })
         );

@@ -39,13 +39,13 @@ export interface SectionFallback {
   enabled: boolean;
   tmdbType?: 'movie' | 'tv';
   tmdbEndpoint?:
-    | 'trending'
-    | 'popular'
-    | 'top_rated'
-    | 'now_playing'
-    | 'airing_today'
-    | 'discover_language'
-    | 'discover_genre';
+  | 'trending'
+  | 'popular'
+  | 'top_rated'
+  | 'now_playing'
+  | 'airing_today'
+  | 'discover_language'
+  | 'discover_genre';
   tmdbLanguage?: string; // e.g. 'id' for Indonesian, 'ko' for Korean
   tmdbGenreId?: number;
 }
@@ -169,7 +169,7 @@ export const siteConfig = {
       title: 'Recently Added',
       type: 'movie',
       pages: { home: true, movie: true, tv: false },
-      weight: 40,
+      weight: 15,
       limit: 10,
       fallback: { enabled: true, tmdbType: 'movie', tmdbEndpoint: 'now_playing' },
       seeAllHref: '/movie?sort=release_date.desc',

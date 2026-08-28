@@ -265,6 +265,7 @@ export async function fetchPaginatedAdminContent(
         featured: m.featured,
         trending: m.trending,
         language: m.language ? String(m.language).toUpperCase() : 'ID',
+        weight: m.weight !== undefined && m.weight !== null ? Number(m.weight) : undefined,
         subtitles: m.subtitles,
         duration: m.duration,
       },
@@ -313,6 +314,7 @@ export async function fetchPaginatedAdminContent(
         featured: s.featured,
         trending: s.trending,
         language: s.language ? String(s.language).toUpperCase() : 'ID',
+        weight: s.weight !== undefined && s.weight !== null ? Number(s.weight) : undefined,
       },
       indexContent: s.content || '',
       updatedAt: s.updatedAt || Date.now(),
@@ -510,6 +512,7 @@ export async function fetchAllAdminContent(ghConfig: GitHubOptions) {
           featured: m.featured,
           trending: m.trending,
           language: m.language ? String(m.language).toUpperCase() : 'ID',
+          weight: m.weight !== undefined && m.weight !== null ? Number(m.weight) : undefined,
           subtitles: m.subtitles,
           duration: m.duration,
         },
@@ -531,6 +534,7 @@ export async function fetchAllAdminContent(ghConfig: GitHubOptions) {
           featured: s.featured,
           trending: s.trending,
           language: s.language ? String(s.language).toUpperCase() : 'ID',
+          weight: s.weight !== undefined && s.weight !== null ? Number(s.weight) : undefined,
         },
         indexContent: s.content || '',
         updatedAt: s.updatedAt || Date.now(),
@@ -902,6 +906,7 @@ export async function createAdminContent(body: any, ghConfig: GitHubOptions) {
     if (featured !== undefined) frontmatterData.featured = Boolean(featured);
     if (body.trending !== undefined) frontmatterData.trending = Boolean(body.trending);
     if (body.language && String(body.language).trim()) frontmatterData.language = String(body.language).trim().toUpperCase();
+    if (body.weight !== undefined && body.weight !== null && body.weight !== '') frontmatterData.weight = Number(body.weight);
     if (subtitles && subtitles.trim()) frontmatterData.subtitles = subtitles.trim();
 
     fileContent = serializeTinaMovie(frontmatterData, content || '');
@@ -929,6 +934,7 @@ export async function createAdminContent(body: any, ghConfig: GitHubOptions) {
         featured: frontmatterData.featured || false,
         trending: frontmatterData.trending || false,
         language: frontmatterData.language || 'ID',
+        weight: frontmatterData.weight,
         subtitles: frontmatterData.subtitles || '',
         duration: frontmatterData.duration || '',
         content: content || '',
@@ -1003,6 +1009,7 @@ export async function createAdminContent(body: any, ghConfig: GitHubOptions) {
     if (featured !== undefined) frontmatterData.featured = Boolean(featured);
     if (body.trending !== undefined) frontmatterData.trending = Boolean(body.trending);
     if (body.language && String(body.language).trim()) frontmatterData.language = String(body.language).trim().toUpperCase();
+    if (body.weight !== undefined && body.weight !== null && body.weight !== '') frontmatterData.weight = Number(body.weight);
 
     fileContent = serializeTinaTVShow(frontmatterData, content || '');
 
@@ -1096,6 +1103,7 @@ export async function createAdminContent(body: any, ghConfig: GitHubOptions) {
           featured: frontmatterData.featured || false,
           trending: frontmatterData.trending || false,
           language: frontmatterData.language || 'ID',
+          weight: frontmatterData.weight,
           content: content || '',
         },
         mongoEpisodesList
@@ -1272,6 +1280,8 @@ export async function updateAdminContent(body: any, ghConfig: GitHubOptions) {
         cleanFrontmatter[key] = Boolean(val);
       } else if (key === 'language') {
         cleanFrontmatter[key] = String(val).trim().toUpperCase();
+      } else if (key === 'weight') {
+        cleanFrontmatter[key] = isNaN(Number(val)) ? undefined : Number(val);
       } else {
         cleanFrontmatter[key] = val;
       }
@@ -1302,6 +1312,7 @@ export async function updateAdminContent(body: any, ghConfig: GitHubOptions) {
         featured: cleanFrontmatter.featured,
         trending: cleanFrontmatter.trending,
         language: cleanFrontmatter.language || 'ID',
+        weight: cleanFrontmatter.weight,
         subtitles: cleanFrontmatter.subtitles,
         duration: cleanFrontmatter.duration,
         content: content || '',
@@ -1344,6 +1355,7 @@ export async function updateAdminContent(body: any, ghConfig: GitHubOptions) {
           featured: cleanFrontmatter.featured,
           trending: cleanFrontmatter.trending,
           language: cleanFrontmatter.language || 'ID',
+          weight: cleanFrontmatter.weight,
           content: content || '',
         },
         mongoEps

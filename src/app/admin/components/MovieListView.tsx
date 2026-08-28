@@ -18,6 +18,8 @@ interface MovieListViewProps {
   onDelete: (relativePath: string, title: string) => void;
   selectedPaths: string[];
   onToggleSelect: (path: string) => void;
+  onSelectAll?: (paths: string[]) => void;
+  onClearSelection?: () => void;
 }
 
 function MovieCardSkeleton() {
@@ -84,6 +86,8 @@ export const MovieListView: React.FC<MovieListViewProps> = ({
   onDelete,
   selectedPaths,
   onToggleSelect,
+  onSelectAll,
+  onClearSelection,
 }) => {
   if (pageLoading) {
     return (
@@ -118,14 +122,42 @@ export const MovieListView: React.FC<MovieListViewProps> = ({
     );
   }
 
+  const allVisiblePaths = movies.map((m) => m.relativePath);
+  const isAllCurrentSelected = allVisiblePaths.length > 0 && allVisiblePaths.every((p) => selectedPaths.includes(p));
+
+  const handleToggleSelectAll = () => {
+    if (isAllCurrentSelected) {
+      if (onClearSelection) onClearSelection();
+    } else {
+      if (onSelectAll) onSelectAll(Array.from(new Set([...selectedPaths, ...allVisiblePaths])));
+    }
+  };
+
   return (
-    <div className="space-y-4">
+    <div className="space-y-3.5">
+      {/* Select All & Summary Header */}
+      <div className="flex items-center justify-between px-1.5 py-1">
+        <label className="flex items-center gap-2 cursor-pointer select-none text-xs font-bold text-slate-300 hover:text-white transition-colors">
+          <input
+            type="checkbox"
+            checked={isAllCurrentSelected}
+            onChange={handleToggleSelectAll}
+            className="w-4 h-4 rounded text-cyan-500 focus:ring-cyan-500 bg-black/50 border-white/20 cursor-pointer"
+          />
+          <span>Pilih Semua di Halaman Ini ({movies.length})</span>
+        </label>
+        <span className="text-xs text-slate-400">
+          Total <span className="text-cyan-400 font-bold">{totalMoviesCount}</span> movies
+        </span>
+      </div>
+
       <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-3.5 sm:gap-4">
         {movies.map((movie) => {
           const title = movie.displayTitle || movie.frontmatter.title || movie.slug;
           const tmdbId = movie.frontmatter.tmdb_id;
           const poster = movie.posterUrl || movie.frontmatter.image_url || movie.frontmatter.poster_path;
           const isFeatured = Boolean(movie.frontmatter.featured);
+          const weight = movie.frontmatter.weight;
           const rating = movie.rating || movie.frontmatter.rating;
           const isSelected = selectedPaths.includes(movie.relativePath);
 
@@ -140,11 +172,26 @@ export const MovieListView: React.FC<MovieListViewProps> = ({
             >
               <div>
                 <div className="flex items-start gap-3 mb-2.5">
+                  {/* Poster with Checkbox Overlay */}
                   <div
                     onClick={() => onToggleSelect(movie.relativePath)}
-                    className="relative w-16 sm:w-20 aspect-[2/3] min-h-[96px] sm:min-h-[120px] rounded-lg sm:rounded-xl overflow-hidden bg-slate-900 flex-shrink-0 border border-white/15 shadow-md cursor-pointer"
+                    className="relative w-16 sm:w-20 aspect-[2/3] min-h-[96px] sm:min-h-[120px] rounded-lg sm:rounded-xl overflow-hidden bg-slate-900 flex-shrink-0 border border-white/15 shadow-md cursor-pointer group/poster"
                   >
                     <SafeAdminImage src={poster} alt={title} sizes="(max-width: 640px) 64px, 80px" />
+                    <div
+                      className={`absolute top-1.5 left-1.5 w-5 h-5 rounded-md flex items-center justify-center transition-all ${
+                        isSelected
+                          ? 'bg-cyan-500 text-black shadow-md shadow-cyan-500/40'
+                          : 'bg-black/60 text-transparent border border-white/30 group-hover/poster:border-cyan-400'
+                      }`}
+                    >
+                      <input
+                        type="checkbox"
+                        checked={isSelected}
+                        onChange={() => {}} // handled by div onClick
+                        className="w-3.5 h-3.5 pointer-events-none"
+                      />
+                    </div>
                   </div>
 
                   <div className="flex-1 min-w-0">
@@ -155,6 +202,11 @@ export const MovieListView: React.FC<MovieListViewProps> = ({
                       <span className="px-1.5 py-0.5 rounded-md text-[9.5px] font-bold bg-blue-500/10 text-blue-400 border border-blue-500/30">
                         {String(movie.frontmatter.language || 'ID').toUpperCase()}
                       </span>
+                      {weight !== undefined && weight !== null && (
+                        <span className="px-1.5 py-0.5 rounded-md text-[9.5px] font-bold bg-purple-500/20 text-purple-300 border border-purple-500/30" title="Prioritas Weight">
+                          🎯 W: {weight}
+                        </span>
+                      )}
                       {Boolean(movie.frontmatter.trending) && (
                         <span className="px-1.5 py-0.5 rounded-md text-[9.5px] font-bold bg-rose-500/20 text-rose-300 border border-rose-500/30 flex items-center gap-0.5">
                           🔥 Trending

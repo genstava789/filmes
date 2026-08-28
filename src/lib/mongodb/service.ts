@@ -26,6 +26,7 @@ export interface MongoMovie {
   featured?: boolean;
   trending?: boolean;
   language?: string; // e.g. 'ID', 'KR', 'EN'
+  weight?: number; // Sorting priority (smaller = first)
   subtitles?: string;
   duration?: string;
   content?: string;
@@ -45,6 +46,7 @@ export interface MongoTVShow {
   featured?: boolean;
   trending?: boolean;
   language?: string; // e.g. 'ID', 'KR', 'EN'
+  weight?: number; // Sorting priority (smaller = first)
   content?: string;
   deleted?: boolean;
   episodes?: MongoTVEpisode[];
@@ -146,6 +148,7 @@ async function seedFromMarkdownFiles(movies: any, tvShows: any, episodes: any) {
             featured: Boolean(data.featured),
             trending: Boolean(data.trending),
             language: data.language ? String(data.language).trim().toUpperCase() : 'ID',
+            weight: data.weight !== undefined && data.weight !== null ? Number(data.weight) : undefined,
             subtitles: data.subtitles || '',
             duration: data.duration || '',
             content: content || '',
@@ -191,6 +194,7 @@ async function seedFromMarkdownFiles(movies: any, tvShows: any, episodes: any) {
           featured: Boolean(indexData.featured),
           trending: Boolean(indexData.trending),
           language: indexData.language ? String(indexData.language).trim().toUpperCase() : 'ID',
+          weight: indexData.weight !== undefined && indexData.weight !== null ? Number(indexData.weight) : undefined,
           content: indexContent || '',
           createdAt: Date.now(),
           updatedAt: Date.now(),
@@ -457,6 +461,7 @@ export async function saveMongoMovie(data: Partial<MongoMovie>): Promise<MongoMo
     featured: data.featured !== undefined ? Boolean(data.featured) : Boolean(existing?.featured),
     trending: data.trending !== undefined ? Boolean(data.trending) : Boolean(existing?.trending),
     language: data.language !== undefined ? String(data.language).trim().toUpperCase() : (existing?.language || 'ID'),
+    weight: data.weight !== undefined && data.weight !== null ? Number(data.weight) : existing?.weight,
     subtitles: (data.subtitles !== undefined ? data.subtitles : (existing?.subtitles || '')).trim(),
     duration: (data.duration !== undefined ? data.duration : (existing?.duration || '')).trim(),
     content: data.content !== undefined ? data.content : (existing?.content || ''),
@@ -681,6 +686,7 @@ export async function saveMongoTVShow(
     featured: data.featured !== undefined ? Boolean(data.featured) : Boolean(existing?.featured),
     trending: data.trending !== undefined ? Boolean(data.trending) : Boolean(existing?.trending),
     language: data.language !== undefined ? String(data.language).trim().toUpperCase() : (existing?.language || 'ID'),
+    weight: data.weight !== undefined && data.weight !== null ? Number(data.weight) : existing?.weight,
     content: data.content !== undefined ? data.content : (existing?.content || ''),
     createdAt: existing?.createdAt || data.createdAt || now,
     updatedAt: now,

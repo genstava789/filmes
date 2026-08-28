@@ -31,6 +31,10 @@ interface TVListViewProps {
   onDeleteShow: (path: string, title: string) => void;
   onDeleteEpisode: (path: string, title: string) => void;
   onQuickAddEpisode: (show: TVShowItem, seasonSlug: string) => void;
+  selectedPaths?: string[];
+  onToggleSelect?: (path: string) => void;
+  onSelectAll?: (paths: string[]) => void;
+  onClearSelection?: () => void;
 }
 
 function TVCardSkeleton() {
@@ -109,6 +113,10 @@ export const TVListView: React.FC<TVListViewProps> = ({
   onDeleteShow,
   onDeleteEpisode,
   onQuickAddEpisode,
+  selectedPaths = [],
+  onToggleSelect,
+  onSelectAll,
+  onClearSelection,
 }) => {
   const [expandedSeasons, setExpandedSeasons] = useState<Record<string, boolean>>({});
   const [seasonPages, setSeasonPages] = useState<Record<string, number>>({});
@@ -187,26 +195,77 @@ export const TVListView: React.FC<TVListViewProps> = ({
     );
   }
 
+  const allVisiblePaths = tvShows.map((s) => s.relativePath);
+  const isAllCurrentSelected = allVisiblePaths.length > 0 && allVisiblePaths.every((p) => selectedPaths.includes(p));
+
+  const handleToggleSelectAll = () => {
+    if (isAllCurrentSelected) {
+      if (onClearSelection) onClearSelection();
+    } else {
+      if (onSelectAll) onSelectAll(Array.from(new Set([...selectedPaths, ...allVisiblePaths])));
+    }
+  };
+
   return (
     <div className="space-y-4">
+      {/* Select All & Summary Header */}
+      <div className="flex items-center justify-between px-1.5 py-1">
+        <label className="flex items-center gap-2 cursor-pointer select-none text-xs font-bold text-slate-300 hover:text-white transition-colors">
+          <input
+            type="checkbox"
+            checked={isAllCurrentSelected}
+            onChange={handleToggleSelectAll}
+            className="w-4 h-4 rounded text-pink-500 focus:ring-pink-500 bg-black/50 border-white/20 cursor-pointer"
+          />
+          <span>Pilih Semua di Halaman Ini ({tvShows.length})</span>
+        </label>
+        <span className="text-xs text-slate-400">
+          Total <span className="text-pink-400 font-bold">{totalShowsCount}</span> serial TV
+        </span>
+      </div>
+
       <div className="space-y-3.5 w-full">
         {tvShows.map((show) => {
           const title = show.displayTitle || show.frontmatter.title || show.showSlug;
           const tmdbId = show.frontmatter.tmdb_id;
           const poster = show.posterUrl || show.frontmatter.image_url;
           const year = show.year;
+          const weight = show.frontmatter.weight;
           const showSeasons = getShowSeasons(show);
+          const isSelected = selectedPaths.includes(show.relativePath);
 
           return (
             <div
               key={show.showSlug}
-              className="p-3.5 sm:p-4 rounded-xl sm:rounded-2xl bg-[#0c1224] border border-white/10 hover:border-pink-500/40 transition-all shadow-sm w-full space-y-3"
+              className={`p-3.5 sm:p-4 rounded-xl sm:rounded-2xl bg-[#0c1224] border transition-all shadow-sm w-full space-y-3 ${
+                isSelected
+                  ? 'border-pink-400 bg-[#190d24]'
+                  : 'border-white/10 hover:border-pink-500/40'
+              }`}
             >
               {/* Show Main Header - Mobile Responsive */}
               <div className="flex flex-col md:flex-row md:items-center justify-between gap-3 pb-3 border-b border-white/10 w-full">
                 <div className="flex items-start sm:items-center gap-2.5">
-                  <div className="relative w-12 sm:w-14 aspect-[2/3] min-h-[72px] sm:min-h-[84px] rounded-lg overflow-hidden bg-slate-900 flex-shrink-0 border border-white/10 shadow-sm">
+                  {/* Poster with Checkbox Overlay */}
+                  <div
+                    onClick={() => onToggleSelect && onToggleSelect(show.relativePath)}
+                    className="relative w-12 sm:w-14 aspect-[2/3] min-h-[72px] sm:min-h-[84px] rounded-lg overflow-hidden bg-slate-900 flex-shrink-0 border border-white/10 shadow-sm cursor-pointer group/poster"
+                  >
                     <SafeAdminImage src={poster} alt={title} sizes="56px" />
+                    <div
+                      className={`absolute top-1 left-1 w-4 h-4 rounded flex items-center justify-center transition-all ${
+                        isSelected
+                          ? 'bg-pink-500 text-white shadow-md'
+                          : 'bg-black/60 text-transparent border border-white/30 group-hover/poster:border-pink-400'
+                      }`}
+                    >
+                      <input
+                        type="checkbox"
+                        checked={isSelected}
+                        onChange={() => {}} // handled by parent div
+                        className="w-3 h-3 pointer-events-none"
+                      />
+                    </div>
                   </div>
 
                   <div className="min-w-0">
@@ -217,6 +276,11 @@ export const TVListView: React.FC<TVListViewProps> = ({
                       <span className="px-1.5 py-0.2 rounded text-[9.5px] font-bold bg-blue-500/10 text-blue-400 border border-blue-500/30">
                         {String(show.frontmatter.language || 'ID').toUpperCase()}
                       </span>
+                      {weight !== undefined && weight !== null && (
+                        <span className="px-1.5 py-0.2 rounded text-[9.5px] font-bold bg-purple-500/20 text-purple-300 border border-purple-500/30" title="Prioritas Weight">
+                          🎯 W: {weight}
+                        </span>
+                      )}
                       {Boolean(show.frontmatter.trending) && (
                         <span className="px-1.5 py-0.2 rounded text-[9.5px] font-bold bg-rose-500/20 text-rose-300 border border-rose-500/30 flex items-center gap-0.5">
                           🔥 Trending
