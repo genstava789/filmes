@@ -68,18 +68,6 @@ export default async function GenrePage({ params, searchParams }: PageProps) {
 
   if (!genre) notFound();
 
-  // Filter local items strictly matching this genre ID (or all items if isAll)
-  const genreMatchedItems = isAll
-    ? rawLocalItems
-    : rawLocalItems.filter(
-        (item: any) => Array.isArray(item.genre_ids) && item.genre_ids.includes(genreId)
-      );
-
-  // If this specific genre has no local data, redirect to All Genres
-  if (!isAll && genreMatchedItems.length === 0) {
-    redirect(isTV ? '/genre/all?type=tv' : '/genre/all');
-  }
-
   return (
     <GenrePageClient
       genre={genre}
