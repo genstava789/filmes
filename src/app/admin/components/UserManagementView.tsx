@@ -1,6 +1,6 @@
 'use client';
 
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect, useMemo } from 'react';
 import {
   Users,
   Search,
@@ -19,6 +19,11 @@ import {
   X,
   Copy,
   Check,
+  ChevronLeft,
+  ChevronRight,
+  CheckSquare,
+  Square,
+  MinusSquare,
 } from 'lucide-react';
 import { UserRole } from '@/lib/mongodb/userService';
 
@@ -50,6 +55,15 @@ export const UserManagementView: React.FC<UserManagementViewProps> = ({
   const [isDeleting, setIsDeleting] = useState(false);
   const [copiedId, setCopiedId] = useState<string | null>(null);
 
+  // Multi-select state
+  const [selectedUserIds, setSelectedUserIds] = useState<string[]>([]);
+  const [isBatchModalOpen, setIsBatchModalOpen] = useState(false);
+  const [isBatchDeleting, setIsBatchDeleting] = useState(false);
+
+  // Pagination state
+  const [currentPage, setCurrentPage] = useState(1);
+  const [itemsPerPage, setItemsPerPage] = useState(10);
+
   const fetchUsers = async () => {
     setLoading(true);
     try {
@@ -57,6 +71,7 @@ export const UserManagementView: React.FC<UserManagementViewProps> = ({
       const data = await res.json();
       if (res.ok && data.success) {
         setUsers(data.users || []);
+        setSelectedUserIds([]);
       } else {
         onShowToast(data.message || 'Gagal memuat data pengguna', 'error');
       }
@@ -102,6 +117,7 @@ export const UserManagementView: React.FC<UserManagementViewProps> = ({
     }
   };
 
+  // Single Delete
   const handleConfirmDelete = async () => {
     if (!deletingUser) return;
     if (currentUserRole !== 'owner') {
@@ -117,6 +133,7 @@ export const UserManagementView: React.FC<UserManagementViewProps> = ({
       const data = await res.json();
       if (res.ok && data.success) {
         setUsers((prev) => prev.filter((u) => u.id !== deletingUser.id));
+        setSelectedUserIds((prev) => prev.filter((id) => id !== deletingUser.id));
         onShowToast(data.message || `Akun @${deletingUser.username} berhasil dihapus permanen`, 'success');
         setDeletingUser(null);
       } else {
@@ -130,6 +147,39 @@ export const UserManagementView: React.FC<UserManagementViewProps> = ({
     }
   };
 
+  // Batch Delete
+  const handleConfirmBatchDelete = async () => {
+    if (selectedUserIds.length === 0) return;
+    if (currentUserRole !== 'owner') {
+      onShowToast('Hanya Owner yang memiliki izin untuk menghapus akun pengguna', 'error');
+      return;
+    }
+
+    setIsBatchDeleting(true);
+    try {
+      const res = await fetch('/api/admin/users/batch-delete', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ userIds: selectedUserIds }),
+      });
+      const data = await res.json();
+      if (res.ok && data.success) {
+        const deletedSet = new Set(selectedUserIds);
+        setUsers((prev) => prev.filter((u) => !deletedSet.has(u.id)));
+        setSelectedUserIds([]);
+        onShowToast(data.message || 'Akun terpilih berhasil dihapus permanen', 'success');
+        setIsBatchModalOpen(false);
+      } else {
+        onShowToast(data.message || 'Gagal menghapus beberapa akun pengguna', 'error');
+      }
+    } catch (err: any) {
+      console.error('Batch delete error:', err);
+      onShowToast('Terjadi kesalahan saat menghapus beberapa akun', 'error');
+    } finally {
+      setIsBatchDeleting(false);
+    }
+  };
+
   const handleCopyId = (id: string) => {
     if (typeof navigator !== 'undefined' && navigator.clipboard) {
       navigator.clipboard.writeText(id);
@@ -139,16 +189,70 @@ export const UserManagementView: React.FC<UserManagementViewProps> = ({
     }
   };
 
-  const filteredUsers = users.filter((u) => {
+  // Filtered & Sorted Users
+  const filteredUsers = useMemo(() => {
     const q = searchQuery.toLowerCase().trim();
-    if (!q) return true;
-    return (
-      u.username.toLowerCase().includes(q) ||
-      u.email.toLowerCase().includes(q) ||
-      u.role.toLowerCase().includes(q) ||
-      u.id.toLowerCase().includes(q)
+    const result = users.filter((u) => {
+      if (!q) return true;
+      return (
+        u.username.toLowerCase().includes(q) ||
+        u.email.toLowerCase().includes(q) ||
+        u.role.toLowerCase().includes(q) ||
+        u.id.toLowerCase().includes(q)
+      );
+    });
+
+    // Role priority: Owner = 0, Admin = 1, Member = 2
+    const rolePriority: Record<UserRole, number> = {
+      owner: 0,
+      admin: 1,
+      member: 2,
+    };
+
+    return result.sort((a, b) => {
+      const diff = (rolePriority[a.role] ?? 99) - (rolePriority[b.role] ?? 99);
+      if (diff !== 0) return diff;
+      return b.createdAt - a.createdAt;
+    });
+  }, [users, searchQuery]);
+
+  // Reset pagination on search change
+  useEffect(() => {
+    setCurrentPage(1);
+  }, [searchQuery, itemsPerPage]);
+
+  // Pagination calculations
+  const totalPages = Math.max(1, Math.ceil(filteredUsers.length / itemsPerPage));
+  const paginatedUsers = useMemo(() => {
+    const start = (currentPage - 1) * itemsPerPage;
+    return filteredUsers.slice(start, start + itemsPerPage);
+  }, [filteredUsers, currentPage, itemsPerPage]);
+
+  // Non-owner selectable users
+  const selectableUsers = useMemo(() => {
+    return filteredUsers.filter((u) => u.role !== 'owner');
+  }, [filteredUsers]);
+
+  const isAllSelectableSelected =
+    selectableUsers.length > 0 &&
+    selectableUsers.every((u) => selectedUserIds.includes(u.id));
+
+  const isSomeSelectableSelected =
+    selectedUserIds.length > 0 && !isAllSelectableSelected;
+
+  const toggleSelectAll = () => {
+    if (isAllSelectableSelected) {
+      setSelectedUserIds([]);
+    } else {
+      setSelectedUserIds(selectableUsers.map((u) => u.id));
+    }
+  };
+
+  const toggleSelectUser = (id: string) => {
+    setSelectedUserIds((prev) =>
+      prev.includes(id) ? prev.filter((item) => item !== id) : [...prev, id]
     );
-  });
+  };
 
   const totalAdmins = users.filter((u) => u.role === 'admin').length;
   const totalOwners = users.filter((u) => u.role === 'owner').length;
@@ -167,7 +271,7 @@ export const UserManagementView: React.FC<UserManagementViewProps> = ({
             Manajemen Pengguna & Role
           </h2>
           <p className="text-xs sm:text-sm text-slate-400 max-w-xl">
-            Kelola hak akses dan akun pengguna. Administrator dapat mengelola konten CMS, dan Owner memiliki kendali penuh termasuk pengelolaan role serta penghapusan akun.
+            Kelola hak akses dan akun pengguna. Posisi Owner dan Admin selalu berada di paling atas. Gunakan fitur multi-select dan pagination untuk mengelola akun dalam jumlah banyak.
           </p>
         </div>
 
@@ -188,8 +292,8 @@ export const UserManagementView: React.FC<UserManagementViewProps> = ({
         </div>
       </div>
 
-      {/* ── Search & Refresh Bar ── */}
-      <div className="flex flex-col sm:flex-row items-stretch sm:items-center justify-between gap-3">
+      {/* ── Search, Multi-Select & Refresh Bar ── */}
+      <div className="flex flex-col md:flex-row items-stretch md:items-center justify-between gap-3">
         <div className="relative flex-1 max-w-md">
           <Search size={15} className="absolute left-3.5 top-1/2 -translate-y-1/2 text-slate-400" />
           <input
@@ -201,16 +305,87 @@ export const UserManagementView: React.FC<UserManagementViewProps> = ({
           />
         </div>
 
-        <button
-          type="button"
-          onClick={fetchUsers}
-          disabled={loading}
-          className="px-4 py-2.5 rounded-2xl bg-white/[0.05] hover:bg-white/[0.1] text-slate-300 font-bold text-xs border border-white/10 transition-all flex items-center justify-center gap-2 active:scale-95 disabled:opacity-50"
-        >
-          <RefreshCw size={14} className={loading ? 'animate-spin text-cyan-400' : ''} />
-          <span>Segarkan Data</span>
-        </button>
+        <div className="flex items-center gap-2 flex-wrap">
+          {/* Multi-Select Select All Toggle (Owner only) */}
+          {currentUserRole === 'owner' && selectableUsers.length > 0 && (
+            <button
+              type="button"
+              onClick={toggleSelectAll}
+              className="px-3.5 py-2.5 rounded-2xl bg-white/[0.05] hover:bg-white/[0.1] text-slate-300 font-bold text-xs border border-white/10 transition-all flex items-center gap-2 active:scale-95"
+            >
+              {isAllSelectableSelected ? (
+                <CheckSquare size={15} className="text-cyan-400" />
+              ) : isSomeSelectableSelected ? (
+                <MinusSquare size={15} className="text-cyan-400" />
+              ) : (
+                <Square size={15} className="text-slate-400" />
+              )}
+              <span>{isAllSelectableSelected ? 'Batal Pilih Semua' : 'Pilih Semua Akun'}</span>
+            </button>
+          )}
+
+          {/* Items per page selector */}
+          <div className="flex items-center gap-1.5 px-3 py-2 bg-[#090e1f] border border-white/10 rounded-2xl text-xs text-slate-400">
+            <span>Tampilkan:</span>
+            <select
+              value={itemsPerPage}
+              onChange={(e) => setItemsPerPage(Number(e.target.value))}
+              className="bg-black/50 text-white font-bold rounded-lg px-2 py-0.5 border border-white/10 focus:outline-none focus:border-cyan-500"
+            >
+              <option value={10}>10</option>
+              <option value={25}>25</option>
+              <option value={50}>50</option>
+            </select>
+          </div>
+
+          <button
+            type="button"
+            onClick={fetchUsers}
+            disabled={loading}
+            className="px-4 py-2.5 rounded-2xl bg-white/[0.05] hover:bg-white/[0.1] text-slate-300 font-bold text-xs border border-white/10 transition-all flex items-center justify-center gap-2 active:scale-95 disabled:opacity-50"
+          >
+            <RefreshCw size={14} className={loading ? 'animate-spin text-cyan-400' : ''} />
+            <span>Segarkan Data</span>
+          </button>
+        </div>
       </div>
+
+      {/* ── Sticky Batch Action Bar when users are selected ── */}
+      {selectedUserIds.length > 0 && currentUserRole === 'owner' && (
+        <div className="p-3.5 sm:p-4 rounded-2xl bg-gradient-to-r from-red-950/60 via-purple-950/50 to-black/70 border border-red-500/40 shadow-xl flex flex-col sm:flex-row sm:items-center justify-between gap-3 animate-fade-in">
+          <div className="flex items-center gap-2.5">
+            <div className="p-2 rounded-xl bg-red-500/20 text-red-400 border border-red-500/30">
+              <CheckSquare size={16} />
+            </div>
+            <div>
+              <span className="font-extrabold text-sm text-white block">
+                {selectedUserIds.length} Pengguna Dipilih
+              </span>
+              <span className="text-xs text-slate-400">
+                Pilih tindakan batch untuk akun yang ditandai.
+              </span>
+            </div>
+          </div>
+
+          <div className="flex items-center gap-2 self-end sm:self-auto">
+            <button
+              type="button"
+              onClick={() => setSelectedUserIds([])}
+              className="px-3.5 py-2 rounded-xl text-xs font-bold text-slate-300 hover:text-white bg-white/5 hover:bg-white/10 border border-white/10 transition-all"
+            >
+              Batal
+            </button>
+            <button
+              type="button"
+              onClick={() => setIsBatchModalOpen(true)}
+              className="px-4 py-2 rounded-xl text-xs font-black bg-red-500 hover:bg-red-600 text-white shadow-lg shadow-red-500/30 flex items-center gap-1.5 transition-all active:scale-95"
+            >
+              <Trash2 size={14} />
+              <span>Hapus {selectedUserIds.length} Akun Terpilih</span>
+            </button>
+          </div>
+        </div>
+      )}
 
       {/* ── Users Content ── */}
       {loading ? (
@@ -232,28 +407,50 @@ export const UserManagementView: React.FC<UserManagementViewProps> = ({
         <>
           {/* ── Mobile & Small Screen Cards Layout (block lg:hidden) ── */}
           <div className="grid grid-cols-1 md:grid-cols-2 gap-3.5 lg:hidden">
-            {filteredUsers.map((u) => {
+            {paginatedUsers.map((u) => {
               const isOwnerUser = u.role === 'owner';
               const isAdminUser = u.role === 'admin';
               const isCurrent = u.id === currentUserId;
               const isUpdating = updatingId === u.id;
+              const isSelected = selectedUserIds.includes(u.id);
 
               return (
                 <div
                   key={u.id}
-                  className="p-4 rounded-2xl bg-[#090e1f] border border-white/10 space-y-3 shadow-lg hover:border-cyan-500/30 transition-all"
+                  className={`p-4 rounded-2xl bg-[#090e1f] border space-y-3 shadow-lg transition-all ${
+                    isSelected
+                      ? 'border-cyan-500/60 bg-cyan-950/20'
+                      : 'border-white/10 hover:border-cyan-500/30'
+                  }`}
                 >
                   {/* Top user row */}
                   <div className="flex items-center justify-between gap-2.5">
                     <div className="flex items-center gap-2.5 min-w-0">
+                      {/* Checkbox for batch select (non-owner only) */}
+                      {currentUserRole === 'owner' && (
+                        <button
+                          type="button"
+                          disabled={isOwnerUser}
+                          onClick={() => toggleSelectUser(u.id)}
+                          className={`p-1 rounded-lg transition-colors flex-shrink-0 ${
+                            isOwnerUser
+                              ? 'opacity-30 cursor-not-allowed text-slate-600'
+                              : isSelected
+                              ? 'text-cyan-400 hover:text-cyan-300'
+                              : 'text-slate-500 hover:text-white'
+                          }`}
+                          title={isOwnerUser ? 'Akun Owner tidak dapat dipilih' : 'Pilih akun'}
+                        >
+                          {isSelected ? <CheckSquare size={18} /> : <Square size={18} />}
+                        </button>
+                      )}
+
                       <div className="w-10 h-10 rounded-xl overflow-hidden bg-gradient-to-br from-cyan-500 to-purple-600 flex items-center justify-center flex-shrink-0 border border-white/10">
-                        {u.avatar ? (
-                          <img src={u.avatar} alt={u.username} className="w-full h-full object-cover" />
-                        ) : (
-                          <span className="font-black text-sm text-white">
-                            {u.username.charAt(0).toUpperCase()}
-                          </span>
-                        )}
+                        <img
+                          src={u.avatar || `https://api.dicebear.com/7.x/identicon/svg?seed=${encodeURIComponent(u.username)}`}
+                          alt={u.username}
+                          className="w-full h-full object-cover"
+                        />
                       </div>
                       <div className="min-w-0">
                         <div className="flex items-center gap-1.5 flex-wrap">
@@ -275,12 +472,12 @@ export const UserManagementView: React.FC<UserManagementViewProps> = ({
                     {/* Role Badge */}
                     <div className="flex-shrink-0">
                       {isOwnerUser ? (
-                        <span className="inline-flex items-center gap-1 px-2 py-0.5 rounded-full text-[10px] font-black bg-amber-500/20 border border-amber-500/40 text-amber-300">
+                        <span className="inline-flex items-center gap-1 px-2.5 py-0.5 rounded-full text-[10px] font-black bg-amber-500/20 border border-amber-500/40 text-amber-300 shadow-[0_0_8px_rgba(245,158,11,0.25)]">
                           <Crown size={10} className="text-amber-400 fill-amber-400" />
                           <span>OWNER</span>
                         </span>
                       ) : isAdminUser ? (
-                        <span className="inline-flex items-center gap-1 px-2 py-0.5 rounded-full text-[10px] font-black bg-cyan-500/20 border border-cyan-500/40 text-cyan-300">
+                        <span className="inline-flex items-center gap-1 px-2.5 py-0.5 rounded-full text-[10px] font-black bg-cyan-500/20 border border-cyan-500/40 text-cyan-300 shadow-[0_0_8px_rgba(6,182,212,0.25)]">
                           <ShieldCheck size={10} className="text-cyan-400" />
                           <span>ADMIN</span>
                         </span>
@@ -375,6 +572,24 @@ export const UserManagementView: React.FC<UserManagementViewProps> = ({
               <table className="w-full text-left border-collapse">
                 <thead>
                   <tr className="border-b border-white/10 bg-white/[0.02] text-[11px] font-extrabold uppercase tracking-wider text-slate-400">
+                    {currentUserRole === 'owner' && (
+                      <th className="py-3.5 px-4 w-12 text-center">
+                        <button
+                          type="button"
+                          onClick={toggleSelectAll}
+                          className="text-slate-400 hover:text-white transition-colors"
+                          title={isAllSelectableSelected ? 'Batal Pilih Semua' : 'Pilih Semua'}
+                        >
+                          {isAllSelectableSelected ? (
+                            <CheckSquare size={16} className="text-cyan-400" />
+                          ) : isSomeSelectableSelected ? (
+                            <MinusSquare size={16} className="text-cyan-400" />
+                          ) : (
+                            <Square size={16} />
+                          )}
+                        </button>
+                      </th>
+                    )}
                     <th className="py-3.5 px-6">Pengguna</th>
                     <th className="py-3.5 px-6">Email</th>
                     <th className="py-3.5 px-6">Tanggal Daftar</th>
@@ -383,28 +598,50 @@ export const UserManagementView: React.FC<UserManagementViewProps> = ({
                   </tr>
                 </thead>
                 <tbody className="divide-y divide-white/5 text-sm">
-                  {filteredUsers.map((u) => {
+                  {paginatedUsers.map((u) => {
                     const isOwnerUser = u.role === 'owner';
                     const isAdminUser = u.role === 'admin';
                     const isCurrent = u.id === currentUserId;
                     const isUpdating = updatingId === u.id;
+                    const isSelected = selectedUserIds.includes(u.id);
 
                     return (
                       <tr
                         key={u.id}
-                        className="hover:bg-white/[0.02] transition-colors duration-150"
+                        className={`transition-colors duration-150 ${
+                          isSelected ? 'bg-cyan-950/20' : 'hover:bg-white/[0.02]'
+                        }`}
                       >
+                        {/* Checkbox column */}
+                        {currentUserRole === 'owner' && (
+                          <td className="py-3.5 px-4 text-center">
+                            <button
+                              type="button"
+                              disabled={isOwnerUser}
+                              onClick={() => toggleSelectUser(u.id)}
+                              className={`transition-colors ${
+                                isOwnerUser
+                                  ? 'opacity-25 cursor-not-allowed text-slate-600'
+                                  : isSelected
+                                  ? 'text-cyan-400 hover:text-cyan-300'
+                                  : 'text-slate-500 hover:text-white'
+                              }`}
+                              title={isOwnerUser ? 'Akun Owner tidak dapat dipilih' : 'Pilih akun'}
+                            >
+                              {isSelected ? <CheckSquare size={16} /> : <Square size={16} />}
+                            </button>
+                          </td>
+                        )}
+
                         {/* User Info */}
                         <td className="py-3.5 px-6">
                           <div className="flex items-center gap-3">
                             <div className="w-9 h-9 rounded-xl overflow-hidden bg-gradient-to-br from-cyan-500 to-purple-600 flex items-center justify-center flex-shrink-0 border border-white/10">
-                              {u.avatar ? (
-                                <img src={u.avatar} alt={u.username} className="w-full h-full object-cover" />
-                              ) : (
-                                <span className="font-black text-xs text-white">
-                                  {u.username.charAt(0).toUpperCase()}
-                                </span>
-                              )}
+                              <img
+                                src={u.avatar || `https://api.dicebear.com/7.x/identicon/svg?seed=${encodeURIComponent(u.username)}`}
+                                alt={u.username}
+                                className="w-full h-full object-cover"
+                              />
                             </div>
                             <div className="min-w-0">
                               <div className="flex items-center gap-2">
@@ -526,10 +763,73 @@ export const UserManagementView: React.FC<UserManagementViewProps> = ({
               </table>
             </div>
           </div>
+
+          {/* ── Pagination Controls ── */}
+          <div className="flex flex-col sm:flex-row items-center justify-between gap-3 p-3.5 sm:p-4 rounded-2xl bg-[#090e1f] border border-white/10 text-xs">
+            <span className="text-slate-400 font-medium text-center sm:text-left">
+              Menampilkan <strong className="text-white">{(currentPage - 1) * itemsPerPage + 1}</strong> -{' '}
+              <strong className="text-white">
+                {Math.min(currentPage * itemsPerPage, filteredUsers.length)}
+              </strong>{' '}
+              dari <strong className="text-white">{filteredUsers.length}</strong> pengguna
+            </span>
+
+            {totalPages > 1 && (
+              <div className="flex items-center gap-1.5">
+                <button
+                  type="button"
+                  disabled={currentPage === 1}
+                  onClick={() => setCurrentPage((p) => Math.max(1, p - 1))}
+                  className="px-3 py-1.5 rounded-xl bg-white/5 hover:bg-white/10 text-slate-300 disabled:opacity-30 disabled:hover:bg-white/5 border border-white/10 transition-all flex items-center gap-1"
+                >
+                  <ChevronLeft size={14} />
+                  <span>Sebelumnya</span>
+                </button>
+
+                <div className="flex items-center gap-1 px-1">
+                  {Array.from({ length: totalPages }, (_, i) => i + 1)
+                    .filter((page) => {
+                      if (totalPages <= 5) return true;
+                      return Math.abs(page - currentPage) <= 1 || page === 1 || page === totalPages;
+                    })
+                    .map((page, idx, arr) => {
+                      const prevPage = arr[idx - 1];
+                      const showEllipsis = prevPage && page - prevPage > 1;
+                      return (
+                        <React.Fragment key={page}>
+                          {showEllipsis && <span className="px-1 text-slate-500">...</span>}
+                          <button
+                            type="button"
+                            onClick={() => setCurrentPage(page)}
+                            className={`w-8 h-8 rounded-xl font-bold transition-all ${
+                              currentPage === page
+                                ? 'bg-cyan-500 text-black shadow-md shadow-cyan-500/20'
+                                : 'bg-white/5 hover:bg-white/10 text-slate-300 border border-white/10'
+                            }`}
+                          >
+                            {page}
+                          </button>
+                        </React.Fragment>
+                      );
+                    })}
+                </div>
+
+                <button
+                  type="button"
+                  disabled={currentPage === totalPages}
+                  onClick={() => setCurrentPage((p) => Math.min(totalPages, p + 1))}
+                  className="px-3 py-1.5 rounded-xl bg-white/5 hover:bg-white/10 text-slate-300 disabled:opacity-30 disabled:hover:bg-white/5 border border-white/10 transition-all flex items-center gap-1"
+                >
+                  <span>Berikutnya</span>
+                  <ChevronRight size={14} />
+                </button>
+              </div>
+            )}
+          </div>
         </>
       )}
 
-      {/* ── Delete User Confirmation Modal ── */}
+      {/* ── Single Delete Confirmation Modal ── */}
       {deletingUser && (
         <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/80 backdrop-blur-sm animate-fade-in">
           <div className="w-full max-w-md bg-[#0c1328] border border-red-500/40 rounded-3xl p-5 sm:p-6 space-y-4 shadow-2xl animate-scale-up">
@@ -578,6 +878,60 @@ export const UserManagementView: React.FC<UserManagementViewProps> = ({
               >
                 {isDeleting ? <RefreshCw size={13} className="animate-spin" /> : <Trash2 size={13} />}
                 <span>{isDeleting ? 'Menghapus...' : 'Ya, Hapus Permanen'}</span>
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
+
+      {/* ── Batch Delete Confirmation Modal ── */}
+      {isBatchModalOpen && (
+        <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/80 backdrop-blur-sm animate-fade-in">
+          <div className="w-full max-w-md bg-[#0c1328] border border-red-500/40 rounded-3xl p-5 sm:p-6 space-y-4 shadow-2xl animate-scale-up">
+            <div className="flex items-center justify-between">
+              <div className="flex items-center gap-2.5 text-red-400">
+                <div className="p-2.5 rounded-xl bg-red-500/20 border border-red-500/30">
+                  <Trash2 size={20} />
+                </div>
+                <h3 className="text-base sm:text-lg font-black text-white">
+                  Hapus {selectedUserIds.length} Akun Terpilih
+                </h3>
+              </div>
+              <button
+                type="button"
+                onClick={() => setIsBatchModalOpen(false)}
+                className="p-1.5 text-slate-400 hover:text-white rounded-lg hover:bg-white/5 transition-colors"
+              >
+                <X size={18} />
+              </button>
+            </div>
+
+            <div className="p-3.5 rounded-2xl bg-black/40 border border-white/10 space-y-2 text-xs">
+              <p className="text-slate-300">
+                Anda akan menghapus sebanyak <strong className="text-red-400">{selectedUserIds.length} akun pengguna</strong> sekaligus.
+              </p>
+              <div className="p-2.5 rounded-xl bg-red-950/30 border border-red-500/30 text-red-300 text-[11px] leading-relaxed">
+                ⚠️ <strong>Tindakan Tidak Dapat Dibatalkan:</strong> Seluruh riwayat tontonan, watchlist, koleksi, dan kredensial untuk seluruh akun yang dipilih akan dihapus secara permanen dari database MongoDB.
+              </div>
+            </div>
+
+            <div className="flex items-center justify-end gap-2.5 pt-1">
+              <button
+                type="button"
+                disabled={isBatchDeleting}
+                onClick={() => setIsBatchModalOpen(false)}
+                className="px-4 py-2 rounded-xl text-xs font-bold text-slate-400 hover:text-white hover:bg-white/5 transition-all"
+              >
+                Batal
+              </button>
+              <button
+                type="button"
+                disabled={isBatchDeleting}
+                onClick={handleConfirmBatchDelete}
+                className="px-4 py-2 rounded-xl text-xs font-black bg-red-500 hover:bg-red-600 text-white shadow-lg shadow-red-500/30 flex items-center gap-1.5 transition-all active:scale-95 disabled:opacity-50"
+              >
+                {isBatchDeleting ? <RefreshCw size={13} className="animate-spin" /> : <Trash2 size={13} />}
+                <span>{isBatchDeleting ? 'Menghapus Semua...' : `Ya, Hapus (${selectedUserIds.length})`}</span>
               </button>
             </div>
           </div>

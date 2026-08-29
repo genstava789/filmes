@@ -375,8 +375,8 @@ export async function getAllUsers(operatorUserId: string): Promise<
       .project({ passwordHash: 0, salt: 0, watchlist: 0, history: 0 })
       .toArray();
 
-    return rawUsers.map((u) => {
-      const role = resolveUserRole({ email: u.email, role: u.role });
+    const mapped = rawUsers.map((u) => {
+      const role = resolveUserRole({ email: u.email, role: u.role, username: u.username });
       return {
         id: u._id.toString(),
         username: u.username,
@@ -385,6 +385,18 @@ export async function getAllUsers(operatorUserId: string): Promise<
         avatar: u.avatar || `https://api.dicebear.com/7.x/identicon/svg?seed=${encodeURIComponent(u.username)}`,
         createdAt: u.createdAt,
       };
+    });
+
+    const rolePriority: Record<UserRole, number> = {
+      owner: 0,
+      admin: 1,
+      member: 2,
+    };
+
+    return mapped.sort((a, b) => {
+      const diff = (rolePriority[a.role] ?? 99) - (rolePriority[b.role] ?? 99);
+      if (diff !== 0) return diff;
+      return b.createdAt - a.createdAt;
     });
   });
 }
@@ -486,6 +498,71 @@ export async function deleteUserAccount(
     return {
       success: true,
       deletedUsername: target.username,
+    };
+  });
+}
+
+/**
+ * Permanently deletes multiple users and all their associated data in batch (Owner only).
+ */
+export async function batchDeleteUserAccounts(
+  operatorUserId: string,
+  targetUserIds: string[]
+): Promise<{ success: boolean; deletedCount: number }> {
+  const operator = await getUserById(operatorUserId);
+  if (!operator) {
+    throw new Error('Akses ditolak');
+  }
+
+  const operatorRole = resolveUserRole(operator);
+  if (operatorRole !== 'owner') {
+    throw new Error('Hanya Owner yang memiliki izin untuk menghapus akun pengguna');
+  }
+
+  const cleanTargetIds = targetUserIds.filter(
+    (id) => ObjectId.isValid(id) && id !== operatorUserId
+  );
+
+  if (cleanTargetIds.length === 0) {
+    throw new Error('Tidak ada akun valid yang dapat dihapus');
+  }
+
+  return withMongoRetry(async () => {
+    const db = await getDatabase();
+    if (!db) {
+      throw new Error('Koneksi database tidak tersedia');
+    }
+
+    const usersCol = await getUsersCollection();
+
+    // Filter out owner users
+    const validUsers = await usersCol
+      .find({ _id: { $in: cleanTargetIds.map((id) => new ObjectId(id)) } })
+      .toArray();
+
+    const nonOwnerUserIds = validUsers
+      .filter((u) => resolveUserRole(u) !== 'owner')
+      .map((u) => u._id.toString());
+
+    if (nonOwnerUserIds.length === 0) {
+      throw new Error('Tidak ada pengguna non-Owner yang dapat dihapus');
+    }
+
+    const objectIds = nonOwnerUserIds.map((id) => new ObjectId(id));
+
+    // 1. Delete all collections created by these users
+    try {
+      await db.collection('collections').deleteMany({ userId: { $in: nonOwnerUserIds } });
+    } catch (e) {
+      console.warn('[batchDeleteUserAccounts] Error deleting collections:', e);
+    }
+
+    // 2. Delete user documents
+    const deleteResult = await usersCol.deleteMany({ _id: { $in: objectIds } });
+
+    return {
+      success: true,
+      deletedCount: deleteResult.deletedCount || 0,
     };
   });
 }
