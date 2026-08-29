@@ -7,6 +7,7 @@ import {
   Menu,
   X,
   LogIn,
+  LogOut,
   Home,
   Film,
   Tv,
@@ -33,7 +34,7 @@ interface MobileHeaderProps {
 }
 
 export default function MobileHeader({ genres = [] }: MobileHeaderProps) {
-  const { user, isLoggedIn } = useAuth();
+  const { user, isLoggedIn, logout } = useAuth();
   const [menuOpen, setMenuOpen] = useState(false);
   const [mounted, setMounted] = useState(false);
   const pathname = usePathname();
@@ -317,7 +318,7 @@ export default function MobileHeader({ genres = [] }: MobileHeaderProps) {
                 <Link
                   href="/profile"
                   onClick={() => setMenuOpen(false)}
-                  className="px-3 py-1.5 rounded-xl text-xs font-bold bg-cyan-500/15 hover:bg-cyan-500/25 text-cyan-300 border border-cyan-500/30 transition-all active:scale-95"
+                  className="px-2.5 py-1.5 rounded-xl text-xs font-bold bg-cyan-500/15 hover:bg-cyan-500/25 text-cyan-300 border border-cyan-500/30 transition-all active:scale-95"
                 >
                   Profil
                 </Link>
@@ -325,11 +326,23 @@ export default function MobileHeader({ genres = [] }: MobileHeaderProps) {
                   <Link
                     href="/admin"
                     onClick={() => setMenuOpen(false)}
-                    className="px-3 py-1.5 rounded-xl text-xs font-bold bg-purple-500/20 hover:bg-purple-500/30 text-purple-200 border border-purple-500/40 transition-all active:scale-95"
+                    className="px-2.5 py-1.5 rounded-xl text-xs font-bold bg-purple-500/20 hover:bg-purple-500/30 text-purple-200 border border-purple-500/40 transition-all active:scale-95"
                   >
                     CMS
                   </Link>
                 )}
+                <button
+                  type="button"
+                  onClick={async () => {
+                    setMenuOpen(false);
+                    await logout();
+                  }}
+                  className="px-2.5 py-1.5 rounded-xl text-xs font-bold bg-rose-500/15 hover:bg-rose-500/25 text-rose-300 border border-rose-500/30 transition-all active:scale-95 flex items-center gap-1"
+                  title="Keluar Akun"
+                >
+                  <LogOut size={12} />
+                  <span>Logout</span>
+                </button>
               </div>
             </div>
           )}

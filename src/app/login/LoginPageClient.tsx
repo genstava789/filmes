@@ -1,8 +1,8 @@
 'use client';
 
-import React, { useState } from 'react';
+import React, { useState, useEffect } from 'react';
 import Link from 'next/link';
-import { useRouter } from 'next/navigation';
+import { useRouter, useSearchParams } from 'next/navigation';
 import {
   LogIn,
   UserPlus,
@@ -14,14 +14,17 @@ import {
   ArrowLeft,
   CheckCircle2,
   AlertCircle,
-  Home,
+  RefreshCw,
 } from 'lucide-react';
 import { useAuth } from '@/context/AuthContext';
 import siteConfig from '@/config';
 
 export default function LoginPageClient() {
   const router = useRouter();
-  const { login, register, user, logout, authStatus } = useAuth();
+  const searchParams = useSearchParams();
+  const redirectTarget = searchParams.get('redirect') || '/profile';
+
+  const { login, register, user, authStatus } = useAuth();
 
   const [tab, setTab] = useState<'login' | 'register'>('login');
   const [showPassword, setShowPassword] = useState(false);
@@ -41,10 +44,17 @@ export default function LoginPageClient() {
 
   const [forgotEmail, setForgotEmail] = useState('');
 
-  // Field-specific validation errors for outline coloring
+  // Field-specific validation errors
   const [errors, setErrors] = useState<Record<string, string>>({});
   const [successMsg, setSuccessMsg] = useState('');
   const [loading, setLoading] = useState(false);
+
+  // Redirect if already logged in
+  useEffect(() => {
+    if (user && !loading && !successMsg) {
+      router.replace(redirectTarget);
+    }
+  }, [user, loading, successMsg, redirectTarget, router]);
 
   const clearFieldError = (fieldName: string) => {
     if (errors[fieldName]) {
@@ -80,14 +90,14 @@ export default function LoginPageClient() {
       if (res.success) {
         setSuccessMsg(res.message || 'Login berhasil! Mengalihkan...');
         setTimeout(() => {
-          router.push('/profile');
-        }, 500);
+          router.replace(redirectTarget);
+        }, 300);
       } else {
         setErrors({ general: res.message || 'Username/Email atau Password salah' });
+        setLoading(false);
       }
     } catch (err: any) {
       setErrors({ general: err.message || 'Terjadi kesalahan jaringan' });
-    } finally {
       setLoading(false);
     }
   };
@@ -133,14 +143,14 @@ export default function LoginPageClient() {
       if (res.success) {
         setSuccessMsg(res.message || 'Akun berhasil dibuat! Mengalihkan...');
         setTimeout(() => {
-          router.push('/profile');
-        }, 500);
+          router.replace(redirectTarget);
+        }, 300);
       } else {
         setErrors({ general: res.message || 'Gagal mendaftar akun' });
+        setLoading(false);
       }
     } catch (err: any) {
       setErrors({ general: err.message || 'Terjadi kesalahan jaringan' });
-    } finally {
       setLoading(false);
     }
   };
@@ -167,59 +177,35 @@ export default function LoginPageClient() {
   if (authStatus === 'initializing') {
     return (
       <div className="w-full min-h-[calc(100vh-14rem)] flex items-center justify-center px-4 py-8 sm:py-12">
-        <div className="w-full max-w-[380px] h-[340px] rounded-3xl p-6 sm:p-8 bg-white/[0.04] border border-white/10 skeleton flex items-center justify-center">
-          <div className="w-8 h-8 rounded-full border-2 border-cyan-400 border-t-transparent animate-spin" />
+        <div className="w-full max-w-[380px] h-[300px] rounded-3xl p-6 sm:p-8 bg-[#090e20]/60 border border-white/10 flex items-center justify-center">
+          <div
+            className="rounded-full border-2 border-cyan-400 border-t-transparent animate-spin"
+            style={{ width: '32px', height: '32px', minWidth: '32px', minHeight: '32px' }}
+          />
         </div>
       </div>
     );
   }
 
-  // If user is already logged in, show profile card with logout option
-  if (user) {
+  // If user is already authenticated or just succeeded logging in, render smooth transition
+  if (user || successMsg) {
     return (
       <div className="w-full min-h-[calc(100vh-14rem)] flex items-center justify-center px-4 py-8 sm:py-12">
         <div
-          className="w-full max-w-[380px] rounded-3xl p-6 sm:p-8 text-center"
+          className="w-full max-w-[380px] rounded-3xl p-8 bg-[#090e20] border border-cyan-500/30 text-center shadow-xl space-y-4 animate-fade-in"
           style={{
-            background: 'rgba(9, 14, 32, 0.92)',
+            background: 'rgba(9, 14, 32, 0.94)',
             backdropFilter: 'blur(24px)',
-            border: '1px solid rgba(255, 255, 255, 0.1)',
             boxShadow: '0 25px 60px rgba(0,0,0,0.7), 0 0 30px rgba(6,182,212,0.15)',
           }}
         >
           <div
-            className="w-14 h-14 rounded-full mx-auto mb-3 flex items-center justify-center text-lg font-black text-white"
-            style={{
-              background: 'linear-gradient(135deg, #06b6d4, #7c3aed)',
-              boxShadow: '0 0 16px rgba(6,182,212,0.35)',
-            }}
-          >
-            {user.username.charAt(0).toUpperCase()}
-          </div>
-
-          <h2 className="text-lg font-bold text-white mb-0.5">{user.username}</h2>
-          <p className="text-xs text-slate-400 mb-5">{user.email}</p>
-
-          <div className="flex flex-col gap-2.5">
-            <Link
-              href="/"
-              className="w-full py-2.5 rounded-xl font-bold text-xs text-white flex items-center justify-center gap-2"
-              style={{
-                background: 'linear-gradient(135deg, #06b6d4, #7c3aed)',
-                boxShadow: '0 0 16px rgba(6,182,212,0.3)',
-              }}
-            >
-              <Home size={14} />
-              <span>Kembali ke Beranda</span>
-            </Link>
-
-            <button
-              onClick={logout}
-              className="w-full py-2.5 rounded-xl font-semibold text-xs text-slate-400 hover:text-rose-400 bg-white/5 hover:bg-rose-500/10 border border-white/10 hover:border-rose-500/30 transition-colors"
-            >
-              Keluar Akun
-            </button>
-          </div>
+            className="rounded-full border-2 border-cyan-400 border-t-transparent animate-spin mx-auto"
+            style={{ width: '32px', height: '32px', minWidth: '32px', minHeight: '32px' }}
+          />
+          <p className="text-xs font-bold text-slate-300">
+            {successMsg || 'Mengalihkan ke akun Anda...'}
+          </p>
         </div>
       </div>
     );
@@ -227,7 +213,7 @@ export default function LoginPageClient() {
 
   return (
     <div className="w-full min-h-[calc(100vh-14rem)] flex items-center justify-center px-4 py-8 sm:py-12">
-      {/* ── Main Form Card (Fit Size without excessive empty space) ── */}
+      {/* ── Main Form Card ── */}
       <div className="relative z-10 w-full max-w-[420px]">
         <div
           className="rounded-3xl p-6 sm:p-8 transition-all duration-300"
@@ -240,14 +226,6 @@ export default function LoginPageClient() {
               '0 25px 70px rgba(0, 0, 0, 0.85), 0 0 35px rgba(6, 182, 212, 0.1), inset 0 1px 0 rgba(255, 255, 255, 0.12)',
           }}
         >
-          {/* Success Message Banner */}
-          {successMsg && (
-            <div className="mb-4 p-2.5 rounded-xl bg-emerald-500/20 border border-emerald-500/40 text-emerald-300 text-xs font-semibold flex items-center gap-2">
-              <CheckCircle2 size={15} className="text-emerald-400 flex-shrink-0" />
-              <span>{successMsg}</span>
-            </div>
-          )}
-
           {/* General Error Banner */}
           {errors.general && (
             <div className="mb-4 p-2.5 rounded-xl bg-rose-500/20 border border-rose-500/40 text-rose-300 text-xs font-semibold flex items-center gap-2">
@@ -279,25 +257,30 @@ export default function LoginPageClient() {
                   <div className="w-10 h-10 rounded-full bg-emerald-500/20 border border-emerald-500/40 text-emerald-400 flex items-center justify-center mx-auto">
                     <CheckCircle2 size={20} />
                   </div>
-                  <h4 className="text-xs font-bold text-white">Email Terkirim</h4>
-                  <p className="text-[11px] text-slate-300 leading-relaxed">
-                    Tautan reset password dikirim ke <span className="text-cyan-400 font-semibold">{forgotEmail}</span>.
+                  <h4 className="text-xs font-bold text-white">Link Pemulihan Terkirim</h4>
+                  <p className="text-[11px] text-slate-400 leading-relaxed">
+                    Petunjuk reset password telah dikirim ke <span className="text-cyan-400">{forgotEmail}</span> jika email terdaftar.
                   </p>
                   <button
                     type="button"
                     onClick={() => {
                       setForgotPasswordView(false);
                       setForgotSubmitted(false);
-                      setTab('login');
+                      setForgotEmail('');
                     }}
-                    className="w-full mt-3 py-2.5 rounded-xl text-xs font-bold text-white bg-white/10 hover:bg-white/20 transition-colors"
+                    className="mt-2 text-xs font-bold text-cyan-400 hover:underline"
                   >
-                    Kembali Masuk
+                    Kembali ke Login
                   </button>
                 </div>
               ) : (
                 <form onSubmit={handleForgotSubmit} className="space-y-3.5">
+                  <p className="text-xs text-slate-400 leading-relaxed">
+                    Masukkan email akun Anda. Kami akan mengirimkan tautan untuk mengatur ulang kata sandi.
+                  </p>
+
                   <div className="space-y-1">
+                    <label className="text-xs font-semibold text-slate-300">Email Akun</label>
                     <div className="relative">
                       <Mail size={15} className="absolute left-3.5 top-1/2 -translate-y-1/2 text-slate-400" />
                       <input
@@ -307,91 +290,84 @@ export default function LoginPageClient() {
                           setForgotEmail(e.target.value);
                           clearFieldError('forgotEmail');
                         }}
-                        placeholder="Masukkan Email Anda"
-                        className={`w-full pl-10 pr-4 py-2.5 rounded-xl bg-white/[0.06] text-white text-xs placeholder-slate-500 focus:outline-none transition-colors ${
+                        placeholder="nama@email.com"
+                        className={`w-full pl-10 pr-4 py-2.5 bg-[#060814] border rounded-xl text-xs sm:text-sm text-white placeholder-slate-500 focus:outline-none transition-all ${
                           errors.forgotEmail
-                            ? 'border border-rose-500 ring-1 ring-rose-500/40 bg-rose-500/5'
-                            : 'border border-white/15 focus:border-cyan-400'
+                            ? 'border-rose-500/60 focus:border-rose-500'
+                            : 'border-white/10 focus:border-cyan-500'
                         }`}
                       />
                     </div>
                     {errors.forgotEmail && (
-                      <p className="text-[11px] text-rose-400 font-medium pl-1 flex items-center gap-1">
-                        <AlertCircle size={11} />
-                        {errors.forgotEmail}
-                      </p>
+                      <p className="text-[11px] text-rose-400 mt-0.5">{errors.forgotEmail}</p>
                     )}
                   </div>
 
                   <button
                     type="submit"
                     disabled={loading}
-                    className="w-full py-2.5 rounded-xl font-bold text-xs text-white transition-all duration-200 hover:scale-[1.01] active:scale-[0.99] shadow-lg flex items-center justify-center gap-2"
+                    className="w-full py-2.5 rounded-xl font-bold text-xs text-white shadow-lg transition-all hover:scale-[1.02] active:scale-[0.98] disabled:opacity-50 flex items-center justify-center gap-2"
                     style={{
-                      background: 'linear-gradient(135deg, #06b6d4, #7c3aed)',
-                      boxShadow: '0 0 16px rgba(6, 182, 212, 0.3)',
+                      background: 'linear-gradient(135deg, #06b6d4 0%, #7c3aed 100%)',
+                      boxShadow: '0 0 20px rgba(6, 182, 212, 0.25)',
                     }}
                   >
-                    {loading ? 'Mengirim...' : 'Kirim Tautan'}
-                  </button>
-
-                  <button
-                    type="button"
-                    onClick={() => {
-                      setForgotPasswordView(false);
-                      setErrors({});
-                    }}
-                    className="w-full text-center text-xs font-semibold text-slate-400 hover:text-white pt-1"
-                  >
-                    Batal
+                    {loading ? (
+                      <div
+                        className="rounded-full border-2 border-white border-t-transparent animate-spin"
+                        style={{ width: '16px', height: '16px' }}
+                      />
+                    ) : (
+                      <span>Kirim Link Reset</span>
+                    )}
                   </button>
                 </form>
               )}
             </div>
           ) : (
-            /* ── TABS: LOGIN & REGISTER ── */
             <>
-              {/* Tab Selector */}
-              <div className="flex rounded-2xl p-1 bg-white/[0.05] border border-white/10 mb-5">
+              {/* ── TAB SWITCHER (Login / Register) ── */}
+              <div className="flex items-center p-1 rounded-2xl bg-black/40 border border-white/10 mb-5">
                 <button
                   type="button"
                   onClick={() => {
                     setTab('login');
                     setErrors({});
                   }}
-                  className={`flex-1 py-2.5 rounded-xl text-xs sm:text-sm font-bold flex items-center justify-center gap-1.5 transition-all duration-200 ${
+                  className={`flex-1 py-2 rounded-xl text-xs font-bold transition-all flex items-center justify-center gap-1.5 ${
                     tab === 'login'
-                      ? 'bg-gradient-to-r from-cyan-500 to-purple-600 text-white shadow-md'
+                      ? 'bg-gradient-to-r from-cyan-500 to-purple-600 text-white shadow-md shadow-cyan-500/20'
                       : 'text-slate-400 hover:text-white'
                   }`}
                 >
-                  <LogIn size={14} />
+                  <LogIn size={13} />
                   <span>Masuk</span>
                 </button>
-
                 <button
                   type="button"
                   onClick={() => {
                     setTab('register');
                     setErrors({});
                   }}
-                  className={`flex-1 py-2.5 rounded-xl text-xs sm:text-sm font-bold flex items-center justify-center gap-1.5 transition-all duration-200 ${
+                  className={`flex-1 py-2 rounded-xl text-xs font-bold transition-all flex items-center justify-center gap-1.5 ${
                     tab === 'register'
-                      ? 'bg-gradient-to-r from-cyan-500 to-purple-600 text-white shadow-md'
+                      ? 'bg-gradient-to-r from-cyan-500 to-purple-600 text-white shadow-md shadow-cyan-500/20'
                       : 'text-slate-400 hover:text-white'
                   }`}
                 >
-                  <UserPlus size={14} />
+                  <UserPlus size={13} />
                   <span>Daftar</span>
                 </button>
               </div>
 
-              {/* ── TAB 1: LOGIN ── */}
-              {tab === 'login' && (
-                <form onSubmit={handleLoginSubmit} className="space-y-4">
+              {/* ── LOGIN FORM ── */}
+              {tab === 'login' ? (
+                <form onSubmit={handleLoginSubmit} className="space-y-3.5">
+                  {/* Username or Email Input */}
                   <div className="space-y-1">
+                    <label className="text-xs font-semibold text-slate-300">Username atau Email</label>
                     <div className="relative">
-                      <User size={16} className="absolute left-3.5 top-1/2 -translate-y-1/2 text-slate-400" />
+                      <User size={15} className="absolute left-3.5 top-1/2 -translate-y-1/2 text-slate-400" />
                       <input
                         type="text"
                         value={loginIdentifier}
@@ -399,25 +375,34 @@ export default function LoginPageClient() {
                           setLoginIdentifier(e.target.value);
                           clearFieldError('loginIdentifier');
                         }}
-                        placeholder="Username/Email"
-                        className={`w-full pl-10 pr-4 py-2.5 rounded-xl bg-white/[0.06] text-white text-xs sm:text-sm placeholder-slate-500 focus:outline-none transition-colors ${
+                        placeholder="Username atau email Anda"
+                        autoComplete="username"
+                        className={`w-full pl-10 pr-4 py-2.5 bg-[#060814] border rounded-xl text-xs sm:text-sm text-white placeholder-slate-500 focus:outline-none transition-all ${
                           errors.loginIdentifier
-                            ? 'border border-rose-500 ring-1 ring-rose-500/40 bg-rose-500/5'
-                            : 'border border-white/15 focus:border-cyan-400'
+                            ? 'border-rose-500/60 focus:border-rose-500'
+                            : 'border-white/10 focus:border-cyan-500'
                         }`}
                       />
                     </div>
                     {errors.loginIdentifier && (
-                      <p className="text-[11px] text-rose-400 font-medium pl-1 flex items-center gap-1">
-                        <AlertCircle size={11} />
-                        {errors.loginIdentifier}
-                      </p>
+                      <p className="text-[11px] text-rose-400 mt-0.5">{errors.loginIdentifier}</p>
                     )}
                   </div>
 
+                  {/* Password Input */}
                   <div className="space-y-1">
+                    <div className="flex items-center justify-between">
+                      <label className="text-xs font-semibold text-slate-300">Password</label>
+                      <button
+                        type="button"
+                        onClick={() => setForgotPasswordView(true)}
+                        className="text-[11px] text-cyan-400 hover:underline"
+                      >
+                        Lupa Password?
+                      </button>
+                    </div>
                     <div className="relative">
-                      <Lock size={16} className="absolute left-3.5 top-1/2 -translate-y-1/2 text-slate-400" />
+                      <Lock size={15} className="absolute left-3.5 top-1/2 -translate-y-1/2 text-slate-400" />
                       <input
                         type={showPassword ? 'text' : 'password'}
                         value={loginPassword}
@@ -425,73 +410,69 @@ export default function LoginPageClient() {
                           setLoginPassword(e.target.value);
                           clearFieldError('loginPassword');
                         }}
-                        placeholder="Password"
-                        className={`w-full pl-10 pr-10 py-2.5 rounded-xl bg-white/[0.06] text-white text-xs sm:text-sm placeholder-slate-500 focus:outline-none transition-colors ${
+                        placeholder="••••••••"
+                        autoComplete="current-password"
+                        className={`w-full pl-10 pr-10 py-2.5 bg-[#060814] border rounded-xl text-xs sm:text-sm text-white placeholder-slate-500 focus:outline-none transition-all ${
                           errors.loginPassword
-                            ? 'border border-rose-500 ring-1 ring-rose-500/40 bg-rose-500/5'
-                            : 'border border-white/15 focus:border-cyan-400'
+                            ? 'border-rose-500/60 focus:border-rose-500'
+                            : 'border-white/10 focus:border-cyan-500'
                         }`}
                       />
                       <button
                         type="button"
                         onClick={() => setShowPassword(!showPassword)}
-                        className="absolute right-3 top-1/2 -translate-y-1/2 text-slate-400 hover:text-slate-200"
+                        className="absolute right-3.5 top-1/2 -translate-y-1/2 text-slate-400 hover:text-white transition-colors"
                       >
-                        {showPassword ? <EyeOff size={16} /> : <Eye size={16} />}
+                        {showPassword ? <EyeOff size={15} /> : <Eye size={15} />}
                       </button>
                     </div>
                     {errors.loginPassword && (
-                      <p className="text-[11px] text-rose-400 font-medium pl-1 flex items-center gap-1">
-                        <AlertCircle size={11} />
-                        {errors.loginPassword}
-                      </p>
+                      <p className="text-[11px] text-rose-400 mt-0.5">{errors.loginPassword}</p>
                     )}
                   </div>
 
-                  <div className="flex items-center justify-between text-xs pt-0.5">
-                    <label className="flex items-center gap-2 cursor-pointer text-slate-300 text-xs">
-                      <input
-                        type="checkbox"
-                        checked={rememberMe}
-                        onChange={(e) => setRememberMe(e.target.checked)}
-                        className="rounded bg-white/10 border-white/20 text-cyan-500 focus:ring-0"
-                      />
-                      <span>Ingat saya</span>
+                  {/* Remember Me Checkbox */}
+                  <div className="flex items-center gap-2 pt-0.5">
+                    <input
+                      type="checkbox"
+                      id="rememberMe"
+                      checked={rememberMe}
+                      onChange={(e) => setRememberMe(e.target.checked)}
+                      className="w-3.5 h-3.5 rounded bg-black/40 border-white/20 text-cyan-500 focus:ring-0 focus:ring-offset-0 cursor-pointer"
+                    />
+                    <label htmlFor="rememberMe" className="text-[11px] text-slate-400 cursor-pointer select-none">
+                      Ingat saya di perangkat ini
                     </label>
-
-                    <button
-                      type="button"
-                      onClick={() => {
-                        setForgotPasswordView(true);
-                        setErrors({});
-                      }}
-                      className="text-cyan-400 hover:underline font-medium text-xs"
-                    >
-                      Lupa Password?
-                    </button>
                   </div>
 
+                  {/* Submit Button */}
                   <button
                     type="submit"
                     disabled={loading}
-                    className="w-full py-3 rounded-xl font-bold text-xs sm:text-sm text-white transition-all duration-200 hover:scale-[1.01] active:scale-[0.99] shadow-lg flex items-center justify-center gap-2 mt-1"
+                    className="w-full py-2.5 rounded-xl font-bold text-xs sm:text-sm text-white shadow-lg transition-all hover:scale-[1.02] active:scale-[0.98] disabled:opacity-50 flex items-center justify-center gap-2 mt-2"
                     style={{
-                      background: 'linear-gradient(135deg, #06b6d4, #7c3aed)',
-                      boxShadow: '0 0 16px rgba(6, 182, 212, 0.3)',
+                      background: 'linear-gradient(135deg, #06b6d4 0%, #7c3aed 100%)',
+                      boxShadow: '0 0 20px rgba(6, 182, 212, 0.25)',
                     }}
                   >
-                    <LogIn size={15} />
-                    <span>{loading ? 'Memproses...' : 'Masuk'}</span>
+                    {loading ? (
+                      <div
+                        className="rounded-full border-2 border-white border-t-transparent animate-spin"
+                        style={{ width: '18px', height: '18px' }}
+                      />
+                    ) : (
+                      <span>Masuk ke Akun</span>
+                    )}
                   </button>
                 </form>
-              )}
-
-              {/* ── TAB 2: REGISTER ── */}
-              {tab === 'register' && (
-                <form onSubmit={handleRegisterSubmit} className="space-y-3.5">
+              ) : (
+                /* ── REGISTER FORM ── */
+                <form onSubmit={handleRegisterSubmit} className="space-y-3">
+                  {/* Username */}
                   <div className="space-y-1">
+                    <label className="text-xs font-semibold text-slate-300">Username</label>
                     <div className="relative">
-                      <User size={16} className="absolute left-3.5 top-1/2 -translate-y-1/2 text-slate-400" />
+                      <User size={15} className="absolute left-3.5 top-1/2 -translate-y-1/2 text-slate-400" />
                       <input
                         type="text"
                         value={regUsername}
@@ -499,25 +480,25 @@ export default function LoginPageClient() {
                           setRegUsername(e.target.value);
                           clearFieldError('regUsername');
                         }}
-                        placeholder="Username"
-                        className={`w-full pl-10 pr-4 py-2.5 rounded-xl bg-white/[0.06] text-white text-xs sm:text-sm placeholder-slate-500 focus:outline-none transition-colors ${
+                        placeholder="Pilih username"
+                        autoComplete="username"
+                        className={`w-full pl-10 pr-4 py-2 bg-[#060814] border rounded-xl text-xs sm:text-sm text-white placeholder-slate-500 focus:outline-none transition-all ${
                           errors.regUsername
-                            ? 'border border-rose-500 ring-1 ring-rose-500/40 bg-rose-500/5'
-                            : 'border border-white/15 focus:border-cyan-400'
+                            ? 'border-rose-500/60 focus:border-rose-500'
+                            : 'border-white/10 focus:border-cyan-500'
                         }`}
                       />
                     </div>
                     {errors.regUsername && (
-                      <p className="text-[11px] text-rose-400 font-medium pl-1 flex items-center gap-1">
-                        <AlertCircle size={11} />
-                        {errors.regUsername}
-                      </p>
+                      <p className="text-[11px] text-rose-400 mt-0.5">{errors.regUsername}</p>
                     )}
                   </div>
 
+                  {/* Email */}
                   <div className="space-y-1">
+                    <label className="text-xs font-semibold text-slate-300">Email</label>
                     <div className="relative">
-                      <Mail size={16} className="absolute left-3.5 top-1/2 -translate-y-1/2 text-slate-400" />
+                      <Mail size={15} className="absolute left-3.5 top-1/2 -translate-y-1/2 text-slate-400" />
                       <input
                         type="email"
                         value={regEmail}
@@ -525,25 +506,25 @@ export default function LoginPageClient() {
                           setRegEmail(e.target.value);
                           clearFieldError('regEmail');
                         }}
-                        placeholder="Email"
-                        className={`w-full pl-10 pr-4 py-2.5 rounded-xl bg-white/[0.06] text-white text-xs sm:text-sm placeholder-slate-500 focus:outline-none transition-colors ${
+                        placeholder="nama@email.com"
+                        autoComplete="email"
+                        className={`w-full pl-10 pr-4 py-2 bg-[#060814] border rounded-xl text-xs sm:text-sm text-white placeholder-slate-500 focus:outline-none transition-all ${
                           errors.regEmail
-                            ? 'border border-rose-500 ring-1 ring-rose-500/40 bg-rose-500/5'
-                            : 'border border-white/15 focus:border-cyan-400'
+                            ? 'border-rose-500/60 focus:border-rose-500'
+                            : 'border-white/10 focus:border-cyan-500'
                         }`}
                       />
                     </div>
                     {errors.regEmail && (
-                      <p className="text-[11px] text-rose-400 font-medium pl-1 flex items-center gap-1">
-                        <AlertCircle size={11} />
-                        {errors.regEmail}
-                      </p>
+                      <p className="text-[11px] text-rose-400 mt-0.5">{errors.regEmail}</p>
                     )}
                   </div>
 
+                  {/* Password */}
                   <div className="space-y-1">
+                    <label className="text-xs font-semibold text-slate-300">Password</label>
                     <div className="relative">
-                      <Lock size={16} className="absolute left-3.5 top-1/2 -translate-y-1/2 text-slate-400" />
+                      <Lock size={15} className="absolute left-3.5 top-1/2 -translate-y-1/2 text-slate-400" />
                       <input
                         type={showPassword ? 'text' : 'password'}
                         value={regPassword}
@@ -551,32 +532,32 @@ export default function LoginPageClient() {
                           setRegPassword(e.target.value);
                           clearFieldError('regPassword');
                         }}
-                        placeholder="Password"
-                        className={`w-full pl-10 pr-10 py-2.5 rounded-xl bg-white/[0.06] text-white text-xs sm:text-sm placeholder-slate-500 focus:outline-none transition-colors ${
+                        placeholder="Minimal 6 karakter"
+                        autoComplete="new-password"
+                        className={`w-full pl-10 pr-10 py-2 bg-[#060814] border rounded-xl text-xs sm:text-sm text-white placeholder-slate-500 focus:outline-none transition-all ${
                           errors.regPassword
-                            ? 'border border-rose-500 ring-1 ring-rose-500/40 bg-rose-500/5'
-                            : 'border border-white/15 focus:border-cyan-400'
+                            ? 'border-rose-500/60 focus:border-rose-500'
+                            : 'border-white/10 focus:border-cyan-500'
                         }`}
                       />
                       <button
                         type="button"
                         onClick={() => setShowPassword(!showPassword)}
-                        className="absolute right-3 top-1/2 -translate-y-1/2 text-slate-400 hover:text-slate-200"
+                        className="absolute right-3.5 top-1/2 -translate-y-1/2 text-slate-400 hover:text-white transition-colors"
                       >
-                        {showPassword ? <EyeOff size={16} /> : <Eye size={16} />}
+                        {showPassword ? <EyeOff size={15} /> : <Eye size={15} />}
                       </button>
                     </div>
                     {errors.regPassword && (
-                      <p className="text-[11px] text-rose-400 font-medium pl-1 flex items-center gap-1">
-                        <AlertCircle size={11} />
-                        {errors.regPassword}
-                      </p>
+                      <p className="text-[11px] text-rose-400 mt-0.5">{errors.regPassword}</p>
                     )}
                   </div>
 
+                  {/* Confirm Password */}
                   <div className="space-y-1">
+                    <label className="text-xs font-semibold text-slate-300">Ulangi Password</label>
                     <div className="relative">
-                      <Lock size={16} className="absolute left-3.5 top-1/2 -translate-y-1/2 text-slate-400" />
+                      <Lock size={15} className="absolute left-3.5 top-1/2 -translate-y-1/2 text-slate-400" />
                       <input
                         type={showConfirmPassword ? 'text' : 'password'}
                         value={regConfirmPassword}
@@ -584,56 +565,50 @@ export default function LoginPageClient() {
                           setRegConfirmPassword(e.target.value);
                           clearFieldError('regConfirmPassword');
                         }}
-                        placeholder="Konfirmasi Password"
-                        className={`w-full pl-10 pr-10 py-2.5 rounded-xl bg-white/[0.06] text-white text-xs sm:text-sm placeholder-slate-500 focus:outline-none transition-colors ${
+                        placeholder="Ulangi kata sandi"
+                        autoComplete="new-password"
+                        className={`w-full pl-10 pr-10 py-2 bg-[#060814] border rounded-xl text-xs sm:text-sm text-white placeholder-slate-500 focus:outline-none transition-all ${
                           errors.regConfirmPassword
-                            ? 'border border-rose-500 ring-1 ring-rose-500/40 bg-rose-500/5'
-                            : 'border border-white/15 focus:border-cyan-400'
+                            ? 'border-rose-500/60 focus:border-rose-500'
+                            : 'border-white/10 focus:border-cyan-500'
                         }`}
                       />
                       <button
                         type="button"
                         onClick={() => setShowConfirmPassword(!showConfirmPassword)}
-                        className="absolute right-3 top-1/2 -translate-y-1/2 text-slate-400 hover:text-slate-200"
+                        className="absolute right-3.5 top-1/2 -translate-y-1/2 text-slate-400 hover:text-white transition-colors"
                       >
-                        {showConfirmPassword ? <EyeOff size={16} /> : <Eye size={16} />}
+                        {showConfirmPassword ? <EyeOff size={15} /> : <Eye size={15} />}
                       </button>
                     </div>
                     {errors.regConfirmPassword && (
-                      <p className="text-[11px] text-rose-400 font-medium pl-1 flex items-center gap-1">
-                        <AlertCircle size={11} />
-                        {errors.regConfirmPassword}
-                      </p>
+                      <p className="text-[11px] text-rose-400 mt-0.5">{errors.regConfirmPassword}</p>
                     )}
                   </div>
 
+                  {/* Submit Button */}
                   <button
                     type="submit"
                     disabled={loading}
-                    className="w-full py-3 rounded-xl font-bold text-xs sm:text-sm text-white transition-all duration-200 hover:scale-[1.01] active:scale-[0.99] shadow-lg flex items-center justify-center gap-2 mt-1.5"
+                    className="w-full py-2.5 rounded-xl font-bold text-xs sm:text-sm text-white shadow-lg transition-all hover:scale-[1.02] active:scale-[0.98] disabled:opacity-50 flex items-center justify-center gap-2 mt-3"
                     style={{
-                      background: 'linear-gradient(135deg, #06b6d4, #7c3aed)',
-                      boxShadow: '0 0 16px rgba(6, 182, 212, 0.3)',
+                      background: 'linear-gradient(135deg, #06b6d4 0%, #7c3aed 100%)',
+                      boxShadow: '0 0 20px rgba(6, 182, 212, 0.25)',
                     }}
                   >
-                    <UserPlus size={15} />
-                    <span>{loading ? 'Mendaftarkan...' : 'Daftar Akun'}</span>
+                    {loading ? (
+                      <div
+                        className="rounded-full border-2 border-white border-t-transparent animate-spin"
+                        style={{ width: '18px', height: '18px' }}
+                      />
+                    ) : (
+                      <span>Daftar Sekarang</span>
+                    )}
                   </button>
                 </form>
               )}
             </>
           )}
-
-          {/* Minimal Bottom Home Link */}
-          <div className="mt-5 pt-3.5 border-t border-white/[0.08] text-center">
-            <Link
-              href="/"
-              className="text-xs text-slate-400 hover:text-cyan-400 transition-colors inline-flex items-center gap-1.5"
-            >
-              <Home size={13} />
-              <span>Kembali ke Beranda</span>
-            </Link>
-          </div>
         </div>
       </div>
     </div>

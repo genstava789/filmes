@@ -549,9 +549,41 @@ export default function RequestPageClient({
 
           {/* ── Feed Grid Content ── */}
           {loadingFeed ? (
-            <div className="py-24 text-center text-slate-400 space-y-3">
-              <RefreshCw size={32} className="animate-spin mx-auto text-cyan-400" />
-              <p className="text-xs sm:text-sm font-semibold">Memuat daftar permintaan konten...</p>
+            <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-4 sm:gap-5 animate-pulse">
+              {Array.from({ length: 8 }).map((_, idx) => (
+                <div
+                  key={idx}
+                  className="rounded-2xl bg-[#090e1f] border border-white/10 p-4 space-y-3.5 shadow-lg flex flex-col justify-between"
+                >
+                  {/* Top Author Row Skeleton */}
+                  <div className="flex items-center justify-between gap-2">
+                    <div className="flex items-center gap-2">
+                      <div className="w-7 h-7 rounded-lg bg-white/10" />
+                      <div className="space-y-1">
+                        <div className="w-20 h-3 rounded bg-white/10" />
+                        <div className="w-12 h-2 rounded bg-white/5" />
+                      </div>
+                    </div>
+                    <div className="w-14 h-4 rounded-full bg-white/10" />
+                  </div>
+
+                  {/* Content Card Skeleton */}
+                  <div className="flex items-start gap-3 p-2.5 rounded-xl bg-black/40 border border-white/5">
+                    <div className="w-12 h-16 rounded-lg bg-white/10 flex-shrink-0" />
+                    <div className="flex-1 space-y-2">
+                      <div className="w-14 h-3 rounded bg-cyan-500/20" />
+                      <div className="w-full h-4 rounded bg-white/10" />
+                      <div className="w-24 h-2.5 rounded bg-white/5" />
+                    </div>
+                  </div>
+
+                  {/* Bottom Row Skeleton */}
+                  <div className="flex items-center justify-between pt-1 border-t border-white/5">
+                    <div className="w-16 h-4 rounded-full bg-amber-500/10" />
+                    <div className="w-14 h-6 rounded-xl bg-white/10" />
+                  </div>
+                </div>
+              ))}
             </div>
           ) : requests.length === 0 ? (
             <div className="p-12 rounded-3xl bg-[#090e1f] border border-white/10 text-center space-y-3">
@@ -835,56 +867,70 @@ export default function RequestPageClient({
                   ) : null}
                 </div>
 
-                {/* Dropdown Live Results */}
-                {searchDropdownOpen && searchResults.length > 0 && (
+                {/* Dropdown Live Results & Skeleton */}
+                {searchDropdownOpen && (
                   <div className="absolute top-full left-0 right-0 mt-2 p-2 bg-[#080d20] border border-cyan-500/30 rounded-2xl shadow-2xl z-30 max-h-64 overflow-y-auto divide-y divide-white/5">
-                    {searchResults.map((item) => (
-                      <button
-                        key={`${item.mediaType}-${item.id}`}
-                        type="button"
-                        onClick={() => handleSelectTMDBItem(item)}
-                        className="w-full p-2.5 rounded-xl hover:bg-white/5 transition-all text-left flex items-center gap-3 group"
-                      >
-                        <div className="w-10 h-14 rounded-lg overflow-hidden bg-slate-800 flex-shrink-0 border border-white/10">
-                          {item.posterUrl ? (
-                            <img
-                              src={item.posterUrl}
-                              alt={item.title}
-                              className="w-full h-full object-cover"
-                            />
-                          ) : (
-                            <div className="w-full h-full flex items-center justify-center text-slate-500">
-                              {item.mediaType === 'tv' ? <Tv size={16} /> : <Film size={16} />}
+                    {searching && searchResults.length === 0 ? (
+                      <div className="p-2 space-y-2 animate-pulse">
+                        {Array.from({ length: 3 }).map((_, i) => (
+                          <div key={i} className="flex items-center gap-3 p-1">
+                            <div className="w-10 h-14 rounded-lg bg-white/10 flex-shrink-0" />
+                            <div className="flex-1 space-y-2">
+                              <div className="w-28 h-3.5 rounded bg-white/10" />
+                              <div className="w-16 h-2.5 rounded bg-white/5" />
                             </div>
-                          )}
-                        </div>
-                        <div className="min-w-0 flex-1">
-                          <div className="flex items-center gap-1.5">
-                            <span
-                              className={`px-1.5 py-0.2 rounded text-[8px] font-extrabold uppercase ${
-                                item.mediaType === 'tv'
-                                  ? 'bg-purple-500/20 text-purple-300'
-                                  : 'bg-cyan-500/20 text-cyan-300'
-                              }`}
-                            >
-                              {item.mediaType === 'tv' ? 'Series' : 'Movie'}
-                            </span>
-                            <h4 className="text-xs sm:text-sm font-bold text-white group-hover:text-cyan-300 truncate transition-colors">
-                              {item.title}
-                            </h4>
                           </div>
-                          <div className="flex items-center gap-2 mt-0.5 text-[11px] text-slate-400">
-                            {item.year && <span>{item.year}</span>}
-                            {item.rating && (
-                              <span className="flex items-center gap-0.5 text-amber-400 font-bold">
-                                <Star size={10} fill="currentColor" />
-                                {item.rating.toFixed(1)}
-                              </span>
+                        ))}
+                      </div>
+                    ) : (
+                      searchResults.map((item) => (
+                        <button
+                          key={`${item.mediaType}-${item.id}`}
+                          type="button"
+                          onClick={() => handleSelectTMDBItem(item)}
+                          className="w-full p-2.5 rounded-xl hover:bg-white/5 transition-all text-left flex items-center gap-3 group"
+                        >
+                          <div className="w-10 h-14 rounded-lg overflow-hidden bg-slate-800 flex-shrink-0 border border-white/10">
+                            {item.posterUrl ? (
+                              <img
+                                src={item.posterUrl}
+                                alt={item.title}
+                                className="w-full h-full object-cover"
+                              />
+                            ) : (
+                              <div className="w-full h-full flex items-center justify-center text-slate-500">
+                                {item.mediaType === 'tv' ? <Tv size={16} /> : <Film size={16} />}
+                              </div>
                             )}
                           </div>
-                        </div>
-                      </button>
-                    ))}
+                          <div className="min-w-0 flex-1">
+                            <div className="flex items-center gap-1.5">
+                              <span
+                                className={`px-1.5 py-0.2 rounded text-[8px] font-extrabold uppercase ${
+                                  item.mediaType === 'tv'
+                                    ? 'bg-purple-500/20 text-purple-300'
+                                    : 'bg-cyan-500/20 text-cyan-300'
+                                }`}
+                              >
+                                {item.mediaType === 'tv' ? 'Series' : 'Movie'}
+                              </span>
+                              <h4 className="text-xs sm:text-sm font-bold text-white group-hover:text-cyan-300 truncate transition-colors">
+                                {item.title}
+                              </h4>
+                            </div>
+                            <div className="flex items-center gap-2 mt-0.5 text-[11px] text-slate-400">
+                              {item.year && <span>{item.year}</span>}
+                              {item.rating && (
+                                <span className="flex items-center gap-0.5 text-amber-400 font-bold">
+                                  <Star size={10} fill="currentColor" />
+                                  {item.rating.toFixed(1)}
+                                </span>
+                              )}
+                            </div>
+                          </div>
+                        </button>
+                      ))
+                    )}
                   </div>
                 )}
               </div>
