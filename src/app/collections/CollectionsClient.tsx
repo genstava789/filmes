@@ -470,36 +470,44 @@ export default function CollectionsClient({
                           <button
                             type="button"
                             onClick={(e) => handleVote(e, colId, 'like')}
-                            className={`inline-flex items-center gap-1 px-2.5 py-1 rounded-xl text-xs font-bold transition-all ${
+                            className={`inline-flex items-center gap-1.5 px-2.5 py-1 rounded-xl text-xs font-extrabold transition-all duration-150 active:scale-90 ${
                               collection.userVote === 'like'
-                                ? 'bg-cyan-500/20 text-cyan-400 border border-cyan-500/40 shadow-[0_0_10px_rgba(6,182,212,0.25)]'
-                                : 'bg-white/5 hover:bg-white/10 text-slate-400 hover:text-cyan-300 border border-white/5'
+                                ? 'bg-cyan-500/25 text-cyan-300 border border-cyan-400/80 shadow-[0_0_14px_rgba(6,182,212,0.35)] scale-105'
+                                : 'bg-white/[0.05] hover:bg-white/[0.12] text-slate-400 hover:text-cyan-300 border border-white/10 hover:border-cyan-500/30'
                             }`}
                             title={isLoggedIn ? 'Suka koleksi ini' : 'Login untuk menyukai'}
                           >
                             <ThumbsUp
-                              size={12}
-                              className={collection.userVote === 'like' ? 'fill-cyan-400 text-cyan-400' : ''}
+                              size={13}
+                              className={`transition-transform duration-150 ${
+                                collection.userVote === 'like'
+                                  ? 'fill-cyan-400 text-cyan-400 scale-110'
+                                  : 'group-hover:scale-110'
+                              }`}
                             />
-                            <span>{collection.likes || 0}</span>
+                            <span className="tabular-nums">{collection.likes || 0}</span>
                           </button>
 
                           {/* Dislike Button */}
                           <button
                             type="button"
                             onClick={(e) => handleVote(e, colId, 'dislike')}
-                            className={`inline-flex items-center gap-1 px-2.5 py-1 rounded-xl text-xs font-bold transition-all ${
+                            className={`inline-flex items-center gap-1.5 px-2.5 py-1 rounded-xl text-xs font-extrabold transition-all duration-150 active:scale-90 ${
                               collection.userVote === 'dislike'
-                                ? 'bg-rose-500/20 text-rose-400 border border-rose-500/40 shadow-[0_0_10px_rgba(244,63,94,0.25)]'
-                                : 'bg-white/5 hover:bg-white/10 text-slate-400 hover:text-rose-300 border border-white/5'
+                                ? 'bg-rose-500/25 text-rose-300 border border-rose-400/80 shadow-[0_0_14px_rgba(244,63,94,0.35)] scale-105'
+                                : 'bg-white/[0.05] hover:bg-white/[0.12] text-slate-400 hover:text-rose-300 border border-white/10 hover:border-rose-500/30'
                             }`}
                             title={isLoggedIn ? 'Tidak suka koleksi ini' : 'Login untuk memberi tanggapan'}
                           >
                             <ThumbsDown
-                              size={12}
-                              className={collection.userVote === 'dislike' ? 'fill-rose-400 text-rose-400' : ''}
+                              size={13}
+                              className={`transition-transform duration-150 ${
+                                collection.userVote === 'dislike'
+                                  ? 'fill-rose-400 text-rose-400 scale-110'
+                                  : 'group-hover:scale-110'
+                              }`}
                             />
-                            <span>{collection.dislikes || 0}</span>
+                            <span className="tabular-nums">{collection.dislikes || 0}</span>
                           </button>
                         </div>
                       </div>

@@ -274,9 +274,9 @@ export default function ProfilePageClient() {
                   }}
                 >
                   <div className="w-full h-full rounded-xl bg-[#0b1020] flex items-center justify-center overflow-hidden">
-                    {isLoggedIn && user?.avatar ? (
+                    {isLoggedIn && user ? (
                       <img
-                        src={user.avatar}
+                        src={user.avatar || `https://api.dicebear.com/7.x/identicon/svg?seed=${encodeURIComponent(user.username)}`}
                         alt={user.username}
                         className="w-full h-full object-cover"
                       />

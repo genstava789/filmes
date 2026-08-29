@@ -300,7 +300,7 @@ export default function Sidebar({ genres = [], isOpen, onToggle }: SidebarProps)
             <Link
               href={user ? '/profile' : '/login'}
               title={user ? user.username : 'Masuk / Akun'}
-              className="w-10 h-10 rounded-xl flex items-center justify-center transition-all duration-200 text-cyan-400 hover:scale-105 active:scale-95"
+              className="w-10 h-10 rounded-xl flex items-center justify-center transition-all duration-200 text-cyan-400 hover:scale-105 active:scale-95 overflow-hidden"
               style={{
                 background: 'linear-gradient(135deg, rgba(6, 182, 212, 0.18), rgba(124, 58, 237, 0.22))',
                 border: '1px solid rgba(6, 182, 212, 0.45)',
@@ -308,9 +308,17 @@ export default function Sidebar({ genres = [], isOpen, onToggle }: SidebarProps)
               }}
             >
               {user ? (
-                <span className="font-black text-xs text-white">
-                  {user.username.charAt(0).toUpperCase()}
-                </span>
+                user.avatar ? (
+                  <img
+                    src={user.avatar}
+                    alt={user.username}
+                    className="w-full h-full object-cover"
+                  />
+                ) : (
+                  <span className="font-black text-xs text-white">
+                    {user.username.charAt(0).toUpperCase()}
+                  </span>
+                )
               ) : (
                 <LogIn size={18} />
               )}
@@ -328,13 +336,25 @@ export default function Sidebar({ genres = [], isOpen, onToggle }: SidebarProps)
             }}
           >
             <div
-              className="w-9 h-9 rounded-xl flex items-center justify-center flex-shrink-0 font-black text-sm text-white"
+              className="w-9 h-9 rounded-xl flex items-center justify-center flex-shrink-0 font-black text-sm text-white overflow-hidden"
               style={{
                 background: 'linear-gradient(135deg, #06b6d4, #7c3aed)',
                 boxShadow: '0 0 12px rgba(6, 182, 212, 0.35)',
               }}
             >
-              {user ? user.username.charAt(0).toUpperCase() : <LogIn size={16} />}
+              {user ? (
+                user.avatar ? (
+                  <img
+                    src={user.avatar}
+                    alt={user.username}
+                    className="w-full h-full object-cover"
+                  />
+                ) : (
+                  user.username.charAt(0).toUpperCase()
+                )
+              ) : (
+                <LogIn size={16} />
+              )}
             </div>
             <div className="flex-1 min-w-0">
               <p className="text-xs font-bold text-white truncate">

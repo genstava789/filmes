@@ -264,39 +264,47 @@ export default function CollectionDetailClient({ collection: initialCollection }
             {/* Action Buttons (Like/Dislike, Share, Edit, Delete) */}
             <div className="flex items-center gap-2.5 flex-wrap">
               {/* Like / Dislike Buttons */}
-              <div className="flex items-center gap-1 p-1 rounded-2xl bg-white/[0.06] border border-white/10">
+              <div className="flex items-center gap-1.5 p-1 rounded-2xl bg-white/[0.06] border border-white/10">
                 <button
                   type="button"
                   onClick={() => handleVote('like')}
-                  className={`flex items-center gap-1.5 px-3.5 py-2 rounded-xl text-xs font-bold transition-all ${
+                  className={`flex items-center gap-1.5 px-3.5 py-2 rounded-xl text-xs font-extrabold transition-all duration-150 active:scale-90 ${
                     collection.userVote === 'like'
-                      ? 'bg-cyan-500 text-black shadow-md shadow-cyan-500/25'
-                      : 'text-slate-300 hover:text-cyan-400 hover:bg-white/5'
+                      ? 'bg-cyan-500/25 text-cyan-300 border border-cyan-400/80 shadow-[0_0_15px_rgba(6,182,212,0.35)] scale-105'
+                      : 'text-slate-300 hover:text-cyan-300 hover:bg-white/5 border border-transparent'
                   }`}
                   title={isLoggedIn ? 'Suka koleksi ini' : 'Login untuk menyukai'}
                 >
                   <ThumbsUp
                     size={14}
-                    className={collection.userVote === 'like' ? 'fill-black text-black' : ''}
+                    className={`transition-transform duration-150 ${
+                      collection.userVote === 'like'
+                        ? 'fill-cyan-400 text-cyan-400 scale-110'
+                        : 'group-hover:scale-110'
+                    }`}
                   />
-                  <span>{collection.likes || 0}</span>
+                  <span className="tabular-nums">{collection.likes || 0}</span>
                 </button>
 
                 <button
                   type="button"
                   onClick={() => handleVote('dislike')}
-                  className={`flex items-center gap-1.5 px-3.5 py-2 rounded-xl text-xs font-bold transition-all ${
+                  className={`flex items-center gap-1.5 px-3.5 py-2 rounded-xl text-xs font-extrabold transition-all duration-150 active:scale-90 ${
                     collection.userVote === 'dislike'
-                      ? 'bg-rose-500 text-white shadow-md shadow-rose-500/25'
-                      : 'text-slate-300 hover:text-rose-400 hover:bg-white/5'
+                      ? 'bg-rose-500/25 text-rose-300 border border-rose-400/80 shadow-[0_0_15px_rgba(244,63,94,0.35)] scale-105'
+                      : 'text-slate-300 hover:text-rose-300 hover:bg-white/5 border border-transparent'
                   }`}
                   title={isLoggedIn ? 'Tidak suka koleksi ini' : 'Login untuk memberi tanggapan'}
                 >
                   <ThumbsDown
                     size={14}
-                    className={collection.userVote === 'dislike' ? 'fill-white text-white' : ''}
+                    className={`transition-transform duration-150 ${
+                      collection.userVote === 'dislike'
+                        ? 'fill-rose-400 text-rose-400 scale-110'
+                        : 'group-hover:scale-110'
+                    }`}
                   />
-                  <span>{collection.dislikes || 0}</span>
+                  <span className="tabular-nums">{collection.dislikes || 0}</span>
                 </button>
               </div>
 

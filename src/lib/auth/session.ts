@@ -116,11 +116,13 @@ export async function getAuthenticatedUser(req?: NextRequest | Request) {
     const user = await getUserById(payload.userId);
     if (!user) return null;
 
+    const fallbackAvatar = `https://api.dicebear.com/7.x/identicon/svg?seed=${encodeURIComponent(user.username)}`;
+
     return {
       id: user._id.toString(),
       username: user.username,
       email: user.email,
-      avatar: user.avatar,
+      avatar: user.avatar || fallbackAvatar,
       watchlist: user.watchlist || [],
       history: user.history || [],
       createdAt: user.createdAt,
