@@ -1,7 +1,7 @@
 ---
 tmdb_id: 1212763
 videourl: >-
-  https://huggingface.co/buckets/nexus33rd/cloud/resolve/Evil%20Dead%20Burn%20(2160)%20-%20Pahe.in.mkv?download=true
+  https://huggingface.co/buckets/nexus33rd/cloud/resolve/Evil%20Dead%20Burn%20(2160)%20-%20Pahe.in.mkv
 title: Evil Dead Burn
 deskripsi: >-
   After her husband's abrupt death, Alice seeks solace with his remaining family
