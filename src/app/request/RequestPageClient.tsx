@@ -69,6 +69,8 @@ export default function RequestPageClient({
     title: string;
     mediaType: 'movie' | 'tv';
     year?: string | number | null;
+    telegramSent?: boolean;
+    telegramError?: string | null;
   } | null>(null);
 
   const searchContainerRef = useRef<HTMLDivElement>(null);
@@ -230,6 +232,8 @@ export default function RequestPageClient({
         title: finalTitle,
         mediaType,
         year: selectedItem?.year || null,
+        telegramSent: data.telegramSent,
+        telegramError: data.telegramError,
       });
       setSuccess(true);
       if (typeof window !== 'undefined') {
@@ -259,34 +263,24 @@ export default function RequestPageClient({
   };
 
   return (
-    <div className="min-h-screen pt-20 sm:pt-24 pb-16 px-4 sm:px-6 md:px-8 lg:px-10" style={{ background: '#050816' }}>
-      <div className="max-w-3xl mx-auto">
-        {/* ── Top Header ── */}
+    <div className="min-h-screen pt-20 sm:pt-24 pb-12" style={{ background: '#050816' }}>
+      <div className="w-full max-w-3xl mx-auto px-4 sm:px-6">
+        
+        {/* ── Page Header ── */}
         <div className="text-center mb-8 sm:mb-10">
-          <div className="inline-flex items-center gap-2 px-3.5 py-1.5 rounded-full bg-white/[0.06] border border-white/10 text-xs font-bold mb-4 shadow-sm">
-            <Sparkles size={14} className="text-cyan-400" />
-            <span className="text-slate-300">Request Konten Baru</span>
+          <div className="inline-flex items-center gap-2 px-3.5 py-1.5 rounded-full bg-cyan-500/10 border border-cyan-500/30 text-cyan-400 text-xs font-bold mb-3 shadow-[0_0_15px_rgba(6,182,212,0.2)]">
+            <Send size={13} />
+            <span>Form Permintaan Konten</span>
           </div>
-
-          <h1 className="text-2xl sm:text-4xl md:text-5xl font-black text-white tracking-tight mb-3">
-            Request{' '}
-            <span
-              style={{
-                background: 'linear-gradient(135deg, #06b6d4 0%, #a78bfa 50%, #ec4899 100%)',
-                WebkitBackgroundClip: 'text',
-                WebkitTextFillColor: 'transparent',
-                backgroundClip: 'text',
-              }}
-            >
-              Film & TV Series
-            </span>
+          <h1 className="text-2xl sm:text-4xl font-black text-white tracking-tight mb-2">
+            Request Film & Series Favoritmu
           </h1>
-          <p className="text-xs sm:text-base text-slate-400 max-w-xl mx-auto leading-relaxed">
-            Punya film atau serial favorit yang belum ada di LeviStream? Kirimkan permintaanmu di bawah ini dan bot notifikasi kami akan langsung meneruskannya ke tim!
+          <p className="text-xs sm:text-sm text-slate-400 max-w-md mx-auto">
+            Tidak menemukan film atau series yang kamu cari? Kirimkan request dan tim kami akan segera menambahkannya ke katalog.
           </p>
         </div>
 
-        {/* ── Success Card View ── */}
+        {/* ── Success State ── */}
         {success ? (
           <div className="p-6 sm:p-10 rounded-3xl bg-[#090e21] border border-cyan-500/30 shadow-[0_0_50px_rgba(6,182,212,0.15)] text-center animate-in fade-in zoom-in-95 duration-300">
             <div className="w-16 h-16 sm:w-20 sm:h-20 mx-auto rounded-3xl bg-cyan-500/10 border border-cyan-500/30 flex items-center justify-center text-cyan-400 mb-5 shadow-[0_0_30px_rgba(6,182,212,0.25)]">
@@ -296,13 +290,23 @@ export default function RequestPageClient({
             <h2 className="text-xl sm:text-2xl font-black text-white mb-2">
               Permintaan Berhasil Terkirim!
             </h2>
-            <p className="text-xs sm:text-sm text-slate-400 max-w-md mx-auto mb-6">
+            <p className="text-xs sm:text-sm text-slate-400 max-w-md mx-auto mb-4">
               Terima kasih! Permintaan untuk{' '}
               <span className="text-white font-bold">
                 {submittedData?.title} {submittedData?.year ? `(${submittedData.year})` : ''}
               </span>{' '}
-              telah berhasil diteruskan ke sistem notifikasi Telegram kami. Tim kami akan segera meninjaunya.
+              telah berhasil dicatat. Tim kami akan segera meninjaunya.
             </p>
+
+            {submittedData?.telegramSent ? (
+              <div className="inline-flex items-center gap-1.5 px-3 py-1.5 rounded-full bg-emerald-500/10 border border-emerald-500/30 text-emerald-400 text-xs font-semibold mb-6">
+                <span>✓ Notifikasi terkirim ke Telegram bot</span>
+              </div>
+            ) : submittedData?.telegramError ? (
+              <div className="inline-flex items-center gap-1.5 px-3.5 py-1.5 rounded-xl bg-amber-500/10 border border-amber-500/30 text-amber-300 text-xs font-medium max-w-md mx-auto mb-6 text-left">
+                <span>⚠️ Status Telegram: {submittedData.telegramError}</span>
+              </div>
+            ) : null}
 
             <div className="flex flex-col sm:flex-row items-center justify-center gap-3 pt-2">
               <button

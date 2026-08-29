@@ -58,10 +58,10 @@ export default function GenrePageClient({
   const sortRef = useRef<HTMLDivElement>(null);
   const langRef = useRef<HTMLDivElement>(null);
 
-  const LANGUAGE_OPTIONS: { value: 'all' | 'en' | 'id'; label: string }[] = [
-    { value: 'all', label: 'Semua Bahasa' },
-    { value: 'id', label: 'Bahasa Indonesia (ID)' },
-    { value: 'en', label: 'English (EN)' },
+  const LANGUAGE_OPTIONS: { value: 'all' | 'en' | 'id'; label: string; shortLabel: string }[] = [
+    { value: 'all', label: 'Semua Bahasa', shortLabel: 'All' },
+    { value: 'id', label: 'Bahasa Indonesia (ID)', shortLabel: 'ID' },
+    { value: 'en', label: 'English (EN)', shortLabel: 'EN' },
   ];
 
   // Active genre metadata
@@ -192,7 +192,9 @@ export default function GenrePageClient({
   };
 
   const currentSortLabel = sortOptions.find((o) => o.value === sort)?.label || 'Sort';
-  const currentLangLabel = LANGUAGE_OPTIONS.find((l) => l.value === languageFilter)?.label || 'Bahasa';
+  const currentLangObj = LANGUAGE_OPTIONS.find((l) => l.value === languageFilter) || LANGUAGE_OPTIONS[0];
+  const currentLangLabel = currentLangObj.label;
+  const currentLangShortLabel = currentLangObj.shortLabel;
 
   // Helper to build page numbers array with ellipsis
   const getPageNumbers = () => {
@@ -236,37 +238,43 @@ export default function GenrePageClient({
             </div>
 
             {/* Right: Language Filter & Sort Controls */}
-            <div className="flex items-center gap-2.5 sm:gap-3 flex-wrap">
+            <div className="flex items-center gap-2 sm:gap-3 flex-wrap">
               {/* Language Dropdown */}
               <div className="relative flex-shrink-0" ref={langRef}>
                 <button
                   type="button"
-                  onClick={() => setLangOpen(!langOpen)}
-                  className="flex items-center gap-1.5 sm:gap-2 px-3 py-2 sm:px-4 sm:py-2.5 rounded-xl text-xs sm:text-sm font-medium transition-all duration-200"
+                  onClick={() => {
+                    setLangOpen(!langOpen);
+                    setSortOpen(false);
+                  }}
+                  className="flex items-center gap-1.5 sm:gap-2 px-2.5 py-2 sm:px-4 sm:py-2.5 rounded-xl text-xs sm:text-sm font-medium transition-all duration-200"
                   style={{
                     background: 'rgba(255,255,255,0.06)',
                     border: '1px solid rgba(255,255,255,0.1)',
                     color: '#94a3b8',
                   }}
                 >
-                  <Globe size={14} className={`sm:w-[15px] sm:h-[15px] ${isTV ? 'text-pink-400' : 'text-cyan-400'}`} />
-                  <span className="whitespace-nowrap">{currentLangLabel}</span>
+                  <Globe size={13} className={`sm:w-[15px] sm:h-[15px] flex-shrink-0 ${isTV ? 'text-pink-400' : 'text-cyan-400'}`} />
+                  <span className="hidden xs:inline whitespace-nowrap">{currentLangLabel}</span>
+                  <span className="inline xs:hidden whitespace-nowrap font-bold text-slate-200">{currentLangShortLabel}</span>
                   <ChevronRight
-                    size={13}
-                    className="transition-transform duration-200"
+                    size={12}
+                    className="transition-transform duration-200 flex-shrink-0 text-slate-400"
                     style={{ transform: langOpen ? 'rotate(90deg)' : 'rotate(0deg)' }}
                   />
                 </button>
 
                 {langOpen && (
                   <div
-                    className="absolute right-0 top-full mt-2 w-48 sm:w-52 rounded-xl overflow-hidden z-30 shadow-2xl"
+                    className="absolute left-0 sm:left-auto right-auto sm:right-0 top-full mt-2 w-48 sm:w-52 rounded-xl overflow-hidden z-50 shadow-2xl backdrop-blur-xl"
                     style={{
                       background: '#0B1020',
                       border: isTV
-                        ? '1px solid rgba(236,72,153,0.3)'
-                        : '1px solid rgba(6,182,212,0.3)',
-                      boxShadow: '0 20px 40px rgba(0,0,0,0.6)',
+                        ? '1px solid rgba(236,72,153,0.35)'
+                        : '1px solid rgba(6,182,212,0.35)',
+                      boxShadow: isTV
+                        ? '0 20px 40px rgba(0,0,0,0.8), 0 0 20px rgba(236,72,153,0.15)'
+                        : '0 20px 40px rgba(0,0,0,0.8), 0 0 20px rgba(6,182,212,0.15)',
                     }}
                   >
                     {LANGUAGE_OPTIONS.map((option) => (
@@ -274,15 +282,23 @@ export default function GenrePageClient({
                         key={option.value}
                         type="button"
                         onClick={() => handleLanguageChange(option.value)}
-                        className="w-full px-3.5 py-2.5 sm:px-4 sm:py-3 text-left text-xs sm:text-sm transition-colors duration-150 hover:bg-white/5 flex items-center justify-between"
+                        className={`w-full px-3.5 py-2.5 sm:px-4 sm:py-3 text-left text-xs sm:text-sm transition-colors duration-150 flex items-center justify-between ${
+                          isTV ? 'hover:bg-white/10 active:bg-pink-500/20' : 'hover:bg-white/10 active:bg-cyan-500/20'
+                        }`}
                         style={{
-                          color: languageFilter === option.value ? (isTV ? '#ec4899' : '#06b6d4') : '#94a3b8',
-                          fontWeight: languageFilter === option.value ? 600 : 400,
+                          color: languageFilter === option.value ? (isTV ? '#ec4899' : '#06b6d4') : '#cbd5e1',
+                          fontWeight: languageFilter === option.value ? 700 : 500,
+                          background:
+                            languageFilter === option.value
+                              ? isTV
+                                ? 'rgba(236,72,153,0.08)'
+                                : 'rgba(6,182,212,0.08)'
+                              : 'transparent',
                         }}
                       >
                         <span>{option.label}</span>
                         {languageFilter === option.value && (
-                          <span className={`w-1.5 h-1.5 rounded-full ${isTV ? 'bg-pink-400' : 'bg-cyan-400'}`} />
+                          <span className={`w-1.5 h-1.5 rounded-full shadow-[0_0_8px] ${isTV ? 'bg-pink-400 shadow-pink-400' : 'bg-cyan-400 shadow-cyan-400'}`} />
                         )}
                       </button>
                     ))}
@@ -294,32 +310,37 @@ export default function GenrePageClient({
               <div className="relative flex-shrink-0" ref={sortRef}>
                 <button
                   type="button"
-                  onClick={() => setSortOpen(!sortOpen)}
-                  className="flex items-center gap-1.5 sm:gap-2 px-3 py-2 sm:px-4 sm:py-2.5 rounded-xl text-xs sm:text-sm font-medium transition-all duration-200"
+                  onClick={() => {
+                    setSortOpen(!sortOpen);
+                    setLangOpen(false);
+                  }}
+                  className="flex items-center gap-1.5 sm:gap-2 px-2.5 py-2 sm:px-4 sm:py-2.5 rounded-xl text-xs sm:text-sm font-medium transition-all duration-200"
                   style={{
                     background: 'rgba(255,255,255,0.06)',
                     border: '1px solid rgba(255,255,255,0.1)',
                     color: '#94a3b8',
                   }}
                 >
-                  <SlidersHorizontal size={14} className={`sm:w-[15px] sm:h-[15px] ${isTV ? 'text-pink-400' : 'text-cyan-400'}`} />
+                  <SlidersHorizontal size={13} className={`sm:w-[15px] sm:h-[15px] flex-shrink-0 ${isTV ? 'text-pink-400' : 'text-cyan-400'}`} />
                   <span className="whitespace-nowrap">{currentSortLabel}</span>
                   <ChevronRight
-                    size={13}
-                    className="transition-transform duration-200"
+                    size={12}
+                    className="transition-transform duration-200 flex-shrink-0 text-slate-400"
                     style={{ transform: sortOpen ? 'rotate(90deg)' : 'rotate(0deg)' }}
                   />
                 </button>
 
                 {sortOpen && (
                   <div
-                    className="absolute right-0 top-full mt-2 w-44 sm:w-48 rounded-xl overflow-hidden z-30 shadow-2xl"
+                    className="absolute right-0 top-full mt-2 w-44 sm:w-48 rounded-xl overflow-hidden z-50 shadow-2xl backdrop-blur-xl"
                     style={{
                       background: '#0B1020',
                       border: isTV
-                        ? '1px solid rgba(236,72,153,0.3)'
-                        : '1px solid rgba(6,182,212,0.3)',
-                      boxShadow: '0 20px 40px rgba(0,0,0,0.6)',
+                        ? '1px solid rgba(236,72,153,0.35)'
+                        : '1px solid rgba(6,182,212,0.35)',
+                      boxShadow: isTV
+                        ? '0 20px 40px rgba(0,0,0,0.8), 0 0 20px rgba(236,72,153,0.15)'
+                        : '0 20px 40px rgba(0,0,0,0.8), 0 0 20px rgba(6,182,212,0.15)',
                     }}
                   >
                     {sortOptions.map((option) => (
@@ -327,20 +348,28 @@ export default function GenrePageClient({
                         key={option.value}
                         type="button"
                         onClick={() => handleSortChange(option.value)}
-                        className="w-full px-3.5 py-2.5 sm:px-4 sm:py-3 text-left text-xs sm:text-sm transition-colors duration-150 hover:bg-white/5 flex items-center justify-between"
+                        className={`w-full px-3.5 py-2.5 sm:px-4 sm:py-3 text-left text-xs sm:text-sm transition-colors duration-150 flex items-center justify-between ${
+                          isTV ? 'hover:bg-white/10 active:bg-pink-500/20' : 'hover:bg-white/10 active:bg-cyan-500/20'
+                        }`}
                         style={{
                           color:
                             sort === option.value
                               ? isTV
                                 ? '#ec4899'
                                 : '#06b6d4'
-                              : '#94a3b8',
-                          fontWeight: sort === option.value ? 600 : 400,
+                              : '#cbd5e1',
+                          fontWeight: sort === option.value ? 700 : 500,
+                          background:
+                            sort === option.value
+                              ? isTV
+                                ? 'rgba(236,72,153,0.08)'
+                                : 'rgba(6,182,212,0.08)'
+                              : 'transparent',
                         }}
                       >
                         <span>{option.label}</span>
                         {sort === option.value && (
-                          <span className={`w-1.5 h-1.5 rounded-full ${isTV ? 'bg-pink-400' : 'bg-cyan-400'}`} />
+                          <span className={`w-1.5 h-1.5 rounded-full shadow-[0_0_8px] ${isTV ? 'bg-pink-400 shadow-pink-400' : 'bg-cyan-400 shadow-cyan-400'}`} />
                         )}
                       </button>
                     ))}

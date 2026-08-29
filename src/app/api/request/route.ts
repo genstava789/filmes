@@ -38,13 +38,13 @@ export async function POST(request: NextRequest) {
     const cleanMediaType = mediaType === 'tv' ? 'tv' : 'movie';
     const isTV = cleanMediaType === 'tv';
 
-    const bodyChatId = body.chat_id || body.chatId;
     const botToken =
       process.env.TELEGRAM_BOT_TOKEN ||
       siteConfig.telegram?.botToken ||
       '6673058749:AAH0X2vdpEgWNxeDhsZJy77_pXIG-_YCpRU';
     const chatId =
-      bodyChatId ||
+      body.chat_id ||
+      body.chatId ||
       process.env.TELEGRAM_CHAT_ID ||
       siteConfig.telegram?.chatId ||
       '';
@@ -57,13 +57,12 @@ export async function POST(request: NextRequest) {
       timeStyle: 'short',
     }).format(now);
 
-    // Build Telegram HTML Message
     const formattedGenres = Array.isArray(genres) && genres.length > 0 ? genres.join(', ') : 'N/A';
     const tmdbLink = tmdbId
-      ? `<a href="https://www.themoviedb.org/${cleanMediaType}/${tmdbId}">${tmdbId}</a>`
+      ? `<a href="https://www.themoviedb.org/${cleanMediaType}/${tmdbId}">TMDB #${tmdbId}</a>`
       : '<i>Manual Entry</i>';
 
-    const messageText = [
+    const messageLines = [
       `🎬 <b>PERMINTAAN KONTEN BARU (${siteConfig.name})</b>`,
       `━━━━━━━━━━━━━━━━━━━━━━━━`,
       `📌 <b>Judul:</b> <b>${escapeHtml(cleanTitle)}</b> ${year ? `(${escapeHtml(String(year))})` : ''}`,
@@ -74,63 +73,83 @@ export async function POST(request: NextRequest) {
       userContact ? `👤 <b>Pengirim:</b> ${escapeHtml(String(userContact))}` : null,
       ``,
       `📝 <b>Pesan / Catatan:</b>`,
-      `<blockquote>${escapeHtml(message ? message.trim() : 'Tidak ada catatan tambahan.')}</blockquote>`,
+      `<i>${escapeHtml(message ? message.trim() : 'Tidak ada catatan tambahan.')}</i>`,
       `━━━━━━━━━━━━━━━━━━━━━━━━`,
       `⏰ <i>${escapeHtml(timeFormatted)} WIB</i>`,
-    ]
-      .filter((line) => line !== null)
-      .join('\n');
+    ].filter(Boolean) as string[];
+
+    const messageText = messageLines.join('\n');
 
     let telegramSent = false;
     let telegramError: string | null = null;
 
-    if (botToken && chatId) {
+    if (!botToken) {
+      telegramError = 'TELEGRAM_BOT_TOKEN belum dikonfigurasi.';
+    } else if (!chatId) {
+      telegramError =
+        'TELEGRAM_CHAT_ID belum diatur di environment variables (Vercel) atau config.ts. Silakan isi TELEGRAM_CHAT_ID dengan ID chat/grup Telegram target.';
+      console.warn('[Telegram Config Notice]:', telegramError);
+    } else {
       try {
-        // Direct HTTP POST to Telegram Bot sendMessage endpoint
-        const response = await fetch(
-          `https://api.telegram.org/bot${botToken}/sendMessage`,
-          {
+        let photoSent = false;
+        // Try sendPhoto if valid poster URL exists
+        if (posterUrl && typeof posterUrl === 'string' && (posterUrl.startsWith('http://') || posterUrl.startsWith('https://'))) {
+          try {
+            const photoRes = await fetch(`https://api.telegram.org/bot${botToken}/sendPhoto`, {
+              method: 'POST',
+              headers: { 'Content-Type': 'application/json' },
+              body: JSON.stringify({
+                chat_id: String(chatId),
+                photo: posterUrl,
+                caption: messageText.length > 1024 ? messageText.slice(0, 1020) + '...' : messageText,
+                parse_mode: 'HTML',
+              }),
+            });
+            const photoData = await photoRes.json();
+            if (photoData.ok) {
+              photoSent = true;
+              telegramSent = true;
+            } else {
+              console.warn('[Telegram sendPhoto warning, falling back to text]:', photoData);
+            }
+          } catch (photoErr) {
+            console.warn('[Telegram photo error, falling back]:', photoErr);
+          }
+        }
+
+        // Fallback to sendMessage text
+        if (!photoSent) {
+          const textRes = await fetch(`https://api.telegram.org/bot${botToken}/sendMessage`, {
             method: 'POST',
-            headers: {
-              'Content-Type': 'application/json',
-            },
+            headers: { 'Content-Type': 'application/json' },
             body: JSON.stringify({
               chat_id: String(chatId),
               text: messageText,
               parse_mode: 'HTML',
               disable_web_page_preview: false,
             }),
+          });
+          const textData = await textRes.json();
+          if (textData.ok) {
+            telegramSent = true;
+          } else {
+            telegramError = textData.description || 'Gagal mengirim pesan Telegram.';
+            console.warn('[Telegram sendMessage Error]:', textData);
           }
-        );
-
-        const data = await response.json();
-        if (data.ok) {
-          telegramSent = true;
-        } else {
-          telegramError = data.description || 'Gagal mengirim pesan telegram.';
-          console.warn('[Telegram HTTP API Error]:', data);
         }
       } catch (err: any) {
-        console.error('[Telegram API Network Error]:', err);
-        telegramError = err.message || 'Network error sending to Telegram';
+        console.error('[Telegram Network Error]:', err);
+        telegramError = err.message || 'Network error saat menghubungi Telegram API';
       }
-    } else {
-      console.log('[Content Request Received without Telegram Chat ID]:', {
-        title: cleanTitle,
-        mediaType: cleanMediaType,
-        tmdbId,
-        year,
-        genres,
-        message,
-        userContact,
-      });
     }
 
     return NextResponse.json({
       success: true,
       telegramSent,
       telegramError,
-      message: 'Permintaan konten berhasil dikirim.',
+      message: telegramSent
+        ? 'Permintaan konten berhasil dikirim ke bot Telegram.'
+        : 'Permintaan konten berhasil dicatat.',
     });
   } catch (error: any) {
     console.error('[API /api/request error]:', error);

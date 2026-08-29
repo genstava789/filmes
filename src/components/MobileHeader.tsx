@@ -64,6 +64,8 @@ export default function MobileHeader({ genres = [] }: MobileHeaderProps) {
     return pathname.startsWith(href);
   };
 
+  const [genreTab, setGenreTab] = useState<'movie' | 'tv'>('movie');
+
   const navCards = [
     {
       href: '/',
@@ -93,22 +95,54 @@ export default function MobileHeader({ genres = [] }: MobileHeaderProps) {
       border: 'rgba(236, 72, 153, 0.3)',
     },
     {
-      href: '/search',
-      icon: Search,
-      title: 'Search',
-      desc: 'Find movies & series',
+      href: '/genre/all',
+      icon: Sparkles,
+      title: 'Genre',
+      desc: 'Kategori Movie & TV',
       color: '#38bdf8',
       bg: 'rgba(56, 189, 248, 0.12)',
       border: 'rgba(56, 189, 248, 0.3)',
     },
   ];
 
-  const quickGenres = [
-    { href: '/genre/28', icon: Flame, label: 'Action' },
-    { href: '/genre/35', icon: Clapperboard, label: 'Comedy' },
-    { href: '/genre/18', icon: Star, label: 'Drama' },
-    { href: '/genre/27', icon: Clock, label: 'Horror' },
-    { href: '/genre/878', icon: TrendingUp, label: 'Sci-Fi' },
+  const movieGenresList = [
+    { id: 28, label: 'Action' },
+    { id: 12, label: 'Adventure' },
+    { id: 16, label: 'Animation' },
+    { id: 35, label: 'Comedy' },
+    { id: 80, label: 'Crime' },
+    { id: 99, label: 'Documentary' },
+    { id: 18, label: 'Drama' },
+    { id: 10751, label: 'Family' },
+    { id: 14, label: 'Fantasy' },
+    { id: 36, label: 'History' },
+    { id: 27, label: 'Horror' },
+    { id: 10402, label: 'Music' },
+    { id: 9648, label: 'Mystery' },
+    { id: 10749, label: 'Romance' },
+    { id: 878, label: 'Sci-Fi' },
+    { id: 53, label: 'Thriller' },
+    { id: 10752, label: 'War' },
+    { id: 37, label: 'Western' },
+  ];
+
+  const tvGenresList = [
+    { id: 10759, label: 'Action & Adventure' },
+    { id: 16, label: 'Animation' },
+    { id: 35, label: 'Comedy' },
+    { id: 80, label: 'Crime' },
+    { id: 99, label: 'Documentary' },
+    { id: 18, label: 'Drama' },
+    { id: 10751, label: 'Family' },
+    { id: 10762, label: 'Kids' },
+    { id: 9648, label: 'Mystery' },
+    { id: 10763, label: 'News' },
+    { id: 10764, label: 'Reality' },
+    { id: 10765, label: 'Sci-Fi & Fantasy' },
+    { id: 10766, label: 'Soap' },
+    { id: 10767, label: 'Talk' },
+    { id: 10768, label: 'War & Politics' },
+    { id: 37, label: 'Western' },
   ];
 
   return (
@@ -264,42 +298,78 @@ export default function MobileHeader({ genres = [] }: MobileHeaderProps) {
             })}
           </div>
 
-          {/* Section 2: Quick Popular Searches (Quick Keyword Navigation to /search) */}
-          <div className="pt-3 border-t border-white/[0.08]">
-            <div className="flex items-center gap-1.5 mb-2.5 px-1">
-              <Search size={13} className="text-cyan-400" />
-              <span className="text-[11px] font-extrabold uppercase tracking-wider text-slate-400">
-                Popular Searches
-              </span>
+          {/* Section 2: Categorized Genre Browser (Movie & TV Series) */}
+          <div className="pt-3 border-t border-white/[0.08]" id="mobile-menu-genres">
+            <div className="flex items-center justify-between mb-2.5 px-1">
+              <div className="flex items-center gap-1.5">
+                <Sparkles size={13} className="text-cyan-400" />
+                <span className="text-[11px] font-extrabold uppercase tracking-wider text-slate-300">
+                  Kategori Genre
+                </span>
+              </div>
+
+              {/* Movie vs TV Toggle Tabs */}
+              <div className="flex items-center p-0.5 rounded-xl bg-white/[0.06] border border-white/10 text-xs font-bold shadow-sm">
+                <button
+                  type="button"
+                  onClick={() => setGenreTab('movie')}
+                  className={`flex items-center gap-1 px-2.5 py-1 rounded-lg transition-all text-[11px] font-bold ${
+                    genreTab === 'movie'
+                      ? 'bg-cyan-500 text-black shadow-md shadow-cyan-500/30'
+                      : 'text-slate-400 hover:text-white'
+                  }`}
+                >
+                  <Film size={11} />
+                  <span>Movie</span>
+                </button>
+                <button
+                  type="button"
+                  onClick={() => setGenreTab('tv')}
+                  className={`flex items-center gap-1 px-2.5 py-1 rounded-lg transition-all text-[11px] font-bold ${
+                    genreTab === 'tv'
+                      ? 'bg-pink-500 text-white shadow-md shadow-pink-500/30'
+                      : 'text-slate-400 hover:text-white'
+                  }`}
+                >
+                  <Tv size={11} />
+                  <span>TV Series</span>
+                </button>
+              </div>
             </div>
 
-            <div className="flex flex-wrap gap-1.5">
-              {[
-                'Action',
-                'Anime',
-                'Marvel',
-                'Drakor',
-                'Horror',
-                'Indonesia',
-                'Netflix',
-                'Romance',
-                'Sci-Fi',
-                'Thriller',
-              ].map((keyword) => (
-                <Link
-                  key={keyword}
-                  href={`/search?q=${encodeURIComponent(keyword)}`}
-                  onClick={() => setMenuOpen(false)}
-                  className="flex items-center gap-1.5 px-3 py-1.5 rounded-xl text-xs font-semibold transition-all duration-150 hover:scale-105 active:scale-95 text-slate-300 hover:text-cyan-300"
-                  style={{
-                    background: 'rgba(255, 255, 255, 0.05)',
-                    border: '1px solid rgba(255, 255, 255, 0.08)',
-                  }}
-                >
-                  <Search size={11} className="text-cyan-400/70" />
-                  <span>{keyword}</span>
-                </Link>
-              ))}
+            {/* Genre Pills Grid */}
+            <div className="flex flex-wrap gap-1.5 max-h-[175px] overflow-y-auto pr-0.5">
+              {(genreTab === 'movie' ? movieGenresList : tvGenresList).map((genre) => {
+                const targetHref = genreTab === 'movie' ? `/genre/${genre.id}` : `/genre/${genre.id}?type=tv`;
+                const active = pathname === targetHref;
+                return (
+                  <Link
+                    key={genre.id}
+                    href={targetHref}
+                    onClick={() => setMenuOpen(false)}
+                    className="flex items-center gap-1 px-2.5 py-1.5 rounded-xl text-xs font-semibold transition-all duration-150 hover:scale-105 active:scale-95 text-slate-300 hover:text-white"
+                    style={{
+                      background: active
+                        ? genreTab === 'movie'
+                          ? 'linear-gradient(135deg, rgba(6, 182, 212, 0.3), rgba(124, 58, 237, 0.3))'
+                          : 'linear-gradient(135deg, rgba(236, 72, 153, 0.3), rgba(124, 58, 237, 0.3))'
+                        : 'rgba(255, 255, 255, 0.05)',
+                      border: active
+                        ? genreTab === 'movie'
+                          ? '1px solid rgba(6, 182, 212, 0.55)'
+                          : '1px solid rgba(236, 72, 153, 0.55)'
+                        : '1px solid rgba(255, 255, 255, 0.08)',
+                      color: active
+                        ? genreTab === 'movie'
+                          ? '#06b6d4'
+                          : '#ec4899'
+                        : '#cbd5e1',
+                    }}
+                  >
+                    <span>{genre.label}</span>
+                  </Link>
+                );
+              })}
             </div>
           </div>
 
