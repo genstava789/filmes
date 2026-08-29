@@ -14,17 +14,49 @@ import {
   ArrowLeft,
   CheckCircle2,
   AlertCircle,
-  RefreshCw,
 } from 'lucide-react';
 import { useAuth } from '@/context/AuthContext';
-import siteConfig from '@/config';
+
+function Spinner({ size = 20 }: { size?: number }) {
+  return (
+    <svg
+      className="animate-spin text-current"
+      style={{
+        width: `${size}px`,
+        height: `${size}px`,
+        minWidth: `${size}px`,
+        minHeight: `${size}px`,
+        maxWidth: `${size}px`,
+        maxHeight: `${size}px`,
+        display: 'inline-block',
+        flexShrink: 0,
+      }}
+      viewBox="0 0 24 24"
+      fill="none"
+    >
+      <circle
+        className="opacity-25"
+        cx="12"
+        cy="12"
+        r="10"
+        stroke="currentColor"
+        strokeWidth="3.5"
+      />
+      <path
+        className="opacity-90"
+        fill="currentColor"
+        d="M4 12a8 8 0 018-8v4a4 4 0 00-4 4H4z"
+      />
+    </svg>
+  );
+}
 
 export default function LoginPageClient() {
   const router = useRouter();
   const searchParams = useSearchParams();
   const redirectTarget = searchParams.get('redirect') || '/profile';
 
-  const { login, register, user, authStatus } = useAuth();
+  const { login, register, user } = useAuth();
 
   const [tab, setTab] = useState<'login' | 'register'>('login');
   const [showPassword, setShowPassword] = useState(false);
@@ -91,7 +123,7 @@ export default function LoginPageClient() {
         setSuccessMsg(res.message || 'Login berhasil! Mengalihkan...');
         setTimeout(() => {
           router.replace(redirectTarget);
-        }, 300);
+        }, 250);
       } else {
         setErrors({ general: res.message || 'Username/Email atau Password salah' });
         setLoading(false);
@@ -144,7 +176,7 @@ export default function LoginPageClient() {
         setSuccessMsg(res.message || 'Akun berhasil dibuat! Mengalihkan...');
         setTimeout(() => {
           router.replace(redirectTarget);
-        }, 300);
+        }, 250);
       } else {
         setErrors({ general: res.message || 'Gagal mendaftar akun' });
         setLoading(false);
@@ -173,39 +205,25 @@ export default function LoginPageClient() {
     }, 400);
   };
 
-  // While checking auth status
-  if (authStatus === 'initializing') {
-    return (
-      <div className="w-full min-h-[calc(100vh-14rem)] flex items-center justify-center px-4 py-8 sm:py-12">
-        <div className="w-full max-w-[380px] h-[300px] rounded-3xl p-6 sm:p-8 bg-[#090e20]/60 border border-white/10 flex items-center justify-center">
-          <div
-            className="rounded-full border-2 border-cyan-400 border-t-transparent animate-spin"
-            style={{ width: '32px', height: '32px', minWidth: '32px', minHeight: '32px' }}
-          />
-        </div>
-      </div>
-    );
-  }
-
-  // If user is already authenticated or just succeeded logging in, render smooth transition
-  if (user || successMsg) {
+  // If user is already authenticated or just succeeded logging in, render clean transition
+  if (user && successMsg) {
     return (
       <div className="w-full min-h-[calc(100vh-14rem)] flex items-center justify-center px-4 py-8 sm:py-12">
         <div
-          className="w-full max-w-[380px] rounded-3xl p-8 bg-[#090e20] border border-cyan-500/30 text-center shadow-xl space-y-4 animate-fade-in"
+          className="w-full rounded-3xl p-8 text-center shadow-xl space-y-4"
           style={{
+            maxWidth: '420px',
+            width: '100%',
             background: 'rgba(9, 14, 32, 0.94)',
             backdropFilter: 'blur(24px)',
+            border: '1px solid rgba(6, 182, 212, 0.3)',
             boxShadow: '0 25px 60px rgba(0,0,0,0.7), 0 0 30px rgba(6,182,212,0.15)',
           }}
         >
-          <div
-            className="rounded-full border-2 border-cyan-400 border-t-transparent animate-spin mx-auto"
-            style={{ width: '32px', height: '32px', minWidth: '32px', minHeight: '32px' }}
-          />
-          <p className="text-xs font-bold text-slate-300">
-            {successMsg || 'Mengalihkan ke akun Anda...'}
-          </p>
+          <div className="flex justify-center text-cyan-400">
+            <Spinner size={32} />
+          </div>
+          <p className="text-xs font-bold text-slate-300">{successMsg}</p>
         </div>
       </div>
     );
@@ -213,11 +231,22 @@ export default function LoginPageClient() {
 
   return (
     <div className="w-full min-h-[calc(100vh-14rem)] flex items-center justify-center px-4 py-8 sm:py-12">
-      {/* ── Main Form Card ── */}
-      <div className="relative z-10 w-full max-w-[420px]">
+      {/* ── Main Form Card (Fixed max-width and no width transition on mount) ── */}
+      <div
+        className="relative z-10 w-full"
+        style={{
+          maxWidth: '420px',
+          width: '100%',
+          margin: '0 auto',
+          boxSizing: 'border-box',
+        }}
+      >
         <div
-          className="rounded-3xl p-6 sm:p-8 transition-all duration-300"
+          className="rounded-3xl p-6 sm:p-8"
           style={{
+            width: '100%',
+            maxWidth: '420px',
+            boxSizing: 'border-box',
             background: 'rgba(9, 14, 32, 0.94)',
             backdropFilter: 'blur(30px) saturate(190%)',
             WebkitBackdropFilter: 'blur(30px) saturate(190%)',
@@ -313,10 +342,7 @@ export default function LoginPageClient() {
                     }}
                   >
                     {loading ? (
-                      <div
-                        className="rounded-full border-2 border-white border-t-transparent animate-spin"
-                        style={{ width: '16px', height: '16px' }}
-                      />
+                      <Spinner size={16} />
                     ) : (
                       <span>Kirim Link Reset</span>
                     )}
@@ -456,10 +482,7 @@ export default function LoginPageClient() {
                     }}
                   >
                     {loading ? (
-                      <div
-                        className="rounded-full border-2 border-white border-t-transparent animate-spin"
-                        style={{ width: '18px', height: '18px' }}
-                      />
+                      <Spinner size={18} />
                     ) : (
                       <span>Masuk ke Akun</span>
                     )}
@@ -597,10 +620,7 @@ export default function LoginPageClient() {
                     }}
                   >
                     {loading ? (
-                      <div
-                        className="rounded-full border-2 border-white border-t-transparent animate-spin"
-                        style={{ width: '18px', height: '18px' }}
-                      />
+                      <Spinner size={18} />
                     ) : (
                       <span>Daftar Sekarang</span>
                     )}
