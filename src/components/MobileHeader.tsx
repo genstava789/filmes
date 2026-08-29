@@ -190,34 +190,34 @@ export default function MobileHeader({ genres = [] }: MobileHeaderProps) {
           ) : isLoggedIn && user ? (
             <Link
               href="/profile"
-              className="px-2 py-1 rounded-xl bg-white/[0.05] hover:bg-white/[0.09] border border-white/10 transition-all duration-200 active:scale-95 flex flex-col items-center justify-center min-w-[46px] max-w-[70px]"
+              className="flex flex-col items-center justify-center p-0.5 transition-all duration-200 active:scale-95 group min-w-[38px] max-w-[62px]"
             >
               <div
-                className="w-6 h-6 rounded-full flex items-center justify-center overflow-hidden border border-white/20 bg-slate-800 flex-shrink-0"
+                className="w-7 h-7 rounded-full flex items-center justify-center overflow-hidden border border-white/25 group-hover:border-cyan-400 bg-slate-800 flex-shrink-0 transition-colors shadow-sm"
               >
                 {user.avatar ? (
                   <img src={user.avatar} alt={user.username} className="w-full h-full object-cover" />
                 ) : (
-                  <span className="font-bold text-[10px] text-white">
+                  <span className="font-extrabold text-[10px] text-white">
                     {user.username.charAt(0).toUpperCase()}
                   </span>
                 )}
               </div>
-              <span className="w-full truncate text-slate-200 font-bold text-[9.5px] sm:text-[10px] leading-tight capitalize text-center mt-0.5">
+              <span className="w-full truncate text-slate-200 group-hover:text-cyan-300 font-bold text-[9px] sm:text-[9.5px] leading-tight capitalize text-center mt-0.5 transition-colors">
                 {user.username}
               </span>
               {user.role === 'owner' ? (
-                <span className="inline-flex items-center gap-0.5 px-1 py-0.2 rounded text-[7px] font-black bg-amber-500/20 border border-amber-500/30 text-amber-300 leading-none mt-0.5">
-                  <Crown size={7} className="text-amber-400 fill-amber-400 flex-shrink-0" />
+                <span className="inline-flex items-center gap-0.5 px-1 py-0.2 rounded text-[6.5px] font-black bg-amber-500/20 border border-amber-500/30 text-amber-300 leading-none mt-0.5">
+                  <Crown size={6.5} className="text-amber-400 fill-amber-400 flex-shrink-0" />
                   <span>OWNER</span>
                 </span>
               ) : user.role === 'admin' ? (
-                <span className="inline-flex items-center gap-0.5 px-1 py-0.2 rounded text-[7px] font-black bg-cyan-500/20 border border-cyan-500/30 text-cyan-300 leading-none mt-0.5">
-                  <ShieldCheck size={7} className="text-cyan-400 flex-shrink-0" />
+                <span className="inline-flex items-center gap-0.5 px-1 py-0.2 rounded text-[6.5px] font-black bg-cyan-500/20 border border-cyan-500/30 text-cyan-300 leading-none mt-0.5">
+                  <ShieldCheck size={6.5} className="text-cyan-400 flex-shrink-0" />
                   <span>ADMIN</span>
                 </span>
               ) : (
-                <span className="inline-flex items-center gap-0.5 px-1 py-0.2 rounded text-[7px] font-bold bg-white/10 border border-white/15 text-slate-300 leading-none mt-0.5">
+                <span className="inline-flex items-center gap-0.5 px-1 py-0.2 rounded text-[6.5px] font-bold bg-white/10 border border-white/15 text-slate-300 leading-none mt-0.5">
                   <span>MEMBER</span>
                 </span>
               )}

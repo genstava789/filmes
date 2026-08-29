@@ -435,6 +435,61 @@ export async function updateUserRole(
   });
 }
 
+/**
+ * Permanently deletes a user and all their associated data (watchlist, history, created collections) (Owner only).
+ */
+export async function deleteUserAccount(
+  operatorUserId: string,
+  targetUserId: string
+): Promise<{ success: boolean; deletedUsername: string }> {
+  const operator = await getUserById(operatorUserId);
+  if (!operator) {
+    throw new Error('Akses ditolak');
+  }
+
+  const operatorRole = resolveUserRole(operator);
+  if (operatorRole !== 'owner') {
+    throw new Error('Hanya Owner yang memiliki izin untuk menghapus akun pengguna');
+  }
+
+  if (operatorUserId === targetUserId) {
+    throw new Error('Tidak dapat menghapus akun Owner yang sedang aktif');
+  }
+
+  const target = await getUserById(targetUserId);
+  if (!target) {
+    throw new Error('Pengguna tidak ditemukan');
+  }
+
+  const targetRole = resolveUserRole(target);
+  if (targetRole === 'owner') {
+    throw new Error('Akun dengan role Owner tidak dapat dihapus');
+  }
+
+  return withMongoRetry(async () => {
+    const db = await getDatabase();
+    if (!db) {
+      throw new Error('Koneksi database tidak tersedia');
+    }
+
+    // 1. Delete all collections created by this user
+    try {
+      await db.collection('collections').deleteMany({ userId: targetUserId });
+    } catch (e) {
+      console.warn('[deleteUserAccount] Error deleting user collections:', e);
+    }
+
+    // 2. Delete the user document completely (clearing watchlist, history, credentials)
+    const usersCol = await getUsersCollection();
+    await usersCol.deleteOne({ _id: new ObjectId(targetUserId) });
+
+    return {
+      success: true,
+      deletedUsername: target.username,
+    };
+  });
+}
+
 // ─────────────────────────────────────────────────────────────────────────────
 // WATCHLIST OPERATIONS
 // ─────────────────────────────────────────────────────────────────────────────
