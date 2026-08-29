@@ -1,7 +1,6 @@
 'use client';
 
 import React, { useState, useEffect, useRef, useCallback } from 'react';
-import Image from 'next/image';
 import Link from 'next/link';
 import { Play, Star, ChevronLeft, ChevronRight, Film, Volume2, VolumeX, X } from 'lucide-react';
 import { Movie, TVShow, Genre } from '@/types/tmdb';
@@ -178,17 +177,18 @@ export default function Hero({
   const btnBg =
     buttonGradient ||
     (isTV
-      ? 'linear-gradient(135deg, #ec4899, #7c3aed)'
-      : 'linear-gradient(135deg, #06b6d4, #7c3aed)');
+      ? 'linear-gradient(135deg, #ec4899 0%, #db2777 100%)'
+      : 'linear-gradient(135deg, #06b6d4 0%, #0284c7 100%)');
   const btnShadow = isTV
-    ? '0 0 25px rgba(236,72,153,0.45)'
-    : '0 0 25px rgba(6,182,212,0.45)';
+    ? '0 0 20px rgba(236,72,153,0.35)'
+    : '0 0 20px rgba(6,182,212,0.35)';
 
   const hasLogo = Boolean(currentItem.logoUrl) && !logoErrors[currentItem.id || currentIndex];
+  const rawLogo = currentItem.logoUrl ? getImageUrl(currentItem.logoUrl, 'original') : undefined;
 
   return (
     <section
-      className="relative w-full max-w-full aspect-[16/9] min-h-[300px] xs:min-h-[340px] sm:min-h-[440px] md:min-h-[500px] lg:min-h-[560px] overflow-hidden select-none touch-pan-y font-outfit group/hero"
+      className="relative w-full max-w-full aspect-[16/9] min-h-[300px] xs:min-h-[340px] sm:min-h-[440px] md:min-h-[500px] lg:min-h-[560px] overflow-hidden select-none touch-pan-y font-outfit"
       style={{ overscrollBehaviorX: 'none' }}
       onMouseEnter={() => setIsHovered(true)}
       onMouseLeave={() => setIsHovered(false)}
@@ -196,11 +196,11 @@ export default function Hero({
       onTouchMove={handleTouchMove}
       onTouchEnd={handleTouchEnd}
     >
-      {/* ── Background Slides with Full Ultra-HD Resolution & Clean Crossfade ── */}
+      {/* ── Background Slides: Full HD untouched original image directly from TMDB CDN (Zero blur rasterization) ── */}
       {items.map((item, idx) => {
         const isCurrent = idx === currentIndex;
-        const bgImage = item.backdropUrl || item.posterUrl || '/placeholder-poster.svg';
-        const isTmdb = typeof bgImage === 'string' && bgImage.includes('image.tmdb.org');
+        const rawBg = item.backdropUrl || item.posterUrl;
+        const bgImage = getImageUrl(rawBg, 'original');
         return (
           <div
             key={item.id || idx}
@@ -214,18 +214,13 @@ export default function Hero({
             }`}
           >
             {bgImage && (
-              <div className="relative w-full h-full">
-                <Image
-                  src={bgImage}
-                  alt={item.title || 'Featured item'}
-                  fill
-                  priority={idx === 0}
-                  quality={100}
-                  unoptimized={isTmdb}
-                  className="object-cover object-top sm:object-center transition-transform duration-1000 group-hover/hero:scale-[1.02]"
-                  sizes="100vw"
-                />
-              </div>
+              <img
+                src={bgImage}
+                alt={item.title || 'Featured item'}
+                className="absolute inset-0 w-full h-full object-cover object-top sm:object-center"
+                loading={idx === 0 ? 'eager' : 'lazy'}
+                decoding="async"
+              />
             )}
           </div>
         );
@@ -247,35 +242,26 @@ export default function Hero({
         </div>
       )}
 
-      {/* ── Subtle Backdrop Blur & Ambient Glass Glow Layer (IDLIX style) ── */}
-      <div
-        className="absolute inset-0 z-10 pointer-events-none backdrop-blur-[1px]"
-        style={{
-          background:
-            'radial-gradient(ellipse at 18% 82%, rgba(5,8,22,0.65) 0%, transparent 65%)',
-        }}
-      />
-
-      {/* ── Gradient Overlays (Cinematic Seamless Blend into Body Background #050816) ── */}
+      {/* ── Pure Clean Gradient Overlays (Zero backdrop blur for maximum sharpness) ── */}
       <div
         className="absolute inset-0 z-10 pointer-events-none"
         style={{
           background:
-            'linear-gradient(to top, rgba(5,8,22,1) 0%, rgba(5,8,22,0.85) 18%, rgba(5,8,22,0.4) 45%, rgba(5,8,22,0.05) 75%, transparent 100%)',
+            'linear-gradient(to top, rgba(5,8,22,1) 0%, rgba(5,8,22,0.85) 18%, rgba(5,8,22,0.35) 45%, rgba(5,8,22,0.05) 75%, transparent 100%)',
         }}
       />
       <div
         className="absolute inset-0 z-10 pointer-events-none"
         style={{
           background:
-            'linear-gradient(to right, rgba(5,8,22,0.94) 0%, rgba(5,8,22,0.7) 35%, rgba(5,8,22,0.2) 65%, transparent 100%)',
+            'linear-gradient(to right, rgba(5,8,22,0.92) 0%, rgba(5,8,22,0.65) 35%, rgba(5,8,22,0.15) 65%, transparent 100%)',
         }}
       />
       <div
         className="absolute inset-0 z-10 pointer-events-none"
         style={{
           background:
-            'linear-gradient(to bottom, rgba(5,8,22,0.6) 0%, transparent 30%)',
+            'linear-gradient(to bottom, rgba(5,8,22,0.55) 0%, transparent 28%)',
         }}
       />
 
@@ -311,29 +297,25 @@ export default function Hero({
           <div className="max-w-[75%] xs:max-w-[70%] sm:max-w-xl md:max-w-2xl flex flex-col items-start">
             
             {/* Heading Title: Stylized Official Title Logo Graphic (from poster artwork) or Text Fallback */}
-            {hasLogo ? (
+            {hasLogo && rawLogo ? (
               <div className="mb-2 sm:mb-3 max-w-[220px] xs:max-w-[280px] sm:max-w-[380px] md:max-w-[450px]">
-                <Image
-                  src={currentItem.logoUrl!}
+                <img
+                  src={rawLogo}
                   alt={currentItem.title || 'Movie Logo'}
-                  width={450}
-                  height={180}
-                  priority
-                  unoptimized={typeof currentItem.logoUrl === 'string' && currentItem.logoUrl.includes('image.tmdb.org')}
                   onError={() =>
                     setLogoErrors((prev) => ({
                       ...prev,
                       [currentItem.id || currentIndex]: true,
                     }))
                   }
-                  className="max-h-12 xs:max-h-16 sm:max-h-22 md:max-h-28 lg:max-h-32 w-auto object-contain object-left drop-shadow-[0_4px_24px_rgba(0,0,0,0.95)]"
+                  className="max-h-12 xs:max-h-16 sm:max-h-22 md:max-h-28 lg:max-h-32 w-auto object-contain object-left drop-shadow-md"
                 />
               </div>
             ) : (
               <h1
-                className="hero-title text-sm xs:text-base sm:text-2xl md:text-3xl lg:text-4xl xl:text-5xl font-black text-white leading-tight tracking-tight drop-shadow-[0_2px_14px_rgba(0,0,0,0.95)] line-clamp-1 xs:line-clamp-2 mb-1.5 sm:mb-2.5"
+                className="hero-title text-sm xs:text-base sm:text-2xl md:text-3xl lg:text-4xl xl:text-5xl font-black text-white leading-tight tracking-tight mb-1.5 sm:mb-2.5"
                 style={{
-                  textShadow: '0 2px 24px rgba(0,0,0,0.95)',
+                  textShadow: '0 2px 10px rgba(0,0,0,0.8)',
                 }}
               >
                 {currentItem.title}
@@ -382,26 +364,26 @@ export default function Hero({
               </p>
             )}
 
-            {/* Action Buttons: Tonton Sekarang (Primary) & Trailer (Secondary In-Hero Preview) */}
+            {/* Action Buttons: Tonton (Primary) & Trailer (Secondary In-Hero Preview) */}
             <div className="flex items-center gap-2 sm:gap-3 mb-1.5 xs:mb-2 sm:mb-2.5">
               <Link
                 href={currentItem.link || '/'}
-                className="inline-flex items-center gap-1.5 sm:gap-2 px-3.5 py-1.5 xs:px-4 xs:py-2 sm:px-5 sm:py-2.5 rounded-lg sm:rounded-xl font-bold text-[11px] xs:text-xs sm:text-sm transition-all duration-300 hover:scale-105 active:scale-95 shadow-lg"
+                className="inline-flex items-center gap-1.5 sm:gap-2 px-4 py-1.5 xs:px-5 xs:py-2 sm:px-6 sm:py-2.5 rounded-lg sm:rounded-xl font-bold text-[11px] xs:text-xs sm:text-sm transition-all duration-200 hover:scale-105 active:scale-95 shadow-lg"
                 style={{
                   background: btnBg,
                   color: 'white',
                   boxShadow: btnShadow,
                 }}
               >
-                <Play size={13} fill="white" className="sm:w-[15px] sm:h-[15px]" />
-                <span>Tonton Sekarang</span>
+                <Play size={14} fill="currentColor" />
+                <span>Tonton</span>
               </Link>
 
               {currentItem.trailerKey && (
                 <button
                   type="button"
                   onClick={toggleTrailer}
-                  className={`inline-flex items-center gap-1.5 px-3 py-1.5 xs:px-3.5 xs:py-2 sm:px-4 sm:py-2.5 rounded-lg sm:rounded-xl font-semibold text-[11px] xs:text-xs sm:text-sm transition-all duration-300 hover:scale-105 active:scale-95 border backdrop-blur-md shadow-md cursor-pointer ${
+                  className={`inline-flex items-center gap-1.5 px-3 py-1.5 xs:px-3.5 xs:py-2 sm:px-4 sm:py-2.5 rounded-lg sm:rounded-xl font-semibold text-[11px] xs:text-xs sm:text-sm transition-all duration-200 hover:scale-105 active:scale-95 border backdrop-blur-md shadow-md cursor-pointer ${
                     isPlayingTrailer
                       ? 'bg-rose-500/20 border-rose-400 text-rose-300'
                       : 'bg-white/10 hover:bg-white/20 border-white/20 text-white'
@@ -413,7 +395,7 @@ export default function Hero({
               )}
             </div>
 
-            {/* Minimalist & Sleek Indicator Dots on Left (Below Action Buttons) */}
+            {/* Minimalist & Sleek Glowing Indicator Dots on Left (Below Action Buttons) */}
             {total > 1 && (
               <div className="flex items-center gap-1.5 sm:gap-2 pt-0.5">
                 {items.map((_, idx) => {
@@ -429,15 +411,20 @@ export default function Hero({
                       title={`Slide ${idx + 1}`}
                       className={`transition-all duration-300 cursor-pointer focus:outline-none rounded-full ${
                         isCurrent
-                          ? `w-4 xs:w-5 sm:w-6 h-1.5 sm:h-2 opacity-100 ${
-                              isTV
-                                ? 'shadow-[0_0_10px_rgba(236,72,153,0.8)]'
-                                : 'shadow-[0_0_10px_rgba(6,182,212,0.8)]'
-                            }`
-                          : 'w-1.5 sm:w-2 h-1.5 sm:h-2 bg-white/30 hover:bg-white/60'
+                          ? 'w-5 xs:w-6 h-1.5 opacity-100'
+                          : 'w-1.5 sm:w-2 h-1.5 bg-white/25 hover:bg-white/50'
                       }`}
                       style={{
-                        background: isCurrent ? btnBg : undefined,
+                        background: isCurrent
+                          ? isTV
+                            ? 'linear-gradient(90deg, #ec4899, #db2777)'
+                            : 'linear-gradient(90deg, #06b6d4, #0284c7)'
+                          : undefined,
+                        boxShadow: isCurrent
+                          ? isTV
+                            ? '0 0 10px rgba(236,72,153,0.8)'
+                            : '0 0 10px rgba(6,182,212,0.8)'
+                          : undefined,
                       }}
                     />
                   );
@@ -447,9 +434,9 @@ export default function Hero({
 
           </div>
 
-          {/* ── Right Column: Swiper Navigation Arrows on Right (Prev & Next) ── */}
+          {/* ── Right Column: Ultra-Transparent Glass Swiper Navigation (Prev & Next) ── */}
           {total > 1 && (
-            <div className="relative z-30 flex items-center gap-1.5 xs:gap-2 sm:gap-3 pb-0.5 xs:pb-1 sm:pb-1.5">
+            <div className="relative z-30 flex items-center gap-1.5 xs:gap-2 sm:gap-2.5 pb-0.5 xs:pb-1 sm:pb-1.5">
               {/* Left Arrow */}
               <button
                 type="button"
@@ -462,17 +449,17 @@ export default function Hero({
                   e.stopPropagation();
                 }}
                 aria-label="Previous Slide"
-                className="w-7 h-7 xs:w-8 xs:h-8 sm:w-10 sm:h-10 rounded-full sm:rounded-xl flex items-center justify-center transition-all duration-200 hover:scale-110 active:scale-95 cursor-pointer shadow-lg"
+                className="w-8 h-8 sm:w-10 sm:h-10 rounded-full flex items-center justify-center transition-all duration-200 hover:scale-110 active:scale-95 cursor-pointer shadow-lg"
                 style={{
-                  background: 'rgba(11, 16, 32, 0.85)',
+                  background: 'rgba(255, 255, 255, 0.08)',
                   backdropFilter: 'blur(16px)',
                   WebkitBackdropFilter: 'blur(16px)',
-                  border: '1px solid rgba(255, 255, 255, 0.2)',
-                  color: '#f1f5f9',
-                  boxShadow: '0 4px 16px rgba(0,0,0,0.6)',
+                  border: '1px solid rgba(255, 255, 255, 0.18)',
+                  color: '#ffffff',
+                  boxShadow: '0 4px 20px rgba(0, 0, 0, 0.4)',
                 }}
               >
-                <ChevronLeft size={15} className="sm:w-[20px] sm:h-[20px]" />
+                <ChevronLeft size={18} strokeWidth={2.5} />
               </button>
 
               {/* Right Arrow */}
@@ -487,17 +474,17 @@ export default function Hero({
                   e.stopPropagation();
                 }}
                 aria-label="Next Slide"
-                className="w-7 h-7 xs:w-8 xs:h-8 sm:w-10 sm:h-10 rounded-full sm:rounded-xl flex items-center justify-center transition-all duration-200 hover:scale-110 active:scale-95 cursor-pointer shadow-lg"
+                className="w-8 h-8 sm:w-10 sm:h-10 rounded-full flex items-center justify-center transition-all duration-200 hover:scale-110 active:scale-95 cursor-pointer shadow-lg"
                 style={{
-                  background: 'rgba(11, 16, 32, 0.85)',
+                  background: 'rgba(255, 255, 255, 0.08)',
                   backdropFilter: 'blur(16px)',
                   WebkitBackdropFilter: 'blur(16px)',
-                  border: '1px solid rgba(255, 255, 255, 0.2)',
-                  color: '#f1f5f9',
-                  boxShadow: '0 4px 16px rgba(0,0,0,0.6)',
+                  border: '1px solid rgba(255, 255, 255, 0.18)',
+                  color: '#ffffff',
+                  boxShadow: '0 4px 20px rgba(0, 0, 0, 0.4)',
                 }}
               >
-                <ChevronRight size={15} className="sm:w-[20px] sm:h-[20px]" />
+                <ChevronRight size={18} strokeWidth={2.5} />
               </button>
             </div>
           )}
