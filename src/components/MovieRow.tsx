@@ -52,7 +52,7 @@ export default function MovieRow({
     triggerScrollState();
   };
 
-  // ── Cinematic Slow-Motion Peek Teaser Animation on Section View ──
+  // ── Cinematic Ultra-Slow-Motion Peek Teaser Animation on Section View ──
   useEffect(() => {
     const el = scrollRef.current;
     if (!el || items.length <= 2) return;
@@ -78,7 +78,7 @@ export default function MovieRow({
     el.addEventListener('mousedown', cancelAnimation, { once: true });
     el.addEventListener('wheel', cancelAnimation, { passive: true, once: true });
 
-    // Smooth quadratic ease in-out curve for slow-motion feel
+    // Silky quadratic ease in-out curve for slow-motion feel
     const easeInOutQuad = (t: number): number => {
       return t < 0.5 ? 2 * t * t : -1 + (4 - 2 * t) * t;
     };
@@ -113,8 +113,8 @@ export default function MovieRow({
       if (hasAnimated || hasInteracted || !el) return;
       hasAnimated = true;
 
-      const peekDistance = Math.min(125, Math.max(80, el.clientWidth * 0.28));
-      const duration = 1100; // 1.1s slow-motion glide
+      const peekDistance = Math.min(140, Math.max(90, el.clientWidth * 0.3));
+      const duration = 1600; // 1.6s ultra-smooth slow-motion glide
 
       // Phase 1: Glide right slowly
       animateScroll(0, peekDistance, duration, () => {
@@ -123,7 +123,7 @@ export default function MovieRow({
           if (hasInteracted || !el) return;
           // Phase 3: Glide back to origin slowly
           animateScroll(peekDistance, 0, duration);
-        }, 350);
+        }, 450);
       });
     };
 
@@ -134,7 +134,7 @@ export default function MovieRow({
           if (entry.isIntersecting && !hasAnimated) {
             timeoutId = setTimeout(() => {
               startSlowMotionPeek();
-            }, 300);
+            }, 350);
           }
         });
       },
@@ -160,26 +160,26 @@ export default function MovieRow({
 
   return (
     <section className="relative w-full max-w-full overflow-hidden">
-      {/* ── Section Header (Responsive with Accent Bar & Truncate on Small Screens) ── */}
+      {/* ── Section Header (Enlarged Title on Small Screens with Gradient Accent Bar) ── */}
       <div
-        className={`flex items-center justify-between gap-2 sm:gap-4 mb-2.5 sm:mb-3.5 ${
+        className={`flex items-center justify-between gap-2 sm:gap-4 mb-2.5 sm:mb-4 ${
           noPadding ? 'px-0' : 'px-3 sm:px-6 md:px-8 lg:px-10 xl:px-12 2xl:px-14'
         }`}
       >
         <div className="flex items-center gap-2 sm:gap-2.5 min-w-0">
-          {/* Vertical Accent Pill */}
+          {/* Vertical Accent Bar */}
           <span
-            className="w-1 sm:w-1.5 h-4 sm:h-5 rounded-full flex-shrink-0"
+            className="w-1.5 sm:w-2 h-5 sm:h-6 rounded-full flex-shrink-0"
             style={{
               background: isTV
                 ? 'linear-gradient(to bottom, #ec4899, #8b5cf6)'
                 : 'linear-gradient(to bottom, #06b6d4, #3b82f6)',
               boxShadow: isTV
-                ? '0 0 10px rgba(236,72,153,0.5)'
-                : '0 0 10px rgba(6,182,212,0.5)',
+                ? '0 0 12px rgba(236,72,153,0.6)'
+                : '0 0 12px rgba(6,182,212,0.6)',
             }}
           />
-          <h2 className="text-sm xs:text-base sm:text-lg md:text-xl font-bold text-white tracking-tight truncate leading-tight">
+          <h2 className="text-base xs:text-lg sm:text-xl md:text-2xl font-extrabold text-white tracking-tight truncate leading-tight">
             {title}
           </h2>
         </div>
@@ -187,10 +187,10 @@ export default function MovieRow({
         {seeAllHref && (
           <Link
             href={seeAllHref}
-            className="text-[11px] xs:text-xs sm:text-sm font-semibold transition-colors duration-200 hover:text-cyan-400 flex items-center gap-0.5 flex-shrink-0 text-slate-400 group/link"
+            className="text-xs xs:text-[13px] sm:text-sm font-bold transition-colors duration-200 hover:text-cyan-400 flex items-center gap-0.5 flex-shrink-0 text-slate-400 group/link"
           >
             <span className="group-hover/link:text-cyan-400 transition-colors">See All</span>
-            <ChevronRight size={14} className="group-hover/link:translate-x-0.5 transition-transform" />
+            <ChevronRight size={15} className="group-hover/link:translate-x-0.5 transition-transform" />
           </Link>
         )}
       </div>
@@ -274,7 +274,7 @@ export default function MovieRow({
           {items.map((item) => (
             <div
               key={item.id}
-              className="flex-shrink-0 w-[130px] xs:w-[145px] sm:w-[165px] md:w-[185px] lg:w-[205px] xl:w-[220px]"
+              className="flex-shrink-0 w-[148px] xs:w-[162px] sm:w-[180px] md:w-[198px] lg:w-[218px] xl:w-[235px]"
             >
               <MovieCard item={item} type={type} />
             </div>
