@@ -36,7 +36,7 @@ export default async function TVPage() {
       )}
 
       {/* Content sections */}
-      <div className="relative z-10 space-y-6 sm:space-y-8 md:space-y-10 pb-6 sm:pb-8 pt-2 sm:pt-4">
+      <div className="relative z-10 space-y-7 sm:space-y-9 md:space-y-11 pb-10 sm:pb-14 pt-4 sm:pt-6 md:pt-8">
         {/* Dynamic TV Sections ordered by weight */}
         {sections.map((section) => (
           <MovieRow
