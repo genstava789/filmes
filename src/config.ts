@@ -11,6 +11,8 @@ export interface FeaturedItem {
   overview?: string;
   backdropUrl?: string;
   posterUrl?: string;
+  logoUrl?: string;
+  trailerKey?: string;
   rating?: number;
   year?: string | number;
   duration?: string;

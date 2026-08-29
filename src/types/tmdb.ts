@@ -82,6 +82,17 @@ export interface MovieDetail extends Movie {
   homepage: string | null;
   imdb_id: string | null;
   spoken_languages: SpokenLanguage[];
+  images?: {
+    backdrops?: any[];
+    posters?: any[];
+    logos?: {
+      file_path: string;
+      iso_639_1?: string;
+      aspect_ratio?: number;
+      width?: number;
+      height?: number;
+    }[];
+  };
   videos: {
     results: Video[];
   };
@@ -140,6 +151,17 @@ export interface TVShowDetail extends TVShow {
   runtime?: number;
   episode_run_time: number[];
   seasons?: TMDBSeason[];
+  images?: {
+    backdrops?: any[];
+    posters?: any[];
+    logos?: {
+      file_path: string;
+      iso_639_1?: string;
+      aspect_ratio?: number;
+      width?: number;
+      height?: number;
+    }[];
+  };
   videos: {
     results: Video[];
   };

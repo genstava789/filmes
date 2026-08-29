@@ -139,13 +139,26 @@ export default function MobileHeader({ genres = [] }: MobileHeaderProps) {
           </span>
         </Link>
 
-        {/* Right: Login / Profile Button FIRST, followed by Search & Hamburger Menu */}
-        <div className="flex items-center gap-2 sm:gap-2.5">
+        {/* Right: Search, Login / Profile, & Hamburger Menu */}
+        <div className="flex items-center gap-1.5 sm:gap-2">
+          {/* Quick Search Button */}
+          <Link
+            href="/search"
+            className="w-9 h-9 sm:w-10 sm:h-10 rounded-xl flex items-center justify-center transition-all duration-200 active:scale-95 text-slate-300 hover:text-cyan-400 hover:bg-white/10"
+            style={{
+              background: 'rgba(255, 255, 255, 0.06)',
+              border: '1px solid rgba(255, 255, 255, 0.1)',
+            }}
+            aria-label="Search"
+          >
+            <Search size={16} />
+          </Link>
+
           {/* Zero-Flicker Glassmorphic Login / Profile Button */}
           {!mounted ? (
             <div
-              className="px-3.5 py-1.5 sm:px-4 sm:py-2 rounded-xl text-xs sm:text-sm font-bold opacity-0 pointer-events-none flex items-center gap-1.5"
-              style={{ minWidth: '70px' }}
+              className="px-3 py-1.5 sm:px-3.5 sm:py-2 rounded-xl text-xs sm:text-sm font-bold opacity-0 pointer-events-none flex items-center gap-1.5"
+              style={{ minWidth: '60px' }}
             >
               <span>Login</span>
             </div>
@@ -177,7 +190,7 @@ export default function MobileHeader({ genres = [] }: MobileHeaderProps) {
           ) : (
             <Link
               href="/login"
-              className="px-3.5 py-1.5 sm:px-4 sm:py-2 rounded-xl text-xs sm:text-sm font-bold text-cyan-300 transition-all duration-200 hover:scale-105 active:scale-95 flex items-center gap-1.5"
+              className="px-3 py-1.5 sm:px-3.5 sm:py-2 rounded-xl text-xs sm:text-sm font-bold text-cyan-300 transition-all duration-200 hover:scale-105 active:scale-95 flex items-center gap-1"
               style={{
                 background:
                   'linear-gradient(135deg, rgba(6, 182, 212, 0.16) 0%, rgba(124, 58, 237, 0.22) 100%)',

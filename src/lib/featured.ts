@@ -131,14 +131,21 @@ export async function getEnrichedFeaturedMovies(options: {
               const tmdbId = Number(data.tmdb_id);
               const tmdbDetails = tmdbId ? await getMovieDetails(tmdbId).catch(() => null) : null;
               const slug = path.basename(filePath, '.md');
+              const bestLogo = tmdbDetails?.images?.logos?.find((l: any) => l.iso_639_1 === 'en' || l.iso_639_1 === 'id' || !l.iso_639_1) || tmdbDetails?.images?.logos?.[0];
+              const logoUrl = bestLogo?.file_path ? getImageUrl(bestLogo.file_path, 'original') : undefined;
+              const trailer = tmdbDetails?.videos?.results?.find((v: any) => v.site === 'YouTube' && (v.type === 'Trailer' || v.type === 'Teaser')) || tmdbDetails?.videos?.results?.find((v: any) => v.site === 'YouTube');
+              const trailerKey = trailer?.key || undefined;
+
               staticList.push({
                 id: tmdbId || slug,
                 tmdbId: tmdbId,
                 title: data.title || tmdbDetails?.title || slug,
                 tagline: data.tagline || tmdbDetails?.tagline || '',
                 overview: data.deskripsi || data.description || tmdbDetails?.overview || '',
-                backdropUrl: data.image_url || (tmdbDetails?.backdrop_path ? getImageUrl(tmdbDetails.backdrop_path, 'w1280') : ''),
+                backdropUrl: tmdbDetails?.backdrop_path ? getImageUrl(tmdbDetails.backdrop_path, 'original') : (data.image_url ? getImageUrl(data.image_url, 'original') : ''),
                 posterUrl: tmdbDetails?.poster_path ? getImageUrl(tmdbDetails.poster_path, 'w500') : (data.image_url || ''),
+                logoUrl,
+                trailerKey,
                 rating: Number(data.rating || tmdbDetails?.vote_average || 0),
                 year: tmdbDetails?.release_date ? new Date(tmdbDetails.release_date).getFullYear() : '',
                 duration: tmdbDetails?.runtime ? `${Math.floor(tmdbDetails.runtime / 60)}h ${tmdbDetails.runtime % 60}m` : '',
@@ -194,14 +201,21 @@ export async function getEnrichedFeaturedTV(options: {
               const tmdbId = Number(data.tmdb_id);
               const showSlug = filePath.replace(/^tv[\\\/]/, '').split(/[\\\/]/)[0];
               const tmdbDetails = tmdbId ? await getTVShowDetails(tmdbId).catch(() => null) : null;
+              const bestLogo = tmdbDetails?.images?.logos?.find((l: any) => l.iso_639_1 === 'en' || l.iso_639_1 === 'id' || !l.iso_639_1) || tmdbDetails?.images?.logos?.[0];
+              const logoUrl = bestLogo?.file_path ? getImageUrl(bestLogo.file_path, 'original') : undefined;
+              const trailer = tmdbDetails?.videos?.results?.find((v: any) => v.site === 'YouTube' && (v.type === 'Trailer' || v.type === 'Teaser')) || tmdbDetails?.videos?.results?.find((v: any) => v.site === 'YouTube');
+              const trailerKey = trailer?.key || undefined;
+
               staticList.push({
                 id: tmdbId || showSlug,
                 tmdbId: tmdbId,
                 title: data.title || tmdbDetails?.name || showSlug,
                 tagline: data.tagline || tmdbDetails?.tagline || '',
                 overview: data.deskripsi || data.description || tmdbDetails?.overview || '',
-                backdropUrl: data.image_url || (tmdbDetails?.backdrop_path ? getImageUrl(tmdbDetails.backdrop_path, 'w1280') : ''),
+                backdropUrl: tmdbDetails?.backdrop_path ? getImageUrl(tmdbDetails.backdrop_path, 'original') : (data.image_url ? getImageUrl(data.image_url, 'original') : ''),
                 posterUrl: tmdbDetails?.poster_path ? getImageUrl(tmdbDetails.poster_path, 'w500') : (data.image_url || ''),
+                logoUrl,
+                trailerKey,
                 rating: Number(data.rating || tmdbDetails?.vote_average || 0),
                 year: tmdbDetails?.first_air_date ? new Date(tmdbDetails.first_air_date).getFullYear() : '',
                 type: 'tv',

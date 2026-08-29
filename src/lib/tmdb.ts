@@ -107,7 +107,8 @@ export async function getTopRatedMovies(page: number = 1): Promise<TMDBResponse<
 export async function getMovieDetails(id: number): Promise<MovieDetail | null> {
   try {
     const movie = await fetchTMDB<MovieDetail>(`/movie/${id}`, {
-      append_to_response: 'videos,credits,similar',
+      append_to_response: 'videos,credits,similar,images',
+      include_image_language: 'en,id,null',
       language: 'en-US',
     });
     return movie;
@@ -120,7 +121,8 @@ export async function getMovieDetails(id: number): Promise<MovieDetail | null> {
 export async function getTVShowDetails(id: number): Promise<TVShowDetail | null> {
   try {
     const show = await fetchTMDB<TVShowDetail>(`/tv/${id}`, {
-      append_to_response: 'videos,credits,similar',
+      append_to_response: 'videos,credits,similar,images',
+      include_image_language: 'en,id,null',
       language: 'en-US',
     });
     return show;

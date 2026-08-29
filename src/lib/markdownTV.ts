@@ -940,6 +940,8 @@ export async function getAllFeaturedCustomTV(): Promise<FeaturedItem[]> {
             let genres: string[] = [];
             let posterUrl = s.image_url ? getImageUrl(s.image_url, 'w500') : '/placeholder-poster.svg';
             let backdropUrl = s.image_url ? getImageUrl(s.image_url, 'original') : '/placeholder-poster.svg';
+            let logoUrl: string | undefined = undefined;
+            let trailerKey: string | undefined = undefined;
 
             if (s.tmdb_id) {
               try {
@@ -959,6 +961,14 @@ export async function getAllFeaturedCustomTV(): Promise<FeaturedItem[]> {
                   if (tmdb.poster_path) {
                     posterUrl = getImageUrl(tmdb.poster_path, 'w500');
                   }
+                  const bestLogo = tmdb.images?.logos?.find((l) => l.iso_639_1 === 'en' || l.iso_639_1 === 'id' || !l.iso_639_1) || tmdb.images?.logos?.[0];
+                  if (bestLogo?.file_path) {
+                    logoUrl = getImageUrl(bestLogo.file_path, 'original');
+                  }
+                  const trailer = tmdb.videos?.results?.find((v) => v.site === 'YouTube' && (v.type === 'Trailer' || v.type === 'Teaser')) || tmdb.videos?.results?.find((v) => v.site === 'YouTube');
+                  if (trailer?.key) {
+                    trailerKey = trailer.key;
+                  }
                   if (!overview && tmdb.overview) overview = tmdb.overview;
                   if (!rating && tmdb.vote_average) rating = Math.round(tmdb.vote_average * 10) / 10;
                   if (tmdb.genres) genres = tmdb.genres.map((g) => g.name);
@@ -976,6 +986,8 @@ export async function getAllFeaturedCustomTV(): Promise<FeaturedItem[]> {
               overview: overview || 'Saksikan serial seru ini dengan kualitas terbaik di LeviStream.',
               backdropUrl,
               posterUrl,
+              logoUrl,
+              trailerKey,
               rating: rating || 8.5,
               year: '2026',
               duration: s.episodes?.length ? `${s.episodes.length} Episodes` : undefined,
