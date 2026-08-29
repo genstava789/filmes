@@ -87,14 +87,14 @@ export default function MovieCard({ item, type, priority = false }: MovieCardPro
       </div>
 
       {/* ── Info Outside Below Poster ── */}
-      <div className="pt-1.5 sm:pt-2.5 px-0.5 space-y-0.5 sm:space-y-1">
+      <div className="pt-2 sm:pt-2.5 px-0.5 space-y-0.5 sm:space-y-1">
         <h3
           title={title}
-          className="font-bold text-white text-xs sm:text-[13.5px] leading-snug line-clamp-2 group-hover/card:text-cyan-400 transition-colors"
+          className="font-bold text-white text-[13px] xs:text-[13.5px] sm:text-sm md:text-[14.5px] leading-snug line-clamp-1 xs:line-clamp-2 group-hover/card:text-cyan-400 transition-colors tracking-tight"
         >
           {title}
         </h3>
-        <div className="flex items-center text-[10.5px] sm:text-xs text-slate-400 font-medium">
+        <div className="flex items-center gap-1.5 text-[11px] sm:text-xs text-slate-400 font-medium">
           <span>{year || '2025'}</span>
         </div>
       </div>

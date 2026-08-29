@@ -52,41 +52,104 @@ export default function MovieRow({
     triggerScrollState();
   };
 
-  // ── Smooth Initial Peek / Teaser Scroll Animation on Page Load ──
+  // ── Cinematic Slow-Motion Peek Teaser Animation on Section View ──
   useEffect(() => {
-    if (!scrollRef.current || items.length <= 2) return;
+    const el = scrollRef.current;
+    if (!el || items.length <= 2) return;
 
     let hasInteracted = false;
-    let timeoutId: NodeJS.Timeout;
-    let returnTimeoutId: NodeJS.Timeout;
+    let animFrameId: number | null = null;
+    let timeoutId: NodeJS.Timeout | null = null;
+    let hasAnimated = false;
 
-    const cancelPeek = () => {
+    const cancelAnimation = () => {
       hasInteracted = true;
-      if (timeoutId) clearTimeout(timeoutId);
-      if (returnTimeoutId) clearTimeout(returnTimeoutId);
+      if (animFrameId) {
+        cancelAnimationFrame(animFrameId);
+        animFrameId = null;
+      }
+      if (timeoutId) {
+        clearTimeout(timeoutId);
+        timeoutId = null;
+      }
     };
 
-    const el = scrollRef.current;
-    el.addEventListener('touchstart', cancelPeek, { passive: true, once: true });
-    el.addEventListener('mousedown', cancelPeek, { once: true });
+    el.addEventListener('touchstart', cancelAnimation, { passive: true, once: true });
+    el.addEventListener('mousedown', cancelAnimation, { once: true });
+    el.addEventListener('wheel', cancelAnimation, { passive: true, once: true });
 
-    // Smooth peek animation
-    timeoutId = setTimeout(() => {
-      if (hasInteracted || !scrollRef.current) return;
-      const peekAmount = Math.min(130, scrollRef.current.clientWidth * 0.3);
-      scrollRef.current.scrollTo({ left: peekAmount, behavior: 'smooth' });
+    // Smooth quadratic ease in-out curve for slow-motion feel
+    const easeInOutQuad = (t: number): number => {
+      return t < 0.5 ? 2 * t * t : -1 + (4 - 2 * t) * t;
+    };
 
-      returnTimeoutId = setTimeout(() => {
-        if (hasInteracted || !scrollRef.current) return;
-        scrollRef.current.scrollTo({ left: 0, behavior: 'smooth' });
-      }, 550);
-    }, 750);
+    const animateScroll = (
+      start: number,
+      target: number,
+      duration: number,
+      onComplete?: () => void
+    ) => {
+      const startTime = performance.now();
+
+      const step = (currentTime: number) => {
+        if (hasInteracted || !el) return;
+        const elapsed = currentTime - startTime;
+        const progress = Math.min(elapsed / duration, 1);
+        const easedProgress = easeInOutQuad(progress);
+
+        el.scrollLeft = start + (target - start) * easedProgress;
+
+        if (progress < 1) {
+          animFrameId = requestAnimationFrame(step);
+        } else if (onComplete) {
+          onComplete();
+        }
+      };
+
+      animFrameId = requestAnimationFrame(step);
+    };
+
+    const startSlowMotionPeek = () => {
+      if (hasAnimated || hasInteracted || !el) return;
+      hasAnimated = true;
+
+      const peekDistance = Math.min(125, Math.max(80, el.clientWidth * 0.28));
+      const duration = 1100; // 1.1s slow-motion glide
+
+      // Phase 1: Glide right slowly
+      animateScroll(0, peekDistance, duration, () => {
+        // Phase 2: Gentle pause at peak
+        timeoutId = setTimeout(() => {
+          if (hasInteracted || !el) return;
+          // Phase 3: Glide back to origin slowly
+          animateScroll(peekDistance, 0, duration);
+        }, 350);
+      });
+    };
+
+    // Trigger slow-motion peek when each section enters viewport
+    const observer = new IntersectionObserver(
+      (entries) => {
+        entries.forEach((entry) => {
+          if (entry.isIntersecting && !hasAnimated) {
+            timeoutId = setTimeout(() => {
+              startSlowMotionPeek();
+            }, 300);
+          }
+        });
+      },
+      { threshold: 0.15 }
+    );
+
+    observer.observe(el);
 
     return () => {
-      cancelPeek();
+      cancelAnimation();
+      observer.disconnect();
       if (el) {
-        el.removeEventListener('touchstart', cancelPeek);
-        el.removeEventListener('mousedown', cancelPeek);
+        el.removeEventListener('touchstart', cancelAnimation);
+        el.removeEventListener('mousedown', cancelAnimation);
+        el.removeEventListener('wheel', cancelAnimation);
       }
     };
   }, [items.length]);
@@ -204,14 +267,14 @@ export default function MovieRow({
           onTouchStart={triggerScrollState}
           onTouchMove={handleScroll}
           style={{ overscrollBehaviorX: 'contain' }}
-          className={`flex gap-2.5 sm:gap-4 md:gap-5 overflow-x-auto hide-scrollbar ${
+          className={`flex gap-2.5 sm:gap-3.5 md:gap-4.5 overflow-x-auto hide-scrollbar ${
             noPadding ? 'px-0' : 'px-3 sm:px-6 md:px-8 lg:px-10 xl:px-12 2xl:px-14'
           } pb-2.5 sm:pb-3`}
         >
           {items.map((item) => (
             <div
               key={item.id}
-              className="flex-shrink-0 w-[160px] xs:w-[178px] sm:w-[195px] md:w-[215px] lg:w-[230px] xl:w-[245px]"
+              className="flex-shrink-0 w-[130px] xs:w-[145px] sm:w-[165px] md:w-[185px] lg:w-[205px] xl:w-[220px]"
             >
               <MovieCard item={item} type={type} />
             </div>
