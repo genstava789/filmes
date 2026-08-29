@@ -28,6 +28,7 @@ module.exports = {
       },
       fontFamily: {
         sans: ['Plus Jakarta Sans', 'var(--font-jakarta)', 'sans-serif'],
+        outfit: ['Outfit', 'var(--font-outfit)', 'sans-serif'],
       },
       keyframes: {
         shimmer: {

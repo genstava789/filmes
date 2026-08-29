@@ -471,7 +471,7 @@ export default function RequestPageClient({
   };
 
   return (
-    <div className="min-h-screen pt-20 sm:pt-24 pb-16 px-4 sm:px-6 md:px-8 lg:px-12 xl:px-16" style={{ background: '#050816' }}>
+    <div className="min-h-screen font-outfit pt-20 sm:pt-24 pb-16 px-4 sm:px-6 md:px-8 lg:px-12 xl:px-16" style={{ background: '#050816' }}>
       <div className="max-w-7xl mx-auto space-y-6">
         
         {/* ── Top Header Bar (Clean without extra badges) ── */}
@@ -824,9 +824,9 @@ export default function RequestPageClient({
 
         {/* ── CREATE REQUEST POP-UP MODAL ── */}
         {isModalOpen && (
-          <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/80 backdrop-blur-md animate-fade-in">
+          <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/80 backdrop-blur-md animate-fade-in font-outfit">
             <div
-              className="relative w-full max-w-lg rounded-3xl bg-[#0b1026] border border-cyan-500/40 p-5 sm:p-7 shadow-[0_0_50px_rgba(6,182,212,0.25)] space-y-5 max-h-[90vh] overflow-y-auto animate-scale-up"
+              className="relative w-full max-w-lg rounded-3xl bg-[#0b1026] border border-cyan-500/40 p-5 sm:p-7 shadow-[0_0_50px_rgba(6,182,212,0.25)] space-y-5 max-h-[90vh] overflow-y-auto animate-scale-up font-outfit"
               onClick={(e) => e.stopPropagation()}
             >
               {/* Modal Header */}
@@ -1135,9 +1135,9 @@ export default function RequestPageClient({
 
         {/* ── LOGIN REQUIRED PROMPT MODAL (For unauthenticated users trying to request or vote) ── */}
         {isLoginPromptOpen && (
-          <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/80 backdrop-blur-md animate-fade-in">
+          <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/80 backdrop-blur-md animate-fade-in font-outfit">
             <div
-              className="relative w-full max-w-md rounded-3xl bg-[#090e21] border border-cyan-500/30 shadow-[0_0_50px_rgba(6,182,212,0.2)] p-6 sm:p-8 text-center animate-scale-up"
+              className="relative w-full max-w-md rounded-3xl bg-[#090e21] border border-cyan-500/30 shadow-[0_0_50px_rgba(6,182,212,0.2)] p-6 sm:p-8 text-center animate-scale-up font-outfit"
               onClick={(e) => e.stopPropagation()}
             >
               <div className="w-16 h-16 mx-auto rounded-3xl bg-cyan-500/10 border border-cyan-500/30 flex items-center justify-center text-cyan-400 mb-4 shadow-[0_0_25px_rgba(6,182,212,0.25)]">

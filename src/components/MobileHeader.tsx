@@ -275,7 +275,7 @@ export default function MobileHeader({ genres = [] }: MobileHeaderProps) {
         >
           {/* Section 0: User Profile Header Card in Mobile Drawer */}
           {isLoggedIn && user && (
-            <div className="mb-3.5 p-3 rounded-2xl bg-white/[0.04] border border-white/[0.08] flex items-center justify-between gap-3">
+            <div className="mb-3.5 p-3 rounded-2xl bg-white/[0.04] border border-white/[0.08] flex items-center justify-between gap-3 font-outfit">
               <div className="flex items-center gap-3 min-w-0">
                 <div
                   className="w-11 h-11 rounded-xl flex items-center justify-center overflow-hidden border border-cyan-400/50 shadow-md flex-shrink-0"
@@ -288,25 +288,25 @@ export default function MobileHeader({ genres = [] }: MobileHeaderProps) {
                   />
                 </div>
                 <div className="min-w-0">
-                  <span className="font-extrabold text-sm sm:text-base text-white capitalize block truncate tracking-tight">
+                  <span className="font-black text-sm sm:text-base text-white capitalize block truncate tracking-tight font-outfit">
                     {user.username}
                   </span>
-                  <p className="text-[11px] text-slate-400 truncate max-w-[150px] sm:max-w-[200px]">
+                  <p className="text-[11px] text-slate-400 truncate max-w-[150px] sm:max-w-[200px] font-medium font-outfit">
                     {user.email}
                   </p>
                   <div className="mt-1">
                     {user.role === 'owner' ? (
-                      <span className="inline-flex items-center gap-1 px-2 py-0.5 rounded-full text-[9px] font-black bg-gradient-to-r from-amber-500/25 to-yellow-500/25 border border-amber-500/40 text-amber-300 shadow-[0_0_8px_rgba(245,158,11,0.25)]">
+                      <span className="inline-flex items-center gap-1 px-2 py-0.5 rounded-full text-[9px] font-black tracking-wider uppercase bg-gradient-to-r from-amber-500/25 to-yellow-500/25 border border-amber-500/40 text-amber-300 shadow-[0_0_8px_rgba(245,158,11,0.25)] font-outfit">
                         <Crown size={9} className="text-amber-400 fill-amber-400" />
                         OWNER
                       </span>
                     ) : user.role === 'admin' ? (
-                      <span className="inline-flex items-center gap-1 px-2 py-0.5 rounded-full text-[9px] font-black bg-gradient-to-r from-cyan-500/25 to-sky-500/25 border border-cyan-500/40 text-cyan-300 shadow-[0_0_8px_rgba(6,182,212,0.25)]">
+                      <span className="inline-flex items-center gap-1 px-2 py-0.5 rounded-full text-[9px] font-black tracking-wider uppercase bg-gradient-to-r from-cyan-500/25 to-sky-500/25 border border-cyan-500/40 text-cyan-300 shadow-[0_0_8px_rgba(6,182,212,0.25)] font-outfit">
                         <ShieldCheck size={9} className="text-cyan-400" />
                         ADMINISTRATOR
                       </span>
                     ) : (
-                      <span className="inline-flex items-center gap-1 px-2 py-0.5 rounded-full text-[9px] font-bold bg-white/10 border border-white/15 text-slate-300">
+                      <span className="inline-flex items-center gap-1 px-2 py-0.5 rounded-full text-[9px] font-bold tracking-wider uppercase bg-white/10 border border-white/15 text-slate-300 font-outfit">
                         <ShieldCheck size={9} className="text-slate-400" />
                         MEMBER
                       </span>
@@ -314,11 +314,11 @@ export default function MobileHeader({ genres = [] }: MobileHeaderProps) {
                   </div>
                 </div>
               </div>
-              <div className="flex items-center gap-1.5 flex-shrink-0">
+              <div className="flex items-center gap-1.5 flex-shrink-0 font-outfit">
                 <Link
                   href="/profile"
                   onClick={() => setMenuOpen(false)}
-                  className="px-2.5 py-1.5 rounded-xl text-xs font-bold bg-cyan-500/15 hover:bg-cyan-500/25 text-cyan-300 border border-cyan-500/30 transition-all active:scale-95"
+                  className="px-2.5 py-1.5 rounded-xl text-[11px] font-extrabold tracking-wide uppercase bg-cyan-500/15 hover:bg-cyan-500/25 text-cyan-300 border border-cyan-500/30 transition-all active:scale-95 font-outfit"
                 >
                   Profil
                 </Link>
@@ -326,7 +326,7 @@ export default function MobileHeader({ genres = [] }: MobileHeaderProps) {
                   <Link
                     href="/admin"
                     onClick={() => setMenuOpen(false)}
-                    className="px-2.5 py-1.5 rounded-xl text-xs font-bold bg-purple-500/20 hover:bg-purple-500/30 text-purple-200 border border-purple-500/40 transition-all active:scale-95"
+                    className="px-2.5 py-1.5 rounded-xl text-[11px] font-black tracking-wider uppercase bg-purple-500/20 hover:bg-purple-500/30 text-purple-200 border border-purple-500/40 transition-all active:scale-95 shadow-[0_0_10px_rgba(168,85,247,0.15)] font-outfit"
                   >
                     CMS
                   </Link>
@@ -337,7 +337,7 @@ export default function MobileHeader({ genres = [] }: MobileHeaderProps) {
                     setMenuOpen(false);
                     await logout();
                   }}
-                  className="px-2.5 py-1.5 rounded-xl text-xs font-bold bg-rose-500/15 hover:bg-rose-500/25 text-rose-300 border border-rose-500/30 transition-all active:scale-95 flex items-center gap-1"
+                  className="px-2.5 py-1.5 rounded-xl text-[11px] font-black tracking-wider uppercase bg-rose-500/15 hover:bg-rose-500/25 text-rose-300 border border-rose-500/30 transition-all active:scale-95 flex items-center gap-1 font-outfit"
                   title="Keluar Akun"
                 >
                   <LogOut size={12} />
