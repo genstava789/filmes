@@ -277,7 +277,7 @@ export default function TVBrowseClient({
         <div className="mb-6 sm:mb-8">
           <div className="flex flex-col md:flex-row md:items-center justify-between gap-4">
             <div className="flex-1 min-w-0">
-              <h1 className="text-xl sm:text-3xl md:text-4xl font-black truncate sm:whitespace-normal mb-1">
+              <h1 className="font-outfit text-xl sm:text-3xl md:text-4xl font-black truncate sm:whitespace-normal mb-1">
                 <span
                   style={{
                     background: 'linear-gradient(135deg, #ec4899, #8b5cf6)',

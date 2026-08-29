@@ -18,7 +18,7 @@ export default async function HomePage() {
   const genreList = genresData || [];
 
   return (
-    <div className="min-h-screen font-urbanist w-full max-w-full overflow-x-clip overflow-x-hidden" style={{ background: '#050816' }}>
+    <div className="min-h-screen w-full max-w-full overflow-x-clip overflow-x-hidden" style={{ background: '#050816' }}>
       {/* Hero with Enriched Custom Featured Items Carousel */}
       {featuredItems.length > 0 && (
         <Hero

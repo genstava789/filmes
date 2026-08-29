@@ -179,7 +179,7 @@ export default function MovieRow({
                 : '0 0 12px rgba(6,182,212,0.6)',
             }}
           />
-          <h2 className="text-base xs:text-lg sm:text-xl md:text-2xl font-extrabold text-white tracking-tight truncate leading-tight">
+          <h2 className="font-outfit text-base xs:text-lg sm:text-xl md:text-2xl font-black text-white tracking-tight truncate leading-tight">
             {title}
           </h2>
         </div>
@@ -187,7 +187,7 @@ export default function MovieRow({
         {seeAllHref && (
           <Link
             href={seeAllHref}
-            className="text-xs xs:text-[13px] sm:text-sm font-bold transition-colors duration-200 hover:text-cyan-400 flex items-center gap-0.5 flex-shrink-0 text-slate-400 group/link"
+            className="font-outfit text-xs xs:text-[13px] sm:text-sm font-bold transition-colors duration-200 hover:text-cyan-400 flex items-center gap-0.5 flex-shrink-0 text-slate-400 group/link"
           >
             <span className="group-hover/link:text-cyan-400 transition-colors">See All</span>
             <ChevronRight size={15} className="group-hover/link:translate-x-0.5 transition-transform" />
