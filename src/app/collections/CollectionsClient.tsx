@@ -1,6 +1,6 @@
 'use client';
 
-import React, { useState, useEffect, useTransition } from 'react';
+import React, { useState, useEffect } from 'react';
 import Link from 'next/link';
 import { useRouter, useSearchParams } from 'next/navigation';
 import {
@@ -11,15 +11,17 @@ import {
   Layers,
   Calendar,
   User,
-  Eye,
   Film,
   Tv,
   ArrowRight,
   Loader2,
   LogIn,
-  SlidersHorizontal,
   Flame,
   Clock,
+  ThumbsUp,
+  ThumbsDown,
+  ChevronLeft,
+  ChevronRight,
 } from 'lucide-react';
 import { MongoCollection } from '@/lib/mongodb/collectionService';
 import { useAuth } from '@/context/AuthContext';
@@ -33,6 +35,8 @@ interface CollectionsClientProps {
   initialSearch?: string;
 }
 
+const ITEMS_PER_PAGE = 24;
+
 export default function CollectionsClient({
   initialCollections = [],
   initialTotal = 0,
@@ -45,6 +49,7 @@ export default function CollectionsClient({
 
   const [collections, setCollections] = useState<MongoCollection[]>(initialCollections);
   const [total, setTotal] = useState(initialTotal);
+  const [page, setPage] = useState(1);
   const [loading, setLoading] = useState(false);
 
   // Search & Filter State
@@ -66,6 +71,8 @@ export default function CollectionsClient({
         const params = new URLSearchParams();
         if (searchQuery.trim()) params.set('q', searchQuery.trim());
         if (activeFilter) params.set('filter', activeFilter);
+        params.set('page', page.toString());
+        params.set('limit', ITEMS_PER_PAGE.toString());
 
         const res = await fetch(`/api/collections?${params.toString()}`);
         const data = await res.json();
@@ -84,7 +91,7 @@ export default function CollectionsClient({
       active = false;
       clearTimeout(timer);
     };
-  }, [searchQuery, activeFilter]);
+  }, [searchQuery, activeFilter, page]);
 
   const handleCreateClick = () => {
     if (!isLoggedIn) {
@@ -98,6 +105,105 @@ export default function CollectionsClient({
     setCollections((prev) => [newCol, ...prev]);
     setTotal((prev) => prev + 1);
     router.push(`/collections/${newCol.slug || newCol._id}`);
+  };
+
+  // Vote Like / Dislike (Only for logged-in users)
+  const handleVote = async (
+    e: React.MouseEvent,
+    collectionId: string,
+    type: 'like' | 'dislike'
+  ) => {
+    e.preventDefault();
+    e.stopPropagation();
+
+    if (!isLoggedIn || !user) {
+      setLoginPromptOpen(true);
+      return;
+    }
+
+    // Optimistic UI update
+    setCollections((prev) =>
+      prev.map((col) => {
+        if (col.slug === collectionId || String(col._id) === String(collectionId)) {
+          const currentVote = col.userVote;
+          let newVote: 'like' | 'dislike' | null = type;
+          let likes = col.likes || 0;
+          let dislikes = col.dislikes || 0;
+
+          if (type === 'like') {
+            if (currentVote === 'like') {
+              newVote = null;
+              likes = Math.max(0, likes - 1);
+            } else {
+              likes += 1;
+              if (currentVote === 'dislike') {
+                dislikes = Math.max(0, dislikes - 1);
+              }
+            }
+          } else {
+            if (currentVote === 'dislike') {
+              newVote = null;
+              dislikes = Math.max(0, dislikes - 1);
+            } else {
+              dislikes += 1;
+              if (currentVote === 'like') {
+                likes = Math.max(0, likes - 1);
+              }
+            }
+          }
+
+          return {
+            ...col,
+            likes,
+            dislikes,
+            userVote: newVote,
+          };
+        }
+        return col;
+      })
+    );
+
+    try {
+      const res = await fetch(`/api/collections/${collectionId}/vote`, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ type }),
+      });
+      const data = await res.json();
+      if (res.ok && data.success) {
+        // Sync server response
+        setCollections((prev) =>
+          prev.map((col) => {
+            if (col.slug === collectionId || String(col._id) === String(collectionId)) {
+              return {
+                ...col,
+                likes: data.likes,
+                dislikes: data.dislikes,
+                userVote: data.userVote,
+              };
+            }
+            return col;
+          })
+        );
+      }
+    } catch (err) {
+      console.error('Vote collection error:', err);
+    }
+  };
+
+  const totalPages = Math.max(1, Math.ceil(total / ITEMS_PER_PAGE));
+
+  const getPageNumbers = () => {
+    if (totalPages <= 7) {
+      return Array.from({ length: totalPages }, (_, i) => i + 1);
+    }
+    if (page <= 4) {
+      return [1, 2, 3, 4, 5, '...', totalPages];
+    }
+    if (page >= totalPages - 3) {
+      return [1, '...', totalPages - 4, totalPages - 3, totalPages - 2, totalPages - 1, totalPages];
+    }
+    return [1, '...', page - 1, page, page + 1, '...', totalPages];
   };
 
   return (
@@ -157,7 +263,10 @@ export default function CollectionsClient({
             <input
               type="text"
               value={searchQuery}
-              onChange={(e) => setSearchQuery(e.target.value)}
+              onChange={(e) => {
+                setSearchQuery(e.target.value);
+                setPage(1);
+              }}
               placeholder="Cari nama koleksi, franchise, atau pembuat..."
               className="w-full pl-10 pr-4 py-3 rounded-2xl bg-white/[0.05] border border-white/10 text-white placeholder-slate-500 text-xs sm:text-sm font-medium focus:outline-none focus:border-cyan-500/60 focus:ring-2 focus:ring-cyan-500/20 transition-all"
             />
@@ -171,7 +280,10 @@ export default function CollectionsClient({
           <div className="flex items-center gap-1.5 p-1 rounded-2xl bg-white/[0.04] border border-white/10 self-start sm:self-auto overflow-x-auto max-w-full">
             <button
               type="button"
-              onClick={() => setActiveFilter('latest')}
+              onClick={() => {
+                setActiveFilter('latest');
+                setPage(1);
+              }}
               className={`flex items-center gap-1.5 px-3.5 py-2 rounded-xl text-xs font-bold transition-all whitespace-nowrap ${
                 activeFilter === 'latest'
                   ? 'bg-cyan-500 text-black shadow-md shadow-cyan-500/20'
@@ -184,7 +296,10 @@ export default function CollectionsClient({
 
             <button
               type="button"
-              onClick={() => setActiveFilter('popular')}
+              onClick={() => {
+                setActiveFilter('popular');
+                setPage(1);
+              }}
               className={`flex items-center gap-1.5 px-3.5 py-2 rounded-xl text-xs font-bold transition-all whitespace-nowrap ${
                 activeFilter === 'popular'
                   ? 'bg-cyan-500 text-black shadow-md shadow-cyan-500/20'
@@ -192,13 +307,16 @@ export default function CollectionsClient({
               }`}
             >
               <Flame size={13} />
-              <span>Populer</span>
+              <span>Populer (Most Liked)</span>
             </button>
 
             {isLoggedIn && (
               <button
                 type="button"
-                onClick={() => setActiveFilter('my')}
+                onClick={() => {
+                  setActiveFilter('my');
+                  setPage(1);
+                }}
                 className={`flex items-center gap-1.5 px-3.5 py-2 rounded-xl text-xs font-bold transition-all whitespace-nowrap ${
                   activeFilter === 'my'
                     ? 'bg-purple-500 text-white shadow-md shadow-purple-500/20'
@@ -254,106 +372,203 @@ export default function CollectionsClient({
             </button>
           </div>
         ) : (
-          <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-5 sm:gap-6">
-            {collections.map((collection) => {
-              const previewItems = (collection.items || []).slice(0, 4);
-              const yearSpan =
-                collection.yearStart && collection.yearEnd
-                  ? collection.yearStart === collection.yearEnd
-                    ? `${collection.yearStart}`
-                    : `${collection.yearStart} · ${collection.yearEnd}`
-                  : null;
+          <>
+            <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-5 sm:gap-6">
+              {collections.map((collection) => {
+                const previewItems = (collection.items || []).slice(0, 4);
+                const yearSpan =
+                  collection.yearStart && collection.yearEnd
+                    ? collection.yearStart === collection.yearEnd
+                      ? `${collection.yearStart}`
+                      : `${collection.yearStart} · ${collection.yearEnd}`
+                    : null;
 
-              return (
-                <Link
-                  key={collection.slug || collection._id?.toString()}
-                  href={`/collections/${collection.slug || collection._id}`}
-                  className="group relative rounded-3xl bg-[#090e21] border border-white/10 hover:border-cyan-500/50 p-4 sm:p-5 flex flex-col justify-between transition-all duration-300 hover:scale-[1.02] hover:shadow-[0_0_30px_rgba(6,182,212,0.2)] overflow-hidden"
-                >
-                  {/* Backdrop Collage / Preview Posters Stack */}
-                  <div className="relative h-44 rounded-2xl overflow-hidden mb-4 bg-gradient-to-br from-slate-900 to-black border border-white/5">
-                    {previewItems.length > 0 ? (
-                      <div className="absolute inset-0 grid grid-cols-3 gap-1.5 p-1.5 opacity-80 group-hover:opacity-100 transition-opacity">
-                        {previewItems.slice(0, 3).map((item, idx) => {
-                          const posterUrl = item.posterPath ? getImageUrl(item.posterPath, 'w185') : null;
-                          return (
-                            <div
-                              key={idx}
-                              className="relative h-full rounded-xl overflow-hidden bg-slate-800"
-                            >
-                              {posterUrl ? (
-                                <img
-                                  src={posterUrl}
-                                  alt={item.title}
-                                  className="w-full h-full object-cover group-hover:scale-105 transition-transform duration-300"
-                                />
-                              ) : (
-                                <div className="w-full h-full flex items-center justify-center text-slate-600">
-                                  <Film size={20} />
-                                </div>
-                              )}
-                            </div>
-                          );
-                        })}
-                      </div>
-                    ) : (
-                      <div className="w-full h-full flex items-center justify-center text-slate-600">
-                        <Layers size={32} />
-                      </div>
-                    )}
+                const colId = collection.slug || (collection._id as any);
 
-                    {/* Gradient Overlay */}
-                    <div className="absolute inset-0 bg-gradient-to-t from-[#090e21] via-transparent to-transparent" />
-
-                    {/* Count & Year Badge on Top */}
-                    <div className="absolute top-2.5 left-2.5 right-2.5 flex items-center justify-between">
-                      <span className="px-2.5 py-1 rounded-xl bg-black/70 backdrop-blur-md border border-white/15 text-white text-[11px] font-black shadow-lg">
-                        {collection.itemCount || (collection.items || []).length} judul
-                      </span>
-
-                      {yearSpan && (
-                        <span className="px-2.5 py-1 rounded-xl bg-cyan-500/20 backdrop-blur-md border border-cyan-500/40 text-cyan-300 text-[11px] font-bold shadow-lg">
-                          {yearSpan}
-                        </span>
-                      )}
-                    </div>
-                  </div>
-
-                  {/* Info Section */}
-                  <div>
-                    <h3 className="text-base sm:text-lg font-black text-white group-hover:text-cyan-300 transition-colors line-clamp-1 mb-1.5">
-                      {collection.title}
-                    </h3>
-
-                    {collection.description && (
-                      <p className="text-xs text-slate-400 line-clamp-2 mb-3 leading-relaxed">
-                        {collection.description}
-                      </p>
-                    )}
-
-                    {/* Footer Author & View Info */}
-                    <div className="pt-3 border-t border-white/5 flex items-center justify-between text-xs text-slate-400">
-                      <div className="flex items-center gap-2 min-w-0">
-                        <div className="w-5 h-5 rounded-full bg-gradient-to-br from-cyan-500 to-purple-600 flex items-center justify-center text-[10px] font-black text-white flex-shrink-0">
-                          {collection.authorName ? collection.authorName.charAt(0).toUpperCase() : 'U'}
+                return (
+                  <Link
+                    key={collection.slug || collection._id?.toString()}
+                    href={`/collections/${collection.slug || collection._id}`}
+                    className="group relative rounded-3xl bg-[#090e21] border border-white/10 hover:border-cyan-500/50 p-4 sm:p-5 flex flex-col justify-between transition-all duration-300 hover:scale-[1.02] hover:shadow-[0_0_30px_rgba(6,182,212,0.2)] overflow-hidden"
+                  >
+                    {/* Backdrop Collage / Preview Posters Stack */}
+                    <div className="relative h-44 rounded-2xl overflow-hidden mb-4 bg-gradient-to-br from-slate-900 to-black border border-white/5">
+                      {previewItems.length > 0 ? (
+                        <div className="absolute inset-0 grid grid-cols-3 gap-1.5 p-1.5 opacity-80 group-hover:opacity-100 transition-opacity">
+                          {previewItems.slice(0, 3).map((item, idx) => {
+                            const posterUrl = item.posterPath ? getImageUrl(item.posterPath, 'w185') : null;
+                            return (
+                              <div
+                                key={idx}
+                                className="relative h-full rounded-xl overflow-hidden bg-slate-800"
+                              >
+                                {posterUrl ? (
+                                  <img
+                                    src={posterUrl}
+                                    alt={item.title}
+                                    className="w-full h-full object-cover group-hover:scale-105 transition-transform duration-300"
+                                  />
+                                ) : (
+                                  <div className="w-full h-full flex items-center justify-center text-slate-600">
+                                    <Film size={20} />
+                                  </div>
+                                )}
+                              </div>
+                            );
+                          })}
                         </div>
-                        <span className="truncate font-semibold text-slate-300">
-                          By {collection.authorName || 'Pengguna'}
-                        </span>
-                      </div>
-
-                      {typeof collection.views === 'number' && collection.views > 0 && (
-                        <span className="flex items-center gap-1 text-[11px] text-slate-500 flex-shrink-0">
-                          <Eye size={12} />
-                          <span>{collection.views}</span>
-                        </span>
+                      ) : (
+                        <div className="w-full h-full flex items-center justify-center text-slate-600">
+                          <Layers size={32} />
+                        </div>
                       )}
+
+                      {/* Gradient Overlay */}
+                      <div className="absolute inset-0 bg-gradient-to-t from-[#090e21] via-transparent to-transparent" />
+
+                      {/* Count & Year Badge on Top */}
+                      <div className="absolute top-2.5 left-2.5 right-2.5 flex items-center justify-between">
+                        <span className="px-2.5 py-1 rounded-xl bg-black/70 backdrop-blur-md border border-white/15 text-white text-[11px] font-black shadow-lg">
+                          {collection.itemCount || (collection.items || []).length} judul
+                        </span>
+
+                        {yearSpan && (
+                          <span className="px-2.5 py-1 rounded-xl bg-cyan-500/20 backdrop-blur-md border border-cyan-500/40 text-cyan-300 text-[11px] font-bold shadow-lg">
+                            {yearSpan}
+                          </span>
+                        )}
+                      </div>
                     </div>
-                  </div>
-                </Link>
-              );
-            })}
-          </div>
+
+                    {/* Info Section */}
+                    <div>
+                      <h3 className="text-base sm:text-lg font-black text-white group-hover:text-cyan-300 transition-colors line-clamp-1 mb-1.5">
+                        {collection.title}
+                      </h3>
+
+                      {collection.description && (
+                        <p className="text-xs text-slate-400 line-clamp-2 mb-3 leading-relaxed">
+                          {collection.description}
+                        </p>
+                      )}
+
+                      {/* Footer Author & Like/Dislike Info */}
+                      <div className="pt-3 border-t border-white/5 flex items-center justify-between text-xs text-slate-400">
+                        {/* Author Info */}
+                        <div className="flex items-center gap-2 min-w-0 mr-2">
+                          <div className="w-5 h-5 rounded-full bg-gradient-to-br from-cyan-500 to-purple-600 flex items-center justify-center text-[10px] font-black text-white flex-shrink-0">
+                            {collection.authorName ? collection.authorName.charAt(0).toUpperCase() : 'U'}
+                          </div>
+                          <span className="truncate font-semibold text-slate-300">
+                            By {collection.authorName || 'Pengguna'}
+                          </span>
+                        </div>
+
+                        {/* Interactive Like & Dislike Buttons */}
+                        <div className="flex items-center gap-1.5 flex-shrink-0" onClick={(e) => e.stopPropagation()}>
+                          {/* Like Button */}
+                          <button
+                            type="button"
+                            onClick={(e) => handleVote(e, colId, 'like')}
+                            className={`inline-flex items-center gap-1 px-2.5 py-1 rounded-xl text-xs font-bold transition-all ${
+                              collection.userVote === 'like'
+                                ? 'bg-cyan-500/20 text-cyan-400 border border-cyan-500/40 shadow-[0_0_10px_rgba(6,182,212,0.25)]'
+                                : 'bg-white/5 hover:bg-white/10 text-slate-400 hover:text-cyan-300 border border-white/5'
+                            }`}
+                            title={isLoggedIn ? 'Suka koleksi ini' : 'Login untuk menyukai'}
+                          >
+                            <ThumbsUp
+                              size={12}
+                              className={collection.userVote === 'like' ? 'fill-cyan-400 text-cyan-400' : ''}
+                            />
+                            <span>{collection.likes || 0}</span>
+                          </button>
+
+                          {/* Dislike Button */}
+                          <button
+                            type="button"
+                            onClick={(e) => handleVote(e, colId, 'dislike')}
+                            className={`inline-flex items-center gap-1 px-2.5 py-1 rounded-xl text-xs font-bold transition-all ${
+                              collection.userVote === 'dislike'
+                                ? 'bg-rose-500/20 text-rose-400 border border-rose-500/40 shadow-[0_0_10px_rgba(244,63,94,0.25)]'
+                                : 'bg-white/5 hover:bg-white/10 text-slate-400 hover:text-rose-300 border border-white/5'
+                            }`}
+                            title={isLoggedIn ? 'Tidak suka koleksi ini' : 'Login untuk memberi tanggapan'}
+                          >
+                            <ThumbsDown
+                              size={12}
+                              className={collection.userVote === 'dislike' ? 'fill-rose-400 text-rose-400' : ''}
+                            />
+                            <span>{collection.dislikes || 0}</span>
+                          </button>
+                        </div>
+                      </div>
+                    </div>
+                  </Link>
+                );
+              })}
+            </div>
+
+            {/* ── Pagination Controls ── */}
+            {totalPages > 1 && (
+              <div className="mt-10 flex items-center justify-center gap-1.5 sm:gap-2">
+                <button
+                  type="button"
+                  disabled={page <= 1}
+                  onClick={() => {
+                    setPage((p) => Math.max(1, p - 1));
+                    window.scrollTo({ top: 0, behavior: 'smooth' });
+                  }}
+                  className="p-2.5 rounded-xl bg-white/[0.05] hover:bg-white/[0.1] text-slate-300 disabled:opacity-30 disabled:pointer-events-none border border-white/10 transition-all"
+                  aria-label="Previous Page"
+                >
+                  <ChevronLeft size={16} />
+                </button>
+
+                {getPageNumbers().map((pNum, idx) => {
+                  if (pNum === '...') {
+                    return (
+                      <span key={`dots-${idx}`} className="px-2 text-slate-500 font-bold text-xs">
+                        ...
+                      </span>
+                    );
+                  }
+
+                  const active = page === pNum;
+                  return (
+                    <button
+                      key={`page-${pNum}`}
+                      type="button"
+                      onClick={() => {
+                        setPage(Number(pNum));
+                        window.scrollTo({ top: 0, behavior: 'smooth' });
+                      }}
+                      className={`min-w-[36px] h-9 px-3 rounded-xl text-xs font-black transition-all ${
+                        active
+                          ? 'bg-cyan-500 text-black shadow-lg shadow-cyan-500/25 scale-105'
+                          : 'bg-white/[0.05] hover:bg-white/[0.1] text-slate-300 hover:text-white border border-white/10'
+                      }`}
+                    >
+                      {pNum}
+                    </button>
+                  );
+                })}
+
+                <button
+                  type="button"
+                  disabled={page >= totalPages}
+                  onClick={() => {
+                    setPage((p) => Math.min(totalPages, p + 1));
+                    window.scrollTo({ top: 0, behavior: 'smooth' });
+                  }}
+                  className="p-2.5 rounded-xl bg-white/[0.05] hover:bg-white/[0.1] text-slate-300 disabled:opacity-30 disabled:pointer-events-none border border-white/10 transition-all"
+                  aria-label="Next Page"
+                >
+                  <ChevronRight size={16} />
+                </button>
+              </div>
+            )}
+          </>
         )}
 
         {/* ── Modal Create Collection ── */}
@@ -378,7 +593,7 @@ export default function CollectionsClient({
                 Login Diperlukan
               </h3>
               <p className="text-xs sm:text-sm text-slate-400 mb-6">
-                Untuk membuat dan menyimpan koleksi judul film/series ke database, silakan login ke akunmu terlebih dahulu.
+                Silakan login ke akunmu untuk membuat koleksi atau memberikan Like/Dislike pada koleksi komunitas.
               </p>
 
               <div className="flex flex-col sm:flex-row items-center gap-3">

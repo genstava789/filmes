@@ -58,8 +58,11 @@ export async function generateMetadata({ params }: PageProps): Promise<Metadata>
   };
 }
 
+import { getAuthenticatedUser } from '@/lib/auth/session';
+
 export default async function CollectionDetailPage({ params }: PageProps) {
-  const collection = await getCollectionByIdOrSlug(params.id).catch(() => null);
+  const user = await getAuthenticatedUser().catch(() => null);
+  const collection = await getCollectionByIdOrSlug(params.id, user?.id).catch(() => null);
 
   if (!collection) {
     notFound();

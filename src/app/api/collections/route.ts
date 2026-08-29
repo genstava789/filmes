@@ -18,17 +18,14 @@ export async function GET(req: NextRequest) {
     const page = Math.max(1, parseInt(searchParams.get('page') || '1', 10));
     const limit = Math.min(50, Math.max(1, parseInt(searchParams.get('limit') || '24', 10)));
 
-    let userId: string | undefined;
-    if (filter === 'my') {
-      const user = await getAuthenticatedUser(req);
-      if (!user) {
-        return NextResponse.json(
-          { success: false, message: 'Silakan login untuk melihat koleksi Anda' },
-          { status: 401 }
-        );
-      }
-      userId = user.id;
+    const user = await getAuthenticatedUser(req).catch(() => null);
+    if (filter === 'my' && !user) {
+      return NextResponse.json(
+        { success: false, message: 'Silakan login untuk melihat koleksi Anda' },
+        { status: 401 }
+      );
     }
+    const userId = user?.id;
 
     const { collections, total } = await getPublicCollections({
       search,

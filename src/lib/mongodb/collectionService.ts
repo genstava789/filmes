@@ -14,7 +14,7 @@ export interface CollectionItem {
 }
 
 export interface MongoCollection {
-  _id?: ObjectId;
+  _id?: ObjectId | string;
   slug: string;
   title: string;
   description?: string;
@@ -30,6 +30,10 @@ export interface MongoCollection {
   isPublic: boolean;
   views: number;
   likes: number;
+  dislikes: number;
+  likedBy?: string[];
+  dislikedBy?: string[];
+  userVote?: 'like' | 'dislike' | null;
   createdAt: number;
   updatedAt: number;
 }
@@ -53,8 +57,8 @@ function ensureCollectionIndexesBackground() {
         col.createIndex({ slug: 1 }, { unique: true }),
         col.createIndex({ userId: 1 }),
         col.createIndex({ title: 'text', description: 'text', authorName: 'text' }),
+        col.createIndex({ likes: -1, createdAt: -1 }),
         col.createIndex({ createdAt: -1 }),
-        col.createIndex({ views: -1 }),
       ]);
     } catch (err) {
       console.warn('[MongoDB] ensureCollectionIndexesBackground warning:', err);
@@ -84,6 +88,27 @@ async function withMongoRetry<T>(operation: () => Promise<T>): Promise<T> {
     }
     throw err;
   }
+}
+
+/**
+ * Sanitize and compact collection items to minimize MongoDB storage on Free Tier
+ * Strips huge overview descriptions and redundant URL schemas to keep each item ~100 bytes.
+ */
+export function sanitizeCollectionItems(rawItems: any[]): CollectionItem[] {
+  if (!Array.isArray(rawItems)) return [];
+
+  return rawItems.map((item) => {
+    const isTV = item.mediaType === 'tv';
+    return {
+      id: typeof item.id === 'string' ? (parseInt(item.id, 10) || item.id) : item.id,
+      mediaType: isTV ? 'tv' : 'movie',
+      title: String(item.title || item.name || '').trim().slice(0, 120),
+      posterPath: item.posterPath ? String(item.posterPath).trim().slice(0, 80) : null,
+      backdropPath: item.backdropPath ? String(item.backdropPath).trim().slice(0, 80) : null,
+      releaseDate: item.releaseDate ? String(item.releaseDate).slice(0, 10) : '',
+      rating: typeof item.rating === 'number' ? Math.round(item.rating * 10) / 10 : undefined,
+    };
+  });
 }
 
 /**
@@ -170,7 +195,8 @@ export async function getPublicCollections(params: {
 
     let sortOption: any = { createdAt: -1 };
     if (filter === 'popular') {
-      sortOption = { views: -1, createdAt: -1 };
+      // Populer now sorts by most likes!
+      sortOption = { likes: -1, createdAt: -1 };
     } else if (filter === 'latest') {
       sortOption = { createdAt: -1 };
     }
@@ -182,10 +208,27 @@ export async function getPublicCollections(params: {
       col.countDocuments(query),
     ]);
 
-    const collections = rawCollections.map((c) => ({
-      ...c,
-      _id: c._id ? c._id.toString() : undefined,
-    })) as any[];
+    const collections = rawCollections.map((c) => {
+      let userVote: 'like' | 'dislike' | null = null;
+      if (userId) {
+        if (Array.isArray(c.likedBy) && c.likedBy.includes(userId)) {
+          userVote = 'like';
+        } else if (Array.isArray(c.dislikedBy) && c.dislikedBy.includes(userId)) {
+          userVote = 'dislike';
+        }
+      }
+
+      return {
+        ...c,
+        _id: c._id ? c._id.toString() : undefined,
+        likes: typeof c.likes === 'number' ? c.likes : (c.likedBy?.length || 0),
+        dislikes: typeof c.dislikes === 'number' ? c.dislikes : (c.dislikedBy?.length || 0),
+        userVote,
+        // Do not expose full likedBy/dislikedBy arrays to public listing to save payload
+        likedBy: undefined,
+        dislikedBy: undefined,
+      };
+    }) as any[];
 
     return { collections, total };
   });
@@ -194,7 +237,10 @@ export async function getPublicCollections(params: {
 /**
  * Fetch single collection by ID or slug
  */
-export async function getCollectionByIdOrSlug(idOrSlug: string): Promise<MongoCollection | null> {
+export async function getCollectionByIdOrSlug(
+  idOrSlug: string,
+  currentUserId?: string
+): Promise<MongoCollection | null> {
   ensureCollectionIndexesBackground();
 
   return withMongoRetry(async () => {
@@ -209,11 +255,23 @@ export async function getCollectionByIdOrSlug(idOrSlug: string): Promise<MongoCo
 
     const collection = await col.findOne(query);
     if (collection) {
-      // Increment views count in background
-      col.updateOne({ _id: collection._id }, { $inc: { views: 1 } }).catch(() => {});
+      let userVote: 'like' | 'dislike' | null = null;
+      if (currentUserId) {
+        if (Array.isArray(collection.likedBy) && collection.likedBy.includes(currentUserId)) {
+          userVote = 'like';
+        } else if (Array.isArray(collection.dislikedBy) && collection.dislikedBy.includes(currentUserId)) {
+          userVote = 'dislike';
+        }
+      }
+
       return {
         ...collection,
         _id: collection._id ? (collection._id.toString() as any) : undefined,
+        likes: typeof collection.likes === 'number' ? collection.likes : (collection.likedBy?.length || 0),
+        dislikes: typeof collection.dislikes === 'number' ? collection.dislikes : (collection.dislikedBy?.length || 0),
+        userVote,
+        likedBy: undefined,
+        dislikedBy: undefined,
       };
     }
 
@@ -239,23 +297,24 @@ export async function createCollection(params: {
     const col = await getCollectionsCol();
     const { userId, authorName, authorAvatar, title, description, items, isPublic = true } = params;
 
-    const trimmedTitle = title.trim();
+    const trimmedTitle = title.trim().slice(0, 150);
     if (!trimmedTitle) {
       throw new Error('Judul koleksi wajib diisi');
     }
 
-    const meta = calculateCollectionMeta(items);
+    const cleanItems = sanitizeCollectionItems(items);
+    const meta = calculateCollectionMeta(cleanItems);
     const slug = generateCollectionSlug(trimmedTitle);
     const now = Date.now();
 
     const newDoc: MongoCollection = {
       slug,
       title: trimmedTitle,
-      description: description?.trim() || '',
+      description: description?.trim().slice(0, 500) || '',
       userId,
       authorName,
       authorAvatar,
-      items,
+      items: cleanItems,
       itemCount: meta.itemCount,
       yearStart: meta.yearStart,
       yearEnd: meta.yearEnd,
@@ -264,6 +323,9 @@ export async function createCollection(params: {
       isPublic,
       views: 0,
       likes: 0,
+      dislikes: 0,
+      likedBy: [],
+      dislikedBy: [],
       createdAt: now,
       updatedAt: now,
     };
@@ -304,17 +366,18 @@ export async function updateCollection(
     const updateFields: any = { updatedAt: Date.now() };
 
     if (typeof updates.title === 'string' && updates.title.trim()) {
-      updateFields.title = updates.title.trim();
+      updateFields.title = updates.title.trim().slice(0, 150);
     }
     if (typeof updates.description === 'string') {
-      updateFields.description = updates.description.trim();
+      updateFields.description = updates.description.trim().slice(0, 500);
     }
     if (typeof updates.isPublic === 'boolean') {
       updateFields.isPublic = updates.isPublic;
     }
     if (Array.isArray(updates.items)) {
-      const meta = calculateCollectionMeta(updates.items);
-      updateFields.items = updates.items;
+      const cleanItems = sanitizeCollectionItems(updates.items);
+      const meta = calculateCollectionMeta(cleanItems);
+      updateFields.items = cleanItems;
       updateFields.itemCount = meta.itemCount;
       updateFields.yearStart = meta.yearStart;
       updateFields.yearEnd = meta.yearEnd;
@@ -328,6 +391,84 @@ export async function updateCollection(
     return {
       ...updated,
       _id: updated._id ? (updated._id.toString() as any) : undefined,
+    };
+  });
+}
+
+/**
+ * Toggle Like or Dislike for a collection by authenticated user
+ */
+export async function voteCollection(
+  idOrSlug: string,
+  userId: string,
+  type: 'like' | 'dislike'
+): Promise<{ likes: number; dislikes: number; userVote: 'like' | 'dislike' | null }> {
+  return withMongoRetry(async () => {
+    const col = await getCollectionsCol();
+    let query: any = { slug: idOrSlug };
+
+    if (ObjectId.isValid(idOrSlug)) {
+      query = {
+        $or: [{ _id: new ObjectId(idOrSlug) }, { slug: idOrSlug }],
+      };
+    }
+
+    const collection = await col.findOne(query);
+    if (!collection) {
+      throw new Error('Koleksi tidak ditemukan');
+    }
+
+    let likedBy = Array.isArray(collection.likedBy) ? [...collection.likedBy] : [];
+    let dislikedBy = Array.isArray(collection.dislikedBy) ? [...collection.dislikedBy] : [];
+
+    const isLiked = likedBy.includes(userId);
+    const isDisliked = dislikedBy.includes(userId);
+
+    let finalUserVote: 'like' | 'dislike' | null = null;
+
+    if (type === 'like') {
+      if (isLiked) {
+        // Toggle OFF like
+        likedBy = likedBy.filter((id) => id !== userId);
+        finalUserVote = null;
+      } else {
+        // Turn ON like, remove from dislike if exists
+        likedBy.push(userId);
+        dislikedBy = dislikedBy.filter((id) => id !== userId);
+        finalUserVote = 'like';
+      }
+    } else if (type === 'dislike') {
+      if (isDisliked) {
+        // Toggle OFF dislike
+        dislikedBy = dislikedBy.filter((id) => id !== userId);
+        finalUserVote = null;
+      } else {
+        // Turn ON dislike, remove from like if exists
+        dislikedBy.push(userId);
+        likedBy = likedBy.filter((id) => id !== userId);
+        finalUserVote = 'dislike';
+      }
+    }
+
+    const likesCount = likedBy.length;
+    const dislikesCount = dislikedBy.length;
+
+    await col.updateOne(
+      { _id: collection._id },
+      {
+        $set: {
+          likedBy,
+          dislikedBy,
+          likes: likesCount,
+          dislikes: dislikesCount,
+        },
+      }
+    );
+
+    return {
+      likes: likesCount,
+      dislikes: dislikesCount,
+      userVote: finalUserVote,
     };
   });
 }

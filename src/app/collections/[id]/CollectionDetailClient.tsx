@@ -11,33 +11,43 @@ import {
   Share2,
   Edit3,
   Trash2,
-  Check,
   Film,
   Tv,
-  Sparkles,
-  Eye,
+  ThumbsUp,
+  ThumbsDown,
+  ChevronLeft,
+  ChevronRight,
   AlertTriangle,
+  LogIn,
+  ArrowRight,
 } from 'lucide-react';
-import { MongoCollection, CollectionItem } from '@/lib/mongodb/collectionService';
+import { MongoCollection } from '@/lib/mongodb/collectionService';
 import { useAuth } from '@/context/AuthContext';
 import { getImageUrl } from '@/lib/tmdb';
 import MovieCard from '@/components/MovieCard';
 import CreateCollectionModal from '../components/CreateCollectionModal';
+import ShareCollectionModal from '../components/ShareCollectionModal';
 import { Movie, TVShow } from '@/types/tmdb';
 
 interface CollectionDetailClientProps {
   collection: MongoCollection;
 }
 
+const ITEMS_PER_PAGE = 24;
+
 export default function CollectionDetailClient({ collection: initialCollection }: CollectionDetailClientProps) {
   const router = useRouter();
-  const { user } = useAuth();
+  const { user, isLoggedIn } = useAuth();
 
   const [collection, setCollection] = useState<MongoCollection>(initialCollection);
+  const [page, setPage] = useState(1);
+
+  // Modals state
   const [editModalOpen, setEditModalOpen] = useState(false);
+  const [shareModalOpen, setShareModalOpen] = useState(false);
   const [deleteConfirmOpen, setDeleteConfirmOpen] = useState(false);
+  const [loginPromptOpen, setLoginPromptOpen] = useState(false);
   const [deleting, setDeleting] = useState(false);
-  const [copied, setCopied] = useState(false);
 
   const isOwner = Boolean(user && collection.userId && user.id === collection.userId);
 
@@ -49,25 +59,67 @@ export default function CollectionDetailClient({ collection: initialCollection }
         : `${collection.yearStart} · ${collection.yearEnd}`
       : null;
 
-  const handleShare = async () => {
-    if (typeof window === 'undefined') return;
-    const url = window.location.href;
-    if (navigator.share) {
-      try {
-        await navigator.share({
-          title: `${collection.title} - Koleksi Filmes`,
-          text: `Lihat koleksi "${collection.title}" (${items.length} judul) di Filmes`,
-          url,
-        });
-        return;
-      } catch {}
+  // Handle Like / Dislike Vote
+  const handleVote = async (type: 'like' | 'dislike') => {
+    if (!isLoggedIn || !user) {
+      setLoginPromptOpen(true);
+      return;
     }
 
+    const colId = collection.slug || (collection._id as any);
+    const currentVote = collection.userVote;
+    let newVote: 'like' | 'dislike' | null = type;
+    let likes = collection.likes || 0;
+    let dislikes = collection.dislikes || 0;
+
+    if (type === 'like') {
+      if (currentVote === 'like') {
+        newVote = null;
+        likes = Math.max(0, likes - 1);
+      } else {
+        likes += 1;
+        if (currentVote === 'dislike') {
+          dislikes = Math.max(0, dislikes - 1);
+        }
+      }
+    } else {
+      if (currentVote === 'dislike') {
+        newVote = null;
+        dislikes = Math.max(0, dislikes - 1);
+      } else {
+        dislikes += 1;
+        if (currentVote === 'like') {
+          likes = Math.max(0, likes - 1);
+        }
+      }
+    }
+
+    // Optimistic state
+    setCollection((prev) => ({
+      ...prev,
+      likes,
+      dislikes,
+      userVote: newVote,
+    }));
+
     try {
-      await navigator.clipboard.writeText(url);
-      setCopied(true);
-      setTimeout(() => setCopied(false), 2500);
-    } catch {}
+      const res = await fetch(`/api/collections/${colId}/vote`, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ type }),
+      });
+      const data = await res.json();
+      if (res.ok && data.success) {
+        setCollection((prev) => ({
+          ...prev,
+          likes: data.likes,
+          dislikes: data.dislikes,
+          userVote: data.userVote,
+        }));
+      }
+    } catch (err) {
+      console.error('Vote detail collection error:', err);
+    }
   };
 
   const handleDelete = async () => {
@@ -93,6 +145,7 @@ export default function CollectionDetailClient({ collection: initialCollection }
 
   const handleUpdateSuccess = (updated: MongoCollection) => {
     setCollection(updated);
+    setPage(1);
   };
 
   const backdropUrl = collection.featuredBackdrop
@@ -118,6 +171,22 @@ export default function CollectionDetailClient({ collection: initialCollection }
       customUrlPath: item.urlPath,
     } as any;
   });
+
+  const totalPages = Math.max(1, Math.ceil(formattedItems.length / ITEMS_PER_PAGE));
+  const paginatedItems = formattedItems.slice((page - 1) * ITEMS_PER_PAGE, page * ITEMS_PER_PAGE);
+
+  const getPageNumbers = () => {
+    if (totalPages <= 7) {
+      return Array.from({ length: totalPages }, (_, i) => i + 1);
+    }
+    if (page <= 4) {
+      return [1, 2, 3, 4, 5, '...', totalPages];
+    }
+    if (page >= totalPages - 3) {
+      return [1, '...', totalPages - 4, totalPages - 3, totalPages - 2, totalPages - 1, totalPages];
+    }
+    return [1, '...', page - 1, page, page + 1, '...', totalPages];
+  };
 
   return (
     <div className="min-h-screen pt-20 sm:pt-24 pb-16" style={{ background: '#050816' }}>
@@ -189,27 +258,56 @@ export default function CollectionDetailClient({ collection: initialCollection }
                 <span>
                   Dibuat {new Date(collection.createdAt || Date.now()).toLocaleDateString('id-ID', { year: 'numeric', month: 'long', day: 'numeric' })}
                 </span>
-                {typeof collection.views === 'number' && collection.views > 0 && (
-                  <>
-                    <span>•</span>
-                    <span className="flex items-center gap-1">
-                      <Eye size={13} />
-                      <span>{collection.views.toLocaleString()} views</span>
-                    </span>
-                  </>
-                )}
               </div>
             </div>
 
-            {/* Action Buttons (Share, Edit, Delete) */}
+            {/* Action Buttons (Like/Dislike, Share, Edit, Delete) */}
             <div className="flex items-center gap-2.5 flex-wrap">
+              {/* Like / Dislike Buttons */}
+              <div className="flex items-center gap-1 p-1 rounded-2xl bg-white/[0.06] border border-white/10">
+                <button
+                  type="button"
+                  onClick={() => handleVote('like')}
+                  className={`flex items-center gap-1.5 px-3.5 py-2 rounded-xl text-xs font-bold transition-all ${
+                    collection.userVote === 'like'
+                      ? 'bg-cyan-500 text-black shadow-md shadow-cyan-500/25'
+                      : 'text-slate-300 hover:text-cyan-400 hover:bg-white/5'
+                  }`}
+                  title={isLoggedIn ? 'Suka koleksi ini' : 'Login untuk menyukai'}
+                >
+                  <ThumbsUp
+                    size={14}
+                    className={collection.userVote === 'like' ? 'fill-black text-black' : ''}
+                  />
+                  <span>{collection.likes || 0}</span>
+                </button>
+
+                <button
+                  type="button"
+                  onClick={() => handleVote('dislike')}
+                  className={`flex items-center gap-1.5 px-3.5 py-2 rounded-xl text-xs font-bold transition-all ${
+                    collection.userVote === 'dislike'
+                      ? 'bg-rose-500 text-white shadow-md shadow-rose-500/25'
+                      : 'text-slate-300 hover:text-rose-400 hover:bg-white/5'
+                  }`}
+                  title={isLoggedIn ? 'Tidak suka koleksi ini' : 'Login untuk memberi tanggapan'}
+                >
+                  <ThumbsDown
+                    size={14}
+                    className={collection.userVote === 'dislike' ? 'fill-white text-white' : ''}
+                  />
+                  <span>{collection.dislikes || 0}</span>
+                </button>
+              </div>
+
+              {/* Share Button (Opens Share Modal) */}
               <button
                 type="button"
-                onClick={handleShare}
+                onClick={() => setShareModalOpen(true)}
                 className="px-4 py-2.5 rounded-xl bg-white/[0.08] hover:bg-white/[0.14] text-white font-bold text-xs sm:text-sm border border-white/10 transition-all flex items-center gap-2"
               >
-                {copied ? <Check size={15} className="text-emerald-400" /> : <Share2 size={15} />}
-                <span>{copied ? 'Link Disalin!' : 'Bagikan'}</span>
+                <Share2 size={15} />
+                <span>Bagikan</span>
               </button>
 
               {isOwner && (
@@ -240,13 +338,11 @@ export default function CollectionDetailClient({ collection: initialCollection }
 
       {/* ── Movie & TV Shows Grid (Homepage Layout) ── */}
       <div className="max-w-7xl mx-auto px-4 sm:px-6 md:px-8 lg:px-12">
+        {/* Clean Heading without icon */}
         <div className="flex items-center justify-between mb-6">
-          <div className="flex items-center gap-2">
-            <Sparkles size={18} className="text-cyan-400" />
-            <h2 className="text-lg sm:text-xl font-black text-white">
-              Daftar Film & Series dalam Koleksi
-            </h2>
-          </div>
+          <h2 className="text-lg sm:text-2xl font-black text-white tracking-tight">
+            Daftar Koleksi
+          </h2>
           <span className="text-xs text-slate-400 font-bold">
             Total {formattedItems.length} Judul
           </span>
@@ -260,18 +356,88 @@ export default function CollectionDetailClient({ collection: initialCollection }
             </p>
           </div>
         ) : (
-          <div className="grid grid-cols-2 xs:grid-cols-2 sm:grid-cols-3 md:grid-cols-4 lg:grid-cols-5 xl:grid-cols-6 gap-3.5 sm:gap-4.5 md:gap-5">
-            {formattedItems.map((item, index) => {
-              const isTV = (item as any).media_type === 'tv';
-              return (
-                <div key={`${item.id}-${index}`} className="relative group">
-                  <MovieCard item={item} type={isTV ? 'tv' : 'movie'} />
-                </div>
-              );
-            })}
-          </div>
+          <>
+            <div className="grid grid-cols-2 xs:grid-cols-2 sm:grid-cols-3 md:grid-cols-4 lg:grid-cols-5 xl:grid-cols-6 gap-3.5 sm:gap-4.5 md:gap-5">
+              {paginatedItems.map((item, index) => {
+                const isTV = (item as any).media_type === 'tv';
+                return (
+                  <div key={`${item.id}-${index}`} className="relative group">
+                    <MovieCard item={item} type={isTV ? 'tv' : 'movie'} />
+                  </div>
+                );
+              })}
+            </div>
+
+            {/* ── Item Pagination Controls ── */}
+            {totalPages > 1 && (
+              <div className="mt-10 flex items-center justify-center gap-1.5 sm:gap-2">
+                <button
+                  type="button"
+                  disabled={page <= 1}
+                  onClick={() => {
+                    setPage((p) => Math.max(1, p - 1));
+                    window.scrollTo({ top: 400, behavior: 'smooth' });
+                  }}
+                  className="p-2.5 rounded-xl bg-white/[0.05] hover:bg-white/[0.1] text-slate-300 disabled:opacity-30 disabled:pointer-events-none border border-white/10 transition-all"
+                  aria-label="Previous Page"
+                >
+                  <ChevronLeft size={16} />
+                </button>
+
+                {getPageNumbers().map((pNum, idx) => {
+                  if (pNum === '...') {
+                    return (
+                      <span key={`dots-${idx}`} className="px-2 text-slate-500 font-bold text-xs">
+                        ...
+                      </span>
+                    );
+                  }
+
+                  const active = page === pNum;
+                  return (
+                    <button
+                      key={`page-${pNum}`}
+                      type="button"
+                      onClick={() => {
+                        setPage(Number(pNum));
+                        window.scrollTo({ top: 400, behavior: 'smooth' });
+                      }}
+                      className={`min-w-[36px] h-9 px-3 rounded-xl text-xs font-black transition-all ${
+                        active
+                          ? 'bg-cyan-500 text-black shadow-lg shadow-cyan-500/25 scale-105'
+                          : 'bg-white/[0.05] hover:bg-white/[0.1] text-slate-300 hover:text-white border border-white/10'
+                      }`}
+                    >
+                      {pNum}
+                    </button>
+                  );
+                })}
+
+                <button
+                  type="button"
+                  disabled={page >= totalPages}
+                  onClick={() => {
+                    setPage((p) => Math.min(totalPages, p + 1));
+                    window.scrollTo({ top: 400, behavior: 'smooth' });
+                  }}
+                  className="p-2.5 rounded-xl bg-white/[0.05] hover:bg-white/[0.1] text-slate-300 disabled:opacity-30 disabled:pointer-events-none border border-white/10 transition-all"
+                  aria-label="Next Page"
+                >
+                  <ChevronRight size={16} />
+                </button>
+              </div>
+            )}
+          </>
         )}
       </div>
+
+      {/* ── Share Collection Modal ── */}
+      <ShareCollectionModal
+        isOpen={shareModalOpen}
+        onClose={() => setShareModalOpen(false)}
+        title={collection.title}
+        itemCount={items.length}
+      />
 
       {/* ── Edit Collection Modal ── */}
       {isOwner && (
@@ -324,6 +490,44 @@ export default function CollectionDetailClient({ collection: initialCollection }
               >
                 <span>{deleting ? 'Menghapus...' : 'Ya, Hapus'}</span>
               </button>
+            </div>
+          </div>
+        </div>
+      )}
+
+      {/* ── Login Prompt Modal ── */}
+      {loginPromptOpen && (
+        <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/80 backdrop-blur-md animate-in fade-in duration-200">
+          <div
+            className="relative w-full max-w-md rounded-3xl bg-[#090e21] border border-cyan-500/30 shadow-[0_0_50px_rgba(6,182,212,0.2)] p-6 sm:p-8 text-center"
+            onClick={(e) => e.stopPropagation()}
+          >
+            <div className="w-16 h-16 mx-auto rounded-3xl bg-cyan-500/10 border border-cyan-500/30 flex items-center justify-center text-cyan-400 mb-4 shadow-[0_0_25px_rgba(6,182,212,0.25)]">
+              <LogIn size={32} />
+            </div>
+
+            <h3 className="text-xl font-black text-white mb-2">
+              Login Diperlukan
+            </h3>
+            <p className="text-xs sm:text-sm text-slate-400 mb-6">
+              Silakan login ke akunmu untuk memberikan Like atau Dislike pada koleksi ini.
+            </p>
+
+            <div className="flex flex-col sm:flex-row items-center gap-3">
+              <button
+                type="button"
+                onClick={() => setLoginPromptOpen(false)}
+                className="w-full sm:w-1/2 px-4 py-3 rounded-2xl bg-white/[0.06] hover:bg-white/10 text-slate-300 font-semibold text-xs sm:text-sm transition-all"
+              >
+                Batal
+              </button>
+              <Link
+                href={`/login?redirect=/collections/${collection.slug || collection._id}`}
+                className="w-full sm:w-1/2 px-4 py-3 rounded-2xl bg-gradient-to-r from-cyan-500 to-purple-600 text-white font-bold text-xs sm:text-sm shadow-lg shadow-cyan-500/25 transition-all hover:scale-105 active:scale-95 flex items-center justify-center gap-1.5"
+              >
+                <span>Login Sekarang</span>
+                <ArrowRight size={14} />
+              </Link>
             </div>
           </div>
         </div>
