@@ -1,12 +1,11 @@
 'use client';
 
-import React, { useState, useEffect, useRef, useMemo } from 'react';
+import React, { useState, useEffect, useRef } from 'react';
 import Link from 'next/link';
 import {
   Film,
   Tv,
   Search,
-  Sparkles,
   Send,
   CheckCircle2,
   AlertCircle,
@@ -49,12 +48,12 @@ interface TMDBItem {
 function parseUrlOrId(input: string): { type?: 'movie' | 'tv'; id?: number } | null {
   const trimmed = input.trim();
 
-  // 1. Check if pure number (TMDB ID)
+  // 1. Pure TMDB ID
   if (/^\d+$/.test(trimmed)) {
     return { id: parseInt(trimmed, 10) };
   }
 
-  // 2. Check TMDB URL (e.g. themoviedb.org/movie/12345 or themoviedb.org/tv/67890)
+  // 2. TMDB URL (themoviedb.org/movie/12345 or themoviedb.org/tv/67890)
   const tmdbMatch = trimmed.match(/themoviedb\.org\/(movie|tv)\/(\d+)/i);
   if (tmdbMatch) {
     return {
@@ -86,7 +85,7 @@ export default function RequestPageClient({
   movieGenres = [],
   tvGenres = [],
 }: RequestPageClientProps) {
-  const { user, isLoggedIn, authStatus } = useAuth();
+  const { user, isLoggedIn } = useAuth();
   const [mounted, setMounted] = useState(false);
 
   useEffect(() => {
@@ -102,12 +101,12 @@ export default function RequestPageClient({
   const [totalPages, setTotalPages] = useState(1);
   const [loadingFeed, setLoadingFeed] = useState(true);
 
-  // Pop-up Modal State
+  // Modals
   const [isModalOpen, setIsModalOpen] = useState(false);
+  const [isLoginPromptOpen, setIsLoginPromptOpen] = useState(false);
 
   // Request Form State
-  const [mediaType, setMediaType] = useState<'movie' | 'tv'>('movie');
-  const [smartQuery, setSmartQuery] = useState('');
+  const [searchTitleQuery, setSearchTitleQuery] = useState('');
   const [searchResults, setSearchResults] = useState<TMDBItem[]>([]);
   const [searching, setSearching] = useState(false);
   const [searchDropdownOpen, setSearchDropdownOpen] = useState(false);
@@ -128,9 +127,9 @@ export default function RequestPageClient({
   const [votingId, setVotingId] = useState<string | null>(null);
 
   const searchContainerRef = useRef<HTMLDivElement>(null);
-  const isTV = mediaType === 'tv';
+  const isTV = selectedItem?.mediaType === 'tv';
 
-  // ── Fetch Requests Feed ──
+  // ── Fetch Requests Feed (Always available for both guest & logged in users) ──
   const fetchRequests = async () => {
     setLoadingFeed(true);
     try {
@@ -155,7 +154,7 @@ export default function RequestPageClient({
   };
 
   useEffect(() => {
-    if (mounted && isLoggedIn) {
+    if (mounted) {
       fetchRequests();
     }
   }, [activeTab, feedSearch, feedPage, isLoggedIn, mounted]);
@@ -174,9 +173,9 @@ export default function RequestPageClient({
     return () => document.removeEventListener('mousedown', handleClickOutside);
   }, []);
 
-  // ── Smart Search & Direct Link / TMDB ID Detection ──
+  // ── Clean TMDB Title Search ──
   useEffect(() => {
-    const trimmed = smartQuery.trim();
+    const trimmed = searchTitleQuery.trim();
     if (!trimmed) {
       setSearchResults([]);
       setSearchDropdownOpen(false);
@@ -189,12 +188,9 @@ export default function RequestPageClient({
 
     const parsed = parseUrlOrId(trimmed);
 
+    // If ID or Link is pasted, auto-fetch details
     if (parsed && parsed.id) {
-      const targetType = parsed.type || mediaType;
-      if (parsed.type && parsed.type !== mediaType) {
-        setMediaType(parsed.type);
-      }
-
+      const targetType = parsed.type || 'movie';
       setSearching(true);
       fetch(`/api/admin/tmdb-preview?id=${parsed.id}&type=${targetType}`)
         .then((res) => res.json())
@@ -230,11 +226,12 @@ export default function RequestPageClient({
       return;
     }
 
+    // Debounced Multi Search (movies & tv)
     const timer = setTimeout(async () => {
       setSearching(true);
       try {
         const res = await fetch(
-          `/api/admin/tmdb-search?query=${encodeURIComponent(trimmed)}&type=${mediaType}`
+          `/api/admin/tmdb-search?query=${encodeURIComponent(trimmed)}&type=multi`
         );
         const data = await res.json();
         if (data.results && Array.isArray(data.results)) {
@@ -250,33 +247,23 @@ export default function RequestPageClient({
       } finally {
         setSearching(false);
       }
-    }, 350);
+    }, 300);
 
     return () => clearTimeout(timer);
-  }, [smartQuery, mediaType, selectedItem]);
-
-  const handleMediaTypeSwitch = (newType: 'movie' | 'tv') => {
-    if (newType === mediaType) return;
-    setMediaType(newType);
-    setSelectedItem(null);
-    setSmartQuery('');
-    setSearchResults([]);
-    setSelectedGenres([]);
-    setFormError(null);
-    setDuplicateInfo(null);
-  };
+  }, [searchTitleQuery, selectedItem]);
 
   const handleSelectTMDBItem = async (item: TMDBItem) => {
     setSelectedItem(item);
-    setSmartQuery(item.title);
+    setSearchTitleQuery(item.title);
     setCustomTitle(item.title);
     setSearchDropdownOpen(false);
     setFormError(null);
     setDuplicateInfo(null);
 
+    const type = item.mediaType || 'movie';
     try {
       const previewRes = await fetch(
-        `/api/admin/tmdb-preview?id=${item.id}&type=${mediaType}`
+        `/api/admin/tmdb-preview?id=${item.id}&type=${type}`
       );
       const previewData = await previewRes.json();
       if (previewData && previewData.genres && Array.isArray(previewData.genres)) {
@@ -301,7 +288,7 @@ export default function RequestPageClient({
 
   const handleClearSelection = () => {
     setSelectedItem(null);
-    setSmartQuery('');
+    setSearchTitleQuery('');
     setCustomTitle('');
     setSelectedGenres([]);
     setDuplicateInfo(null);
@@ -309,7 +296,7 @@ export default function RequestPageClient({
 
   const handleResetForm = () => {
     setSelectedItem(null);
-    setSmartQuery('');
+    setSearchTitleQuery('');
     setCustomTitle('');
     setSelectedGenres([]);
     setMessage('');
@@ -326,13 +313,14 @@ export default function RequestPageClient({
     setDuplicateInfo(null);
 
     if (!isLoggedIn) {
-      setFormError('Silakan login terlebih dahulu untuk membuat permintaan film/series.');
+      setIsModalOpen(false);
+      setIsLoginPromptOpen(true);
       return;
     }
 
     const finalTitle = selectedItem?.title || customTitle.trim();
     if (!finalTitle) {
-      setFormError('Silakan masukkan judul atau pilih film/series dari pencarian.');
+      setFormError('Silakan ketik atau pilih judul film/series.');
       return;
     }
 
@@ -340,7 +328,7 @@ export default function RequestPageClient({
 
     try {
       const payload = {
-        mediaType,
+        mediaType: selectedItem?.mediaType || 'movie',
         title: finalTitle,
         tmdbId: selectedItem?.id || undefined,
         year: selectedItem?.year || undefined,
@@ -385,6 +373,7 @@ export default function RequestPageClient({
   // ── Handle Vote ──
   const handleVote = async (requestId: string) => {
     if (!isLoggedIn) {
+      setIsLoginPromptOpen(true);
       return;
     }
 
@@ -449,85 +438,34 @@ export default function RequestPageClient({
     }
   };
 
-  // ── 0. Prevent Flicker during hydration / auth resolution ──
-  if (!mounted || authStatus === 'initializing') {
-    return (
-      <div className="min-h-screen pt-24 pb-16 px-4 flex items-center justify-center" style={{ background: '#050816' }}>
-        <div className="text-center text-slate-400 space-y-3">
-          <RefreshCw size={28} className="animate-spin mx-auto text-cyan-400" />
-          <p className="text-xs font-semibold">Memuat halaman request...</p>
-        </div>
-      </div>
-    );
-  }
+  const handleOpenCreateRequest = () => {
+    if (!isLoggedIn) {
+      setIsLoginPromptOpen(true);
+    } else {
+      setIsModalOpen(true);
+      setDuplicateInfo(null);
+      setFormError(null);
+    }
+  };
 
-  // ── 1. UNLOGGED STATE: Clean minimal Lock Screen (No duplicate top hero banner) ──
-  if (!isLoggedIn) {
-    return (
-      <div className="min-h-screen pt-24 sm:pt-28 pb-16 px-4 sm:px-6 md:px-8 flex items-center justify-center" style={{ background: '#050816' }}>
-        <div className="w-full max-w-xl rounded-3xl p-8 sm:p-12 border border-cyan-500/30 bg-gradient-to-b from-[#090e24] via-[#080d20] to-[#050816] text-center shadow-[0_0_60px_rgba(6,182,212,0.15)] relative overflow-hidden animate-fade-in">
-          {/* Subtle Ambient Background Light */}
-          <div className="absolute -top-20 left-1/2 -translate-x-1/2 w-80 h-80 rounded-full bg-cyan-500/10 blur-[90px] pointer-events-none" />
-
-          <div className="w-18 h-18 sm:w-20 sm:h-20 mx-auto rounded-3xl bg-gradient-to-br from-cyan-500/15 to-purple-500/15 border border-cyan-500/40 flex items-center justify-center text-cyan-400 mb-6 shadow-[0_0_30px_rgba(6,182,212,0.25)]">
-            <LogIn size={34} />
-          </div>
-
-          <h1 className="text-xl sm:text-2xl md:text-3xl font-black text-white mb-3 tracking-tight">
-            Login Diperlukan untuk Mengajukan Request
-          </h1>
-
-          <p className="text-xs sm:text-sm text-slate-400 leading-relaxed mb-8 max-w-md mx-auto">
-            Silakan masuk ke akunmu untuk mengajukan permintaan judul film/series baru dan memberikan vote pada permintaan komunitas.
-          </p>
-
-          <div className="flex flex-col sm:flex-row items-center justify-center gap-3.5">
-            <Link
-              href="/login?redirect=/request"
-              className="w-full sm:w-auto min-w-[180px] px-7 py-3.5 rounded-2xl bg-gradient-to-r from-cyan-500 via-sky-500 to-purple-600 text-white font-extrabold text-sm shadow-[0_0_25px_rgba(6,182,212,0.35)] hover:scale-105 active:scale-95 transition-all flex items-center justify-center gap-2"
-            >
-              <span>Login Sekarang</span>
-              <ArrowRight size={15} />
-            </Link>
-            <Link
-              href="/login?tab=register&redirect=/request"
-              className="w-full sm:w-auto min-w-[160px] px-6 py-3.5 rounded-2xl bg-white/[0.06] hover:bg-white/10 text-slate-300 font-bold text-sm border border-white/10 transition-all text-center"
-            >
-              Daftar Akun
-            </Link>
-          </div>
-        </div>
-      </div>
-    );
-  }
-
-  // ── 2. LOGGED IN STATE: Full Request Dashboard with Modal & Feed ──
   return (
     <div className="min-h-screen pt-20 sm:pt-24 pb-16 px-4 sm:px-6 md:px-8 lg:px-12 xl:px-16" style={{ background: '#050816' }}>
       <div className="max-w-7xl mx-auto space-y-6">
         
-        {/* ── Top Header Bar ── */}
+        {/* ── Top Header Bar (Clean without extra badges) ── */}
         <div className="relative rounded-3xl p-6 sm:p-8 overflow-hidden border border-cyan-500/20 bg-gradient-to-br from-[#0b122c] via-[#090e24] to-[#060814] shadow-xl flex flex-col sm:flex-row sm:items-center justify-between gap-4">
           <div>
-            <div className="inline-flex items-center gap-2 px-3 py-1 rounded-full bg-cyan-500/10 border border-cyan-500/30 text-cyan-400 text-xs font-bold mb-2">
-              <Sparkles size={13} />
-              <span>Komunitas & Aspirasi</span>
-            </div>
             <h1 className="text-xl sm:text-2xl md:text-3xl font-black text-white tracking-tight">
               Request Film & TV Series
             </h1>
-            <p className="text-xs sm:text-sm text-slate-400 max-w-xl mt-0.5">
+            <p className="text-xs sm:text-sm text-slate-400 max-w-xl mt-1">
               Pantau permintaan dari komunitas dan ajukan judul film atau serial TV favoritmu.
             </p>
           </div>
 
           <button
             type="button"
-            onClick={() => {
-              setIsModalOpen(true);
-              setDuplicateInfo(null);
-              setFormError(null);
-            }}
+            onClick={handleOpenCreateRequest}
             className="px-5 py-3 rounded-2xl bg-gradient-to-r from-cyan-500 via-sky-500 to-purple-600 hover:from-cyan-400 hover:to-purple-500 text-white font-extrabold text-xs sm:text-sm shadow-[0_0_25px_rgba(6,182,212,0.3)] transition-all duration-200 hover:scale-105 active:scale-95 flex items-center justify-center gap-2 self-start sm:self-auto flex-shrink-0"
           >
             <Plus size={16} />
@@ -552,7 +490,7 @@ export default function RequestPageClient({
           </div>
         )}
 
-        {/* ── REQUESTS FEED TOOLBAR & TABS ── */}
+        {/* ── REQUESTS FEED TOOLBAR & TABS (Always visible for all users) ── */}
         <div className="space-y-5">
           <div className="flex flex-col md:flex-row items-stretch md:items-center justify-between gap-3.5">
             {/* Tabs: Terbaru & Paling Banyak Diminta */}
@@ -626,7 +564,7 @@ export default function RequestPageClient({
               </p>
               <button
                 type="button"
-                onClick={() => setIsModalOpen(true)}
+                onClick={handleOpenCreateRequest}
                 className="px-4 py-2 rounded-xl bg-cyan-500/20 text-cyan-300 font-bold text-xs border border-cyan-500/30 hover:bg-cyan-500/30 transition-all inline-flex items-center gap-1.5"
               >
                 <Plus size={14} />
@@ -839,7 +777,7 @@ export default function RequestPageClient({
             >
               {/* Modal Header */}
               <div className="flex items-center justify-between border-b border-white/10 pb-3.5">
-                <div className="flex items-center gap-2 text-white">
+                <div className="flex items-center gap-2.5 text-white">
                   <div className="p-2 rounded-xl bg-cyan-500/20 text-cyan-400 border border-cyan-500/30">
                     <Plus size={18} />
                   </div>
@@ -847,9 +785,6 @@ export default function RequestPageClient({
                     <h3 className="text-base sm:text-lg font-black">
                       Buat Permintaan Baru
                     </h3>
-                    <p className="text-[11px] text-slate-400">
-                      Cari film atau serial TV yang ingin ditambahkan.
-                    </p>
                   </div>
                 </div>
 
@@ -862,41 +797,10 @@ export default function RequestPageClient({
                 </button>
               </div>
 
-              {/* Media Type Switcher */}
-              <div className="flex items-center gap-2.5">
-                <span className="text-xs font-bold text-slate-400">Tipe Media:</span>
-                <div className="inline-flex p-1 rounded-2xl bg-black/50 border border-white/10">
-                  <button
-                    type="button"
-                    onClick={() => handleMediaTypeSwitch('movie')}
-                    className={`px-3.5 py-1.5 rounded-xl text-xs font-extrabold transition-all flex items-center gap-1.5 ${
-                      mediaType === 'movie'
-                        ? 'bg-gradient-to-r from-cyan-500 to-sky-600 text-white shadow-md shadow-cyan-500/25'
-                        : 'text-slate-400 hover:text-white'
-                    }`}
-                  >
-                    <Film size={12} />
-                    <span>Movie</span>
-                  </button>
-                  <button
-                    type="button"
-                    onClick={() => handleMediaTypeSwitch('tv')}
-                    className={`px-3.5 py-1.5 rounded-xl text-xs font-extrabold transition-all flex items-center gap-1.5 ${
-                      mediaType === 'tv'
-                        ? 'bg-gradient-to-r from-purple-500 to-indigo-600 text-white shadow-md shadow-purple-500/25'
-                        : 'text-slate-400 hover:text-white'
-                    }`}
-                  >
-                    <Tv size={12} />
-                    <span>Series</span>
-                  </button>
-                </div>
-              </div>
-
-              {/* Smart Search Input */}
+              {/* Clean Search Title Input */}
               <div ref={searchContainerRef} className="relative space-y-1.5">
                 <label className="text-xs font-bold text-slate-300 block">
-                  Cari Judul, Link TMDB, atau TMDB ID
+                  Search Title
                 </label>
 
                 <div className="relative">
@@ -906,17 +810,13 @@ export default function RequestPageClient({
                   />
                   <input
                     type="text"
-                    value={smartQuery}
+                    value={searchTitleQuery}
                     onChange={(e) => {
-                      setSmartQuery(e.target.value);
+                      setSearchTitleQuery(e.target.value);
                       setCustomTitle(e.target.value);
                       if (!e.target.value.trim()) setSelectedItem(null);
                     }}
-                    placeholder={
-                      isTV
-                        ? 'Ketik judul serial, paste link TMDB, atau nomor ID...'
-                        : 'Ketik judul film, paste link TMDB, atau nomor ID...'
-                    }
+                    placeholder="Ketik judul film atau serial TV..."
                     className="w-full pl-10 pr-10 py-2.5 sm:py-3 bg-[#080d20] border border-white/10 rounded-2xl text-xs sm:text-sm text-white placeholder-slate-500 focus:outline-none focus:border-cyan-500 transition-all"
                   />
                   {searching ? (
@@ -924,7 +824,7 @@ export default function RequestPageClient({
                       size={15}
                       className="absolute right-3.5 top-1/2 -translate-y-1/2 text-cyan-400 animate-spin"
                     />
-                  ) : smartQuery ? (
+                  ) : searchTitleQuery ? (
                     <button
                       type="button"
                       onClick={handleClearSelection}
@@ -940,7 +840,7 @@ export default function RequestPageClient({
                   <div className="absolute top-full left-0 right-0 mt-2 p-2 bg-[#080d20] border border-cyan-500/30 rounded-2xl shadow-2xl z-30 max-h-64 overflow-y-auto divide-y divide-white/5">
                     {searchResults.map((item) => (
                       <button
-                        key={item.id}
+                        key={`${item.mediaType}-${item.id}`}
                         type="button"
                         onClick={() => handleSelectTMDBItem(item)}
                         className="w-full p-2.5 rounded-xl hover:bg-white/5 transition-all text-left flex items-center gap-3 group"
@@ -954,14 +854,25 @@ export default function RequestPageClient({
                             />
                           ) : (
                             <div className="w-full h-full flex items-center justify-center text-slate-500">
-                              <Film size={16} />
+                              {item.mediaType === 'tv' ? <Tv size={16} /> : <Film size={16} />}
                             </div>
                           )}
                         </div>
                         <div className="min-w-0 flex-1">
-                          <h4 className="text-xs sm:text-sm font-bold text-white group-hover:text-cyan-300 truncate transition-colors">
-                            {item.title}
-                          </h4>
+                          <div className="flex items-center gap-1.5">
+                            <span
+                              className={`px-1.5 py-0.2 rounded text-[8px] font-extrabold uppercase ${
+                                item.mediaType === 'tv'
+                                  ? 'bg-purple-500/20 text-purple-300'
+                                  : 'bg-cyan-500/20 text-cyan-300'
+                              }`}
+                            >
+                              {item.mediaType === 'tv' ? 'Series' : 'Movie'}
+                            </span>
+                            <h4 className="text-xs sm:text-sm font-bold text-white group-hover:text-cyan-300 truncate transition-colors">
+                              {item.title}
+                            </h4>
+                          </div>
                           <div className="flex items-center gap-2 mt-0.5 text-[11px] text-slate-400">
                             {item.year && <span>{item.year}</span>}
                             {item.rating && (
@@ -970,9 +881,6 @@ export default function RequestPageClient({
                                 {item.rating.toFixed(1)}
                               </span>
                             )}
-                            <span className="text-slate-600 font-mono text-[10px]">
-                              #{item.id}
-                            </span>
                           </div>
                         </div>
                       </button>
@@ -994,19 +902,29 @@ export default function RequestPageClient({
                         />
                       ) : (
                         <div className="w-full h-full flex items-center justify-center text-cyan-400">
-                          <Film size={18} />
+                          {selectedItem.mediaType === 'tv' ? <Tv size={18} /> : <Film size={18} />}
                         </div>
                       )}
                     </div>
                     <div className="min-w-0">
-                      <h4 className="font-extrabold text-white text-xs sm:text-sm truncate">
-                        {selectedItem.title}
-                      </h4>
+                      <div className="flex items-center gap-1.5">
+                        <span
+                          className={`px-1.5 py-0.2 rounded text-[8px] font-extrabold uppercase ${
+                            selectedItem.mediaType === 'tv'
+                              ? 'bg-purple-500/20 text-purple-300'
+                              : 'bg-cyan-500/20 text-cyan-300'
+                          }`}
+                        >
+                          {selectedItem.mediaType === 'tv' ? 'Series' : 'Movie'}
+                        </span>
+                        <h4 className="font-extrabold text-white text-xs sm:text-sm truncate">
+                          {selectedItem.title}
+                        </h4>
+                      </div>
                       <div className="flex items-center gap-1.5 mt-0.5 text-[10px] text-slate-400 flex-wrap">
                         {selectedItem.year && <span>{selectedItem.year}</span>}
-                        <span className="text-cyan-400 font-mono">#{selectedItem.id}</span>
                         {selectedGenres.length > 0 && (
-                          <span className="truncate max-w-[120px]">
+                          <span className="truncate max-w-[150px]">
                             • {selectedGenres.slice(0, 2).join(', ')}
                           </span>
                         )}
@@ -1024,7 +942,7 @@ export default function RequestPageClient({
                 </div>
               )}
 
-              {/* Series Season Field */}
+              {/* Series Season Field (Only shown if selected item is a TV series) */}
               {isTV && (
                 <div className="space-y-1.5">
                   <label className="text-xs font-bold text-slate-300 block">
@@ -1120,6 +1038,44 @@ export default function RequestPageClient({
                   )}
                   <span>{submitting ? 'Mengirim...' : 'Kirim Permintaan'}</span>
                 </button>
+              </div>
+            </div>
+          </div>
+        )}
+
+        {/* ── LOGIN REQUIRED PROMPT MODAL (For unauthenticated users trying to request or vote) ── */}
+        {isLoginPromptOpen && (
+          <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/80 backdrop-blur-md animate-fade-in">
+            <div
+              className="relative w-full max-w-md rounded-3xl bg-[#090e21] border border-cyan-500/30 shadow-[0_0_50px_rgba(6,182,212,0.2)] p-6 sm:p-8 text-center animate-scale-up"
+              onClick={(e) => e.stopPropagation()}
+            >
+              <div className="w-16 h-16 mx-auto rounded-3xl bg-cyan-500/10 border border-cyan-500/30 flex items-center justify-center text-cyan-400 mb-4 shadow-[0_0_25px_rgba(6,182,212,0.25)]">
+                <LogIn size={30} />
+              </div>
+
+              <h3 className="text-xl font-black text-white mb-2 tracking-tight">
+                Login Diperlukan
+              </h3>
+              <p className="text-xs sm:text-sm text-slate-400 mb-6 leading-relaxed">
+                Silakan login ke akunmu untuk membuat permintaan film/series baru atau memberikan vote pada permintaan komunitas.
+              </p>
+
+              <div className="flex flex-col sm:flex-row items-center gap-3">
+                <button
+                  type="button"
+                  onClick={() => setIsLoginPromptOpen(false)}
+                  className="w-full sm:w-1/2 px-4 py-3 rounded-2xl bg-white/[0.06] hover:bg-white/10 text-slate-300 font-semibold text-xs sm:text-sm transition-all"
+                >
+                  Batal
+                </button>
+                <Link
+                  href="/login?redirect=/request"
+                  className="w-full sm:w-1/2 px-4 py-3 rounded-2xl bg-gradient-to-r from-cyan-500 to-purple-600 text-white font-bold text-xs sm:text-sm shadow-lg shadow-cyan-500/25 transition-all hover:scale-105 active:scale-95 flex items-center justify-center gap-1.5"
+                >
+                  <span>Login Sekarang</span>
+                  <ArrowRight size={14} />
+                </Link>
               </div>
             </div>
           </div>
