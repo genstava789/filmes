@@ -275,15 +275,15 @@ export async function discoverTVShows(
   }
   return fetchTMDB<TMDBResponse<TVShow>>('/discover/tv', params);
 }
-
 /**
  * Preload images in the browser background cache for instant rendering
  */
-export function prefetchImages(items: (Movie | TVShow)[], maxCount: number = 8): void {
-  if (typeof window === 'undefined') return;
+export function prefetchImages(items: (Movie | TVShow | string)[], maxCount: number = 8): void {
+  if (typeof window === 'undefined' || !items || !Array.isArray(items)) return;
   const targetItems = items.slice(0, maxCount);
   targetItems.forEach((item) => {
-    const path = item.poster_path || item.backdrop_path;
+    if (!item) return;
+    const path = typeof item === 'string' ? item : item.poster_path || item.backdrop_path;
     if (path) {
       const url = getImageUrl(path, 'w342');
       const img = new window.Image();

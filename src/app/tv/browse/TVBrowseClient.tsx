@@ -190,8 +190,7 @@ export default function TVBrowseClient({
         setTotalPages(Math.min(data.total_pages, 500));
         setTotalResults(data.total_results);
 
-        const posters = data.results.map((s) => s.poster_path).filter(Boolean);
-        prefetchImages(posters, 'w342');
+        prefetchImages(data.results);
       })
       .catch((err) => {
         console.error('Error fetching TV shows:', err);
