@@ -19,6 +19,7 @@ import {
   Star,
   Clock,
   TrendingUp,
+  LayoutGrid,
 } from 'lucide-react';
 import { Genre } from '@/types/tmdb';
 import { useAuth } from '@/context/AuthContext';
@@ -95,10 +96,10 @@ export default function MobileHeader({ genres = [] }: MobileHeaderProps) {
       border: 'rgba(236, 72, 153, 0.3)',
     },
     {
-      href: '/genre/all',
-      icon: Sparkles,
-      title: 'Genre',
-      desc: 'Kategori Movie & TV',
+      href: '/collections',
+      icon: LayoutGrid,
+      title: 'Koleksi',
+      desc: 'Koleksi kurasi film & series',
       color: '#38bdf8',
       bg: 'rgba(56, 189, 248, 0.12)',
       border: 'rgba(56, 189, 248, 0.3)',
