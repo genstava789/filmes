@@ -12,6 +12,8 @@ import {
   Play,
   Trash2,
   AlertCircle,
+  ChevronDown,
+  ChevronRight,
 } from 'lucide-react';
 import { EditingItemState, TMDBPreviewData, TVShowItem } from '../types';
 import { BackdropPicker } from './BackdropPicker';
@@ -59,8 +61,16 @@ export const EditModal: React.FC<EditModalProps> = ({
 
   // Editable episodes state when editing a TV Show
   const [episodesList, setEpisodesList] = useState<EditableEpisode[]>([]);
+  const [expandedEditSeasons, setExpandedEditSeasons] = useState<Record<string, boolean>>({});
   const [batchInputSeason, setBatchInputSeason] = useState<string | null>(null);
   const [batchUrlsText, setBatchUrlsText] = useState('');
+
+  const toggleEditSeason = (season: string) => {
+    setExpandedEditSeasons((prev) => ({
+      ...prev,
+      [season]: !prev[season],
+    }));
+  };
 
   const currentShow =
     editingItem?.type === 'tv_show'
@@ -71,6 +81,7 @@ export const EditModal: React.FC<EditModalProps> = ({
   useEffect(() => {
     if (editingItem && isOpen) {
       setSubmitError(null);
+      setExpandedEditSeasons({});
       if (editingItem.type === 'tv_show' && currentShow) {
         const mapped: EditableEpisode[] = (currentShow.episodes || []).map((ep, idx) => ({
           id: ep.relativePath || `ep_${idx}_${Date.now()}`,
@@ -667,23 +678,35 @@ export const EditModal: React.FC<EditModalProps> = ({
                 {availableSeasons.map((season) => {
                   const sEpisodes = seasonsMap[season] || [];
                   const isBatchActive = batchInputSeason === season;
+                  const isExpanded = Boolean(expandedEditSeasons[season]);
+                  const seasonLabel = `Season ${season.replace(/\D/g, '') || season}`;
 
                   return (
                     <div
                       key={season}
-                      className="p-3.5 sm:p-4 rounded-xl bg-black/40 border border-white/10 space-y-3"
+                      className="p-3.5 sm:p-4 rounded-xl bg-black/40 border border-white/10 space-y-3 transition-all"
                     >
-                      <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-2 border-b border-white/5 pb-2">
+                      <div
+                        onClick={() => toggleEditSeason(season)}
+                        className="flex flex-col sm:flex-row sm:items-center justify-between gap-2 border-b border-white/5 pb-2 cursor-pointer hover:bg-white/5 p-1 rounded-lg transition-all select-none"
+                      >
                         <div className="flex items-center gap-2">
-                          <span className="px-2.5 py-0.5 rounded-md text-xs font-extrabold bg-pink-500/20 text-pink-300 border border-pink-500/30">
-                            {season.toUpperCase()}
+                          <div className="w-5 h-5 rounded bg-white/5 flex items-center justify-center flex-shrink-0 text-slate-300">
+                            {isExpanded ? (
+                              <ChevronDown size={15} className="text-pink-400 transition-transform" />
+                            ) : (
+                              <ChevronRight size={15} className="text-slate-400 transition-transform" />
+                            )}
+                          </div>
+                          <span className="px-2.5 py-0.5 rounded-md text-xs font-extrabold bg-pink-500/20 text-pink-300 border border-pink-500/30 capitalize">
+                            {seasonLabel}
                           </span>
                           <span className="text-xs text-slate-400 font-semibold">
                             {sEpisodes.length} Episode
                           </span>
                         </div>
 
-                        <div className="flex items-center gap-2 flex-wrap">
+                        <div className="flex items-center gap-2 flex-wrap" onClick={(e) => e.stopPropagation()}>
                           <button
                             type="button"
                             onClick={() =>
@@ -695,8 +718,11 @@ export const EditModal: React.FC<EditModalProps> = ({
                           </button>
                           <button
                             type="button"
-                            onClick={() => handleAddEpisodeToSeason(season)}
-                            className="px-3 py-1.5 rounded-lg text-xs font-bold bg-pink-500/20 text-pink-300 border border-pink-500/30 hover:bg-pink-500/30 flex items-center gap-1 min-h-[34px]"
+                            onClick={() => {
+                              if (!isExpanded) toggleEditSeason(season);
+                              handleAddEpisodeToSeason(season);
+                            }}
+                            className="px-3 py-1.5 rounded-lg text-xs font-bold bg-pink-500/20 text-pink-300 border border-pink-500/30 hover:bg-pink-500/30 flex items-center gap-1 min-h-[34px] capitalize active:scale-95"
                           >
                             <Plus size={12} /> Tambah Ep
                           </button>
@@ -704,7 +730,7 @@ export const EditModal: React.FC<EditModalProps> = ({
                       </div>
 
                       {/* Batch URL input */}
-                      {isBatchActive && (
+                      {isExpanded && isBatchActive && (
                         <div className="p-3 rounded-lg bg-black/60 border border-cyan-500/30 space-y-2 animate-fade-in">
                           <label className="block text-xs font-bold text-cyan-300">
                             Paste URL Video Stream (1 URL per baris)
@@ -736,32 +762,33 @@ export const EditModal: React.FC<EditModalProps> = ({
                       )}
 
                       {/* Episodes Editable Cards */}
-                      {sEpisodes.length === 0 ? (
-                        <div className="p-3 text-center text-slate-500 text-xs">
-                          Belum ada episode di season ini.
-                        </div>
-                      ) : (
-                        <div className="space-y-3">
-                          {sEpisodes.map((ep, idx) => (
-                            <div
-                              key={ep.id}
-                              className="p-3 sm:p-3.5 rounded-xl bg-[#090e1e] border border-white/10 hover:border-purple-500/40 space-y-3 transition-all shadow-sm"
-                            >
-                              <div className="flex items-center justify-between gap-2">
-                                <div className="flex items-center gap-2 flex-1">
-                                  <span className="w-8 text-center font-mono text-xs font-black text-pink-400 bg-pink-500/10 rounded-lg py-1.5 border border-pink-500/20">
-                                    {ep.slug.toUpperCase()}
-                                  </span>
-                                  <input
-                                    type="text"
-                                    value={ep.title}
-                                    onChange={(e) =>
-                                      handleUpdateEpisode(ep.id, 'title', e.target.value)
-                                    }
-                                    placeholder="Judul Episode..."
-                                    className="px-3 py-2 bg-black/50 border border-white/10 rounded-xl text-xs sm:text-sm text-white font-bold focus:outline-none focus:border-purple-400 flex-1 min-h-[38px]"
-                                  />
-                                </div>
+                      {isExpanded && (
+                        sEpisodes.length === 0 ? (
+                          <div className="p-3 text-center text-slate-500 text-xs">
+                            Belum ada episode di season ini.
+                          </div>
+                        ) : (
+                          <div className="space-y-3">
+                            {sEpisodes.map((ep, idx) => (
+                              <div
+                                key={ep.id}
+                                className="p-3 sm:p-3.5 rounded-xl bg-[#090e1e] border border-white/10 hover:border-purple-500/40 space-y-3 transition-all shadow-sm"
+                              >
+                                <div className="flex items-center justify-between gap-2">
+                                  <div className="flex items-center gap-2 flex-1">
+                                    <span className="w-8 text-center font-mono text-xs font-black text-pink-400 bg-pink-500/10 rounded-lg py-1.5 border border-pink-500/20">
+                                      {ep.slug.toUpperCase()}
+                                    </span>
+                                    <input
+                                      type="text"
+                                      value={ep.title}
+                                      onChange={(e) =>
+                                        handleUpdateEpisode(ep.id, 'title', e.target.value)
+                                      }
+                                      placeholder="Judul Episode..."
+                                      className="px-3 py-2 bg-black/50 border border-white/10 rounded-xl text-xs sm:text-sm text-white font-bold focus:outline-none focus:border-purple-400 flex-1 min-h-[38px] capitalize"
+                                    />
+                                  </div>
 
                                 <button
                                   type="button"
@@ -864,9 +891,10 @@ export const EditModal: React.FC<EditModalProps> = ({
                                   onClose={() => setActiveEpBackdropId(null)}
                                 />
                               )}
-                            </div>
-                          ))}
-                        </div>
+                              </div>
+                            ))}
+                          </div>
+                        )
                       )}
                     </div>
                   );

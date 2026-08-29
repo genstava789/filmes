@@ -20,6 +20,9 @@ import {
   Clock,
   TrendingUp,
   LayoutGrid,
+  ShieldCheck,
+  Crown,
+  User as UserIcon,
 } from 'lucide-react';
 import { Genre } from '@/types/tmdb';
 import { useAuth } from '@/context/AuthContext';
@@ -187,7 +190,7 @@ export default function MobileHeader({ genres = [] }: MobileHeaderProps) {
           ) : isLoggedIn && user ? (
             <Link
               href="/profile"
-              className="px-2.5 py-1.5 sm:px-3 sm:py-1.5 rounded-xl text-xs font-bold text-cyan-300 transition-all duration-200 hover:scale-105 active:scale-95 flex items-center gap-1.5"
+              className="px-2.5 py-1 sm:px-3 sm:py-1.5 rounded-xl text-xs font-bold text-cyan-300 transition-all duration-200 hover:scale-105 active:scale-95 flex items-center gap-2"
               style={{
                 background:
                   'linear-gradient(135deg, rgba(6, 182, 212, 0.18) 0%, rgba(124, 58, 237, 0.22) 100%)',
@@ -196,18 +199,38 @@ export default function MobileHeader({ genres = [] }: MobileHeaderProps) {
               }}
             >
               <div
-                className="w-5 h-5 rounded-lg flex items-center justify-center overflow-hidden border border-cyan-400/60 shadow-[0_0_8px_rgba(6,182,212,0.4)]"
+                className="w-7 h-7 sm:w-8 sm:h-8 rounded-lg flex items-center justify-center overflow-hidden border border-cyan-400/60 shadow-[0_0_8px_rgba(6,182,212,0.4)] flex-shrink-0"
                 style={{ background: 'linear-gradient(135deg, #06b6d4, #7c3aed)' }}
               >
                 {user.avatar ? (
                   <img src={user.avatar} alt={user.username} className="w-full h-full object-cover" />
                 ) : (
-                  <span className="font-black text-[10px] text-white">
+                  <span className="font-black text-[11px] text-white">
                     {user.username.charAt(0).toUpperCase()}
                   </span>
                 )}
               </div>
-              <span className="max-w-[70px] truncate text-white">{user.username}</span>
+              <div className="flex flex-col items-start justify-center min-w-0">
+                <span className="max-w-[75px] sm:max-w-[100px] truncate text-white font-extrabold text-[11px] sm:text-xs leading-tight capitalize">
+                  {user.username}
+                </span>
+                {user.role === 'owner' ? (
+                  <span className="inline-flex items-center gap-0.5 px-1 py-0.2 rounded text-[7.5px] sm:text-[8px] font-black bg-gradient-to-r from-amber-500/25 to-yellow-500/25 border border-amber-500/45 text-amber-300 shadow-[0_0_6px_rgba(245,158,11,0.25)] leading-none mt-0.5">
+                    <Crown size={8} className="text-amber-400 fill-amber-400 flex-shrink-0" />
+                    <span>OWNER</span>
+                  </span>
+                ) : user.role === 'admin' ? (
+                  <span className="inline-flex items-center gap-0.5 px-1 py-0.2 rounded text-[7.5px] sm:text-[8px] font-black bg-gradient-to-r from-cyan-500/25 to-sky-500/25 border border-cyan-500/45 text-cyan-300 shadow-[0_0_6px_rgba(6,182,212,0.25)] leading-none mt-0.5">
+                    <ShieldCheck size={8} className="text-cyan-400 flex-shrink-0" />
+                    <span>ADMIN</span>
+                  </span>
+                ) : (
+                  <span className="inline-flex items-center gap-0.5 px-1 py-0.2 rounded text-[7.5px] sm:text-[8px] font-bold bg-cyan-500/15 border border-cyan-500/30 text-cyan-300 shadow-[0_0_6px_rgba(6,182,212,0.2)] leading-none mt-0.5">
+                    <ShieldCheck size={8} className="text-cyan-400 flex-shrink-0" />
+                    <span>MEMBER</span>
+                  </span>
+                )}
+              </div>
             </Link>
           ) : (
             <Link
@@ -258,6 +281,67 @@ export default function MobileHeader({ genres = [] }: MobileHeaderProps) {
               '0 25px 60px rgba(0, 0, 0, 0.8), 0 0 30px rgba(6, 182, 212, 0.1), inset 0 1px 0 rgba(255, 255, 255, 0.1)',
           }}
         >
+          {/* Section 0: User Profile Header Card in Mobile Drawer */}
+          {isLoggedIn && user && (
+            <div className="mb-3.5 p-3 rounded-2xl bg-white/[0.04] border border-white/[0.08] flex items-center justify-between gap-3">
+              <div className="flex items-center gap-2.5 min-w-0">
+                <div
+                  className="w-10 h-10 rounded-xl flex items-center justify-center overflow-hidden border border-cyan-400/50 shadow-md flex-shrink-0"
+                  style={{ background: 'linear-gradient(135deg, #06b6d4, #7c3aed)' }}
+                >
+                  {user.avatar ? (
+                    <img src={user.avatar} alt={user.username} className="w-full h-full object-cover" />
+                  ) : (
+                    <span className="font-black text-sm text-white">
+                      {user.username.charAt(0).toUpperCase()}
+                    </span>
+                  )}
+                </div>
+                <div className="min-w-0">
+                  <span className="font-black text-xs sm:text-sm text-white capitalize block truncate">
+                    {user.username}
+                  </span>
+                  <div className="mt-0.5">
+                    {user.role === 'owner' ? (
+                      <span className="inline-flex items-center gap-1 px-2 py-0.5 rounded-full text-[9px] font-black bg-gradient-to-r from-amber-500/25 to-yellow-500/25 border border-amber-500/40 text-amber-300">
+                        <Crown size={9} className="text-amber-400 fill-amber-400" />
+                        OWNER
+                      </span>
+                    ) : user.role === 'admin' ? (
+                      <span className="inline-flex items-center gap-1 px-2 py-0.5 rounded-full text-[9px] font-black bg-gradient-to-r from-cyan-500/25 to-sky-500/25 border border-cyan-500/40 text-cyan-300">
+                        <ShieldCheck size={9} className="text-cyan-400" />
+                        ADMINISTRATOR
+                      </span>
+                    ) : (
+                      <span className="inline-flex items-center gap-1 px-2 py-0.5 rounded-full text-[9px] font-bold bg-cyan-500/15 border border-cyan-500/30 text-cyan-300">
+                        <ShieldCheck size={9} className="text-cyan-400" />
+                        MEMBER
+                      </span>
+                    )}
+                  </div>
+                </div>
+              </div>
+              <div className="flex items-center gap-1.5 flex-shrink-0">
+                <Link
+                  href="/profile"
+                  onClick={() => setMenuOpen(false)}
+                  className="px-2.5 py-1.5 rounded-xl text-xs font-bold bg-cyan-500/15 hover:bg-cyan-500/25 text-cyan-300 border border-cyan-500/30 transition-all active:scale-95"
+                >
+                  Profil
+                </Link>
+                {(user.role === 'owner' || user.role === 'admin') && (
+                  <Link
+                    href="/admin"
+                    onClick={() => setMenuOpen(false)}
+                    className="px-2.5 py-1.5 rounded-xl text-xs font-bold bg-purple-500/20 hover:bg-purple-500/30 text-purple-200 border border-purple-500/40 transition-all active:scale-95"
+                  >
+                    CMS
+                  </Link>
+                )}
+              </div>
+            </div>
+          )}
+
           {/* Section 1: Primary Navigation Cards (2x2 Grid, Clean & Simple) */}
           <div className="grid grid-cols-2 gap-2.5 mb-4">
             {navCards.map((card) => {

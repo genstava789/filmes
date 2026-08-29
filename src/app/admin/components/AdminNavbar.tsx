@@ -150,16 +150,16 @@ export const AdminNavbar: React.FC<AdminNavbarProps> = ({
               className="px-3.5 py-2 rounded-xl bg-gradient-to-r from-cyan-500 to-blue-600 hover:from-cyan-400 hover:to-blue-500 text-black font-extrabold text-xs flex items-center gap-1.5 transition-all shadow-md shadow-cyan-500/20 active:scale-95"
             >
               <Plus size={14} />
-              <span>+ Film</span>
+              <span>Film</span>
             </button>
 
             {/* Add TV */}
             <button
               onClick={onOpenCreateTV}
-              className="px-3.5 py-2 rounded-xl bg-gradient-to-r from-blue-600 to-purple-600 hover:from-blue-500 hover:to-purple-500 text-white font-extrabold text-xs flex items-center gap-1.5 transition-all shadow-md shadow-blue-500/20 active:scale-95"
+              className="px-3.5 py-2 rounded-xl bg-gradient-to-r from-pink-500 to-purple-600 hover:from-pink-400 hover:to-purple-500 text-white font-extrabold text-xs flex items-center gap-1.5 transition-all shadow-md shadow-pink-500/20 active:scale-95"
             >
               <Plus size={14} />
-              <span>+ TV Series</span>
+              <span>TV Series</span>
             </button>
 
             {/* GitHub Token Config Status */}
@@ -215,7 +215,7 @@ export const AdminNavbar: React.FC<AdminNavbarProps> = ({
               onClick={() => setActiveTab('tv')}
               className={`px-3 py-1.5 rounded-lg text-xs font-extrabold transition-all flex items-center gap-1.5 whitespace-nowrap ${
                 activeTab === 'tv'
-                  ? 'bg-blue-500 text-white shadow-md shadow-blue-500/30'
+                  ? 'bg-gradient-to-r from-pink-500 to-purple-600 text-white shadow-md shadow-pink-500/30'
                   : 'text-slate-400 hover:text-white'
               }`}
             >

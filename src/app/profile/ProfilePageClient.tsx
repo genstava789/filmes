@@ -163,6 +163,50 @@ function WatchlistCardItem({
   );
 }
 
+function WatchlistSkeletonGrid() {
+  return (
+    <div className="grid grid-cols-2 xs:grid-cols-2 sm:grid-cols-3 md:grid-cols-4 lg:grid-cols-5 xl:grid-cols-6 gap-3.5 sm:gap-4.5 md:gap-5 animate-pulse">
+      {Array.from({ length: 12 }).map((_, idx) => (
+        <div
+          key={idx}
+          className="flex flex-col rounded-xl sm:rounded-2xl overflow-hidden bg-[#0c1224] border border-white/10 p-0"
+        >
+          <div className="aspect-[2/3] w-full bg-white/[0.06]" />
+          <div className="pt-2 sm:pt-2.5 px-1 pb-1 space-y-1.5">
+            <div className="h-3.5 w-3/4 rounded-md bg-white/[0.08]" />
+            <div className="h-2.5 w-1/3 rounded-md bg-white/[0.04]" />
+          </div>
+        </div>
+      ))}
+    </div>
+  );
+}
+
+function HistorySkeletonList() {
+  return (
+    <div className="space-y-3 sm:space-y-4 animate-pulse">
+      {Array.from({ length: 6 }).map((_, idx) => (
+        <div
+          key={idx}
+          className="flex items-center justify-between gap-4 p-3 sm:p-4 rounded-2xl bg-[#0c1226] border border-white/[0.08]"
+        >
+          <div className="flex items-center gap-3.5 sm:gap-4 flex-1 min-w-0">
+            <div className="w-16 sm:w-20 aspect-[16/10] rounded-xl bg-white/[0.06] flex-shrink-0" />
+            <div className="space-y-2 flex-1">
+              <div className="flex items-center gap-2">
+                <div className="h-3 w-10 rounded bg-white/[0.08]" />
+                <div className="h-3.5 w-44 sm:w-60 rounded bg-white/[0.08]" />
+              </div>
+              <div className="h-2.5 w-24 rounded bg-white/[0.04]" />
+            </div>
+          </div>
+          <div className="w-8 h-8 rounded-xl bg-white/[0.04] flex-shrink-0" />
+        </div>
+      ))}
+    </div>
+  );
+}
+
 export default function ProfilePageClient() {
   const {
     user,
@@ -317,7 +361,7 @@ export default function ProfilePageClient() {
                   // LOGGED IN MODE: Responsive username + Member Badge + Email + Joined Date
                   <div className="space-y-2">
                     <div className="flex flex-col sm:flex-row items-center sm:items-start text-center sm:text-left gap-1.5 sm:gap-2.5">
-                      <h1 className="text-xl sm:text-2xl md:text-3xl font-black text-white tracking-tight break-all sm:break-normal max-w-full">
+                      <h1 className="text-xl sm:text-2xl md:text-3xl font-black text-white tracking-tight break-all sm:break-normal max-w-full capitalize">
                         {user?.username}
                       </h1>
                       {user?.role === 'owner' ? (
@@ -489,7 +533,9 @@ export default function ProfilePageClient() {
         {/* ── TAB 1: WATCHLIST ── */}
         {activeTab === 'watchlist' && (
           <div className="space-y-8">
-            {!isLoggedIn ? (
+            {isRefreshing ? (
+              <WatchlistSkeletonGrid />
+            ) : !isLoggedIn ? (
               /* Guest Preview State for Watchlist */
               <div
                 className="rounded-3xl p-8 sm:p-12 text-center max-w-xl mx-auto space-y-5"
@@ -638,7 +684,9 @@ export default function ProfilePageClient() {
         {/* ── TAB 2: HISTORY ── */}
         {activeTab === 'history' && (
           <div className="space-y-8">
-            {!isLoggedIn ? (
+            {isRefreshing ? (
+              <HistorySkeletonList />
+            ) : !isLoggedIn ? (
               /* Guest Preview State for History */
               <div
                 className="rounded-3xl p-8 sm:p-12 text-center max-w-xl mx-auto space-y-5"

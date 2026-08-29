@@ -128,16 +128,13 @@ export const TVListView: React.FC<TVListViewProps> = ({
     const key = `${showSlug}_${seasonSlug}`;
     setExpandedSeasons((prev) => ({
       ...prev,
-      [key]: prev[key] === undefined ? false : !prev[key],
+      [key]: !prev[key],
     }));
   };
 
-  const isSeasonExpanded = (showSlug: string, seasonSlug: string, isFirst: boolean) => {
+  const isSeasonExpanded = (showSlug: string, seasonSlug: string) => {
     const key = `${showSlug}_${seasonSlug}`;
-    if (expandedSeasons[key] !== undefined) {
-      return expandedSeasons[key];
-    }
-    return isFirst;
+    return Boolean(expandedSeasons[key]);
   };
 
   const getShowSeasons = (show: TVShowItem) => {
@@ -156,6 +153,17 @@ export const TVListView: React.FC<TVListViewProps> = ({
   const formatSeasonLabel = (seasonSlug: string) => {
     const num = seasonSlug.replace(/\D/g, '') || '1';
     return `Season ${num}`;
+  };
+
+  const formatEpisodeTitle = (title?: string, slug?: string) => {
+    if (!title || title.toLowerCase().startsWith('e') && !title.includes(' ')) {
+      const epNum = slug ? getEpisodeNumber(slug) : (title ? getEpisodeNumber(title) : '1');
+      return `Episode ${epNum}`;
+    }
+    return title
+      .split(' ')
+      .map((w) => (w ? w.charAt(0).toUpperCase() + w.slice(1).toLowerCase() : ''))
+      .join(' ');
   };
 
   const getSeasonNumber = (seasonFolder: string | null) => {
@@ -384,8 +392,8 @@ export const TVListView: React.FC<TVListViewProps> = ({
                     </button>
                   </div>
                 ) : (
-                  showSeasons.map((seasonSlug, sIdx) => {
-                    const isExpanded = isSeasonExpanded(show.showSlug, seasonSlug, sIdx === 0);
+                  showSeasons.map((seasonSlug) => {
+                    const isExpanded = isSeasonExpanded(show.showSlug, seasonSlug);
                     const seasonEps = show.episodes.filter(
                       (ep) => (ep.seasonFolder || 's1').toLowerCase() === seasonSlug.toLowerCase()
                     );
@@ -414,7 +422,7 @@ export const TVListView: React.FC<TVListViewProps> = ({
                                 <ChevronRight size={16} className="text-slate-400 transition-transform" />
                               )}
                             </div>
-                            <span className="text-xs sm:text-sm font-extrabold text-white tracking-tight truncate">
+                            <span className="text-xs sm:text-sm font-extrabold text-white tracking-tight truncate capitalize">
                               {formatSeasonLabel(seasonSlug)}
                             </span>
                             <span className="px-2 py-0.5 rounded text-[10px] font-bold bg-purple-500/20 text-purple-300 border border-purple-500/30 whitespace-nowrap">
@@ -428,7 +436,7 @@ export const TVListView: React.FC<TVListViewProps> = ({
                           >
                             <button
                               onClick={() => onQuickAddEpisode(show, seasonSlug)}
-                              className="px-2.5 py-1 rounded-lg text-[11px] font-bold bg-purple-500/20 hover:bg-purple-500/30 text-purple-200 border border-purple-500/40 flex items-center gap-1 transition-all shadow-sm active:scale-95"
+                              className="px-2.5 py-1 rounded-lg text-[11px] font-bold bg-purple-500/20 hover:bg-purple-500/30 text-purple-200 border border-purple-500/40 flex items-center gap-1 transition-all shadow-sm active:scale-95 capitalize"
                             >
                               <Plus size={11} className="text-purple-300" />
                               <span>Tambah Ep</span>
@@ -447,6 +455,7 @@ export const TVListView: React.FC<TVListViewProps> = ({
                                 <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-2 sm:gap-2.5">
                                   {pagedEpisodes.map((ep) => {
                                     const epTitle = ep.displayTitle || ep.frontmatter.title || ep.slug;
+                                    const formattedTitle = formatEpisodeTitle(epTitle, ep.slug);
                                     const epVideo = ep.frontmatter.videourl || ep.frontmatter.video_url;
                                     const epPoster = ep.posterUrl || ep.frontmatter.image_url;
                                     const baseTVUrl = getTVUrl({
@@ -472,7 +481,7 @@ export const TVListView: React.FC<TVListViewProps> = ({
                                           <SafeAdminImage
                                             src={epPoster}
                                             fallbackSrc={poster}
-                                            alt={epTitle}
+                                            alt={formattedTitle}
                                             sizes="64px"
                                           />
                                         </div>
@@ -488,10 +497,10 @@ export const TVListView: React.FC<TVListViewProps> = ({
                                           </div>
 
                                           <h4
-                                            className="font-bold text-white text-xs leading-tight line-clamp-1 group-hover:text-purple-300 transition-colors"
-                                            title={epTitle}
+                                            className="font-bold text-white text-xs leading-tight line-clamp-1 group-hover:text-purple-300 transition-colors capitalize"
+                                            title={formattedTitle}
                                           >
-                                            {epTitle}
+                                            {formattedTitle}
                                           </h4>
 
                                           <div className="flex items-center gap-1 mt-0.5 text-[9.5px] text-slate-400">
