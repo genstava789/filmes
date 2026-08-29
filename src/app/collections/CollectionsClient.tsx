@@ -225,7 +225,7 @@ export default function CollectionsClient({
                 <span>Koleksi Komunitas</span>
               </div>
 
-              <h1 className="font-outfit text-2xl sm:text-4xl md:text-5xl font-black text-white tracking-tight mb-3">
+              <h1 className="font-poppins text-2xl sm:text-4xl md:text-5xl font-extrabold text-white tracking-tight mb-3">
                 Koleksi{' '}
                 <span
                   style={{

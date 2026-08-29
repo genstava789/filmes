@@ -218,7 +218,7 @@ export default function GenrePageClient({
         <div className="mb-6 sm:mb-8">
           <div className="flex flex-col md:flex-row md:items-center justify-between gap-4">
             <div className="flex-1 min-w-0">
-              <h1 className="font-outfit text-xl sm:text-3xl md:text-4xl font-black truncate sm:whitespace-normal mb-1">
+              <h1 className="font-poppins text-xl sm:text-3xl md:text-4xl font-extrabold truncate sm:whitespace-normal mb-1">
                 <span
                   style={{
                     background: isTV
