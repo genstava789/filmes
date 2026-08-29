@@ -98,7 +98,7 @@ export async function DELETE(req: NextRequest, { params }: RouteParams) {
     }
 
     const { id } = params;
-    const deleted = await deleteCollection(id, user.id);
+    const deleted = await deleteCollection(id, user.id, user.role);
 
     if (!deleted) {
       return NextResponse.json(

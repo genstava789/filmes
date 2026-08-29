@@ -16,6 +16,7 @@ import {
   Star,
   Clock,
   ShieldCheck,
+  Crown,
   Calendar,
   RefreshCw,
   ChevronLeft,
@@ -319,10 +320,22 @@ export default function ProfilePageClient() {
                       <h1 className="text-xl sm:text-2xl md:text-3xl font-black text-white tracking-tight break-all sm:break-normal max-w-full">
                         {user?.username}
                       </h1>
-                      <span className="inline-flex items-center gap-1 px-2.5 py-0.5 rounded-full text-[11px] font-bold bg-cyan-500/15 border border-cyan-500/30 text-cyan-300 shadow-[0_0_10px_rgba(6,182,212,0.2)] flex-shrink-0 mt-0.5 sm:mt-1">
-                        <ShieldCheck size={12} className="text-cyan-400" />
-                        MEMBER
-                      </span>
+                      {user?.role === 'owner' ? (
+                        <span className="inline-flex items-center gap-1.5 px-3 py-0.5 rounded-full text-[11px] font-black bg-gradient-to-r from-amber-500/25 to-yellow-500/25 border border-amber-500/50 text-amber-300 shadow-[0_0_15px_rgba(245,158,11,0.3)] flex-shrink-0 mt-0.5 sm:mt-1">
+                          <Crown size={12} className="text-amber-400 fill-amber-400" />
+                          OWNER
+                        </span>
+                      ) : user?.role === 'admin' ? (
+                        <span className="inline-flex items-center gap-1.5 px-3 py-0.5 rounded-full text-[11px] font-black bg-gradient-to-r from-cyan-500/25 to-sky-500/25 border border-cyan-500/50 text-cyan-300 shadow-[0_0_15px_rgba(6,182,212,0.3)] flex-shrink-0 mt-0.5 sm:mt-1">
+                          <ShieldCheck size={12} className="text-cyan-400 fill-cyan-400/30" />
+                          ADMIN
+                        </span>
+                      ) : (
+                        <span className="inline-flex items-center gap-1 px-2.5 py-0.5 rounded-full text-[11px] font-bold bg-cyan-500/15 border border-cyan-500/30 text-cyan-300 shadow-[0_0_10px_rgba(6,182,212,0.2)] flex-shrink-0 mt-0.5 sm:mt-1">
+                          <ShieldCheck size={12} className="text-cyan-400" />
+                          MEMBER
+                        </span>
+                      )}
                     </div>
 
                     <p className="text-xs sm:text-sm text-slate-400 truncate">

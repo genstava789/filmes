@@ -122,6 +122,7 @@ export async function getAuthenticatedUser(req?: NextRequest | Request) {
       id: user._id.toString(),
       username: user.username,
       email: user.email,
+      role: user.role || 'member',
       avatar: user.avatar || fallbackAvatar,
       watchlist: user.watchlist || [],
       history: user.history || [],

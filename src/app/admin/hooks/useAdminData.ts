@@ -15,7 +15,7 @@ export function useAdminData() {
   const [pageLoading, setPageLoading] = useState(false);
   const [loading, setLoading] = useState(true);
   const [isInitialLoad, setIsInitialLoad] = useState(true);
-  const [activeTab, setActiveTab] = useState<'movies' | 'tv'>('movies');
+  const [activeTab, setActiveTab] = useState<'movies' | 'tv' | 'users'>('movies');
   const [searchQuery, setSearchQuery] = useState('');
   const [debouncedSearch, setDebouncedSearch] = useState('');
 

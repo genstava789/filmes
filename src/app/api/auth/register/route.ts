@@ -43,6 +43,7 @@ export async function POST(req: NextRequest) {
         id: user._id!.toString(),
         username: user.username,
         email: user.email,
+        role: user.role || 'member',
         avatar: user.avatar,
         watchlist: user.watchlist || [],
         history: user.history || [],

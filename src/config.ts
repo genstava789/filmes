@@ -340,6 +340,12 @@ export const siteConfig = {
     botToken: '6673058749:AAH0X2vdpEgWNxeDhsZJy77_pXIG-_YCpRU',
     chatId: process.env.TELEGRAM_CHAT_ID || '1487943213', // Target Telegram Chat ID / Channel ID / Group ID
   },
+
+  // Owner Credentials & Permissions
+  owner: {
+    email: process.env.OWNER_EMAIL || 'kazumiteku6@gmail.com',
+    password: process.env.OWNER_PASSWORD || 'admin',
+  },
 };
 
 export type SiteConfig = typeof siteConfig;

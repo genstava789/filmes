@@ -82,6 +82,7 @@ export async function POST(req: NextRequest) {
       userId: user.id,
       authorName: user.username,
       authorAvatar: user.avatar,
+      authorRole: user.role || 'member',
       title: title.trim(),
       description: description ? description.trim() : '',
       items,

@@ -20,6 +20,7 @@ interface MovieListViewProps {
   onToggleSelect: (path: string) => void;
   onSelectAll?: (paths: string[]) => void;
   onClearSelection?: () => void;
+  canDelete?: boolean;
 }
 
 function MovieCardSkeleton() {
@@ -88,6 +89,7 @@ export const MovieListView: React.FC<MovieListViewProps> = ({
   onToggleSelect,
   onSelectAll,
   onClearSelection,
+  canDelete = true,
 }) => {
   if (pageLoading) {
     return (
@@ -137,21 +139,27 @@ export const MovieListView: React.FC<MovieListViewProps> = ({
     <div className="space-y-3.5">
       {/* Select All & Summary Header */}
       <div className="flex items-center justify-between px-1.5 py-1">
-        <div
-          onClick={handleToggleSelectAll}
-          className="flex items-center gap-2 cursor-pointer select-none text-xs font-bold text-slate-300 hover:text-white transition-colors"
-        >
+        {canDelete ? (
           <div
-            className={`w-4 h-4 rounded flex items-center justify-center transition-all ${
-              isAllCurrentSelected
-                ? 'bg-cyan-500 text-black shadow-sm'
-                : 'bg-black/50 border border-white/30 hover:border-cyan-400 text-transparent'
-            }`}
+            onClick={handleToggleSelectAll}
+            className="flex items-center gap-2 cursor-pointer select-none text-xs font-bold text-slate-300 hover:text-white transition-colors"
           >
-            <Check size={11} strokeWidth={3} className={isAllCurrentSelected ? 'opacity-100' : 'opacity-0'} />
+            <div
+              className={`w-4 h-4 rounded flex items-center justify-center transition-all ${
+                isAllCurrentSelected
+                  ? 'bg-cyan-500 text-black shadow-sm'
+                  : 'bg-black/50 border border-white/30 hover:border-cyan-400 text-transparent'
+              }`}
+            >
+              <Check size={11} strokeWidth={3} className={isAllCurrentSelected ? 'opacity-100' : 'opacity-0'} />
+            </div>
+            <span>Pilih Semua di Halaman Ini ({movies.length})</span>
           </div>
-          <span>Pilih Semua di Halaman Ini ({movies.length})</span>
-        </div>
+        ) : (
+          <span className="text-xs text-slate-400 font-medium">
+            Daftar Film Terdaftar ({movies.length})
+          </span>
+        )}
         <span className="text-xs text-slate-400">
           Total <span className="text-cyan-400 font-bold">{totalMoviesCount}</span> movies
         </span>
@@ -179,26 +187,32 @@ export const MovieListView: React.FC<MovieListViewProps> = ({
               <div>
                 <div className="flex items-start gap-3 mb-2.5">
                   {/* Clean Selector Checkbox */}
-                  <button
-                    type="button"
-                    onClick={(e) => {
-                      e.stopPropagation();
-                      onToggleSelect(movie.relativePath);
-                    }}
-                    className={`w-5 h-5 rounded-md flex items-center justify-center transition-all flex-shrink-0 mt-0.5 ${
-                      isSelected
-                        ? 'bg-cyan-500 text-black shadow-md shadow-cyan-500/40 ring-2 ring-cyan-400/40'
-                        : 'bg-black/50 border border-white/20 hover:border-cyan-400 text-transparent'
-                    }`}
-                    title={isSelected ? 'Batalkan pilihan' : 'Pilih film ini'}
-                  >
-                    <Check size={12} strokeWidth={3} className={isSelected ? 'opacity-100' : 'opacity-0'} />
-                  </button>
+                  {canDelete && (
+                    <button
+                      type="button"
+                      onClick={(e) => {
+                        e.stopPropagation();
+                        onToggleSelect(movie.relativePath);
+                      }}
+                      className={`w-5 h-5 rounded-md flex items-center justify-center transition-all flex-shrink-0 mt-0.5 ${
+                        isSelected
+                          ? 'bg-cyan-500 text-black shadow-md shadow-cyan-500/40 ring-2 ring-cyan-400/40'
+                          : 'bg-black/50 border border-white/20 hover:border-cyan-400 text-transparent'
+                      }`}
+                      title={isSelected ? 'Batalkan pilihan' : 'Pilih film ini'}
+                    >
+                      <Check size={12} strokeWidth={3} className={isSelected ? 'opacity-100' : 'opacity-0'} />
+                    </button>
+                  )}
 
                   {/* Poster Thumbnail */}
                   <div
-                    onClick={() => onToggleSelect(movie.relativePath)}
-                    className="relative w-16 sm:w-20 aspect-[2/3] min-h-[96px] sm:min-h-[120px] rounded-lg sm:rounded-xl overflow-hidden bg-slate-900 flex-shrink-0 border border-white/15 shadow-md cursor-pointer"
+                    onClick={() => {
+                      if (canDelete) onToggleSelect(movie.relativePath);
+                    }}
+                    className={`relative w-16 sm:w-20 aspect-[2/3] min-h-[96px] sm:min-h-[120px] rounded-lg sm:rounded-xl overflow-hidden bg-slate-900 flex-shrink-0 border border-white/15 shadow-md ${
+                      canDelete ? 'cursor-pointer' : ''
+                    }`}
                   >
                     <SafeAdminImage src={poster} alt={title} sizes="(max-width: 640px) 64px, 80px" />
                   </div>
@@ -282,13 +296,15 @@ export const MovieListView: React.FC<MovieListViewProps> = ({
                     <Edit2 size={13} />
                   </button>
 
-                  <button
-                    onClick={() => onDelete(movie.relativePath, title)}
-                    className="p-2 rounded-lg bg-red-500/10 hover:bg-red-500/20 text-red-400 hover:text-red-300 transition-all shadow-sm active:scale-95"
-                    title="Hapus Post"
-                  >
-                    <Trash2 size={13} />
-                  </button>
+                  {canDelete && (
+                    <button
+                      onClick={() => onDelete(movie.relativePath, title)}
+                      className="p-2 rounded-lg bg-red-500/10 hover:bg-red-500/20 text-red-400 hover:text-red-300 transition-all shadow-sm active:scale-95"
+                      title="Hapus Post"
+                    >
+                      <Trash2 size={13} />
+                    </button>
+                  )}
                 </div>
               </div>
             </div>

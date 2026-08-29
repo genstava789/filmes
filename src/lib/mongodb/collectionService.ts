@@ -21,6 +21,7 @@ export interface MongoCollection {
   userId: string;
   authorName: string;
   authorAvatar?: string;
+  authorRole?: 'owner' | 'admin' | 'member';
   items: CollectionItem[];
   itemCount: number;
   yearStart?: number | null;
@@ -286,6 +287,7 @@ export async function createCollection(params: {
   userId: string;
   authorName: string;
   authorAvatar?: string;
+  authorRole?: 'owner' | 'admin' | 'member';
   title: string;
   description?: string;
   items: CollectionItem[];
@@ -295,7 +297,7 @@ export async function createCollection(params: {
 
   return withMongoRetry(async () => {
     const col = await getCollectionsCol();
-    const { userId, authorName, authorAvatar, title, description, items, isPublic = true } = params;
+    const { userId, authorName, authorAvatar, authorRole = 'member', title, description, items, isPublic = true } = params;
 
     const trimmedTitle = title.trim().slice(0, 150);
     if (!trimmedTitle) {
@@ -314,6 +316,7 @@ export async function createCollection(params: {
       userId,
       authorName,
       authorAvatar,
+      authorRole,
       items: cleanItems,
       itemCount: meta.itemCount,
       yearStart: meta.yearStart,
@@ -474,17 +477,37 @@ export async function voteCollection(
 }
 
 /**
- * Delete a collection (owner only)
+ * Delete a collection (owner of collection OR system owner/admin with force delete capability)
  */
-export async function deleteCollection(idOrSlug: string, userId: string): Promise<boolean> {
+export async function deleteCollection(
+  idOrSlug: string,
+  userId: string,
+  userRole?: string
+): Promise<boolean> {
   return withMongoRetry(async () => {
     const col = await getCollectionsCol();
-    let query: any = { slug: idOrSlug, userId };
+    let query: any;
 
-    if (ObjectId.isValid(idOrSlug)) {
-      query = {
-        $and: [{ userId }, { $or: [{ _id: new ObjectId(idOrSlug) }, { slug: idOrSlug }] }],
-      };
+    const isPrivileged = userRole === 'owner' || userRole === 'admin';
+
+    if (isPrivileged) {
+      // Force delete capability for owner and admin
+      if (ObjectId.isValid(idOrSlug)) {
+        query = {
+          $or: [{ _id: new ObjectId(idOrSlug) }, { slug: idOrSlug }],
+        };
+      } else {
+        query = { slug: idOrSlug };
+      }
+    } else {
+      // Standard user can only delete their own collection
+      if (ObjectId.isValid(idOrSlug)) {
+        query = {
+          $and: [{ userId }, { $or: [{ _id: new ObjectId(idOrSlug) }, { slug: idOrSlug }] }],
+        };
+      } else {
+        query = { slug: idOrSlug, userId };
+      }
     }
 
     const res = await col.deleteOne(query);

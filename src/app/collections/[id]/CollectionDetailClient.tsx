@@ -12,11 +12,12 @@ import {
   Edit3,
   Trash2,
   Film,
-  Tv,
   ThumbsUp,
   ThumbsDown,
   ChevronLeft,
   ChevronRight,
+  Crown,
+  ShieldCheck,
   AlertTriangle,
   LogIn,
   ArrowRight,
@@ -253,6 +254,17 @@ export default function CollectionDetailClient({ collection: initialCollection }
                   <span className="text-slate-200 font-bold">
                     By {collection.authorName || 'Pengguna'}
                   </span>
+                  {collection.authorRole === 'owner' ? (
+                    <span className="px-2 py-0.5 rounded-md text-[10px] font-black bg-amber-500/20 text-amber-300 border border-amber-500/40 flex items-center gap-1 shadow-sm">
+                      <Crown size={10} className="text-amber-400 fill-amber-400" />
+                      <span>Owner</span>
+                    </span>
+                  ) : collection.authorRole === 'admin' ? (
+                    <span className="px-2 py-0.5 rounded-md text-[10px] font-black bg-cyan-500/20 text-cyan-300 border border-cyan-500/40 flex items-center gap-1 shadow-sm">
+                      <ShieldCheck size={10} className="text-cyan-400" />
+                      <span>Admin</span>
+                    </span>
+                  ) : null}
                 </div>
                 <span>•</span>
                 <span>
@@ -318,26 +330,29 @@ export default function CollectionDetailClient({ collection: initialCollection }
                 <span>Bagikan</span>
               </button>
 
+              {/* Edit Button (Owner of collection only) */}
               {isOwner && (
-                <>
-                  <button
-                    type="button"
-                    onClick={() => setEditModalOpen(true)}
-                    className="px-4 py-2.5 rounded-xl bg-cyan-500/20 hover:bg-cyan-500/30 text-cyan-300 font-bold text-xs sm:text-sm border border-cyan-500/40 transition-all flex items-center gap-1.5"
-                  >
-                    <Edit3 size={15} />
-                    <span>Edit</span>
-                  </button>
+                <button
+                  type="button"
+                  onClick={() => setEditModalOpen(true)}
+                  className="px-4 py-2.5 rounded-xl bg-cyan-500/20 hover:bg-cyan-500/30 text-cyan-300 font-bold text-xs sm:text-sm border border-cyan-500/40 transition-all flex items-center gap-1.5"
+                >
+                  <Edit3 size={15} />
+                  <span>Edit</span>
+                </button>
+              )}
 
-                  <button
-                    type="button"
-                    onClick={() => setDeleteConfirmOpen(true)}
-                    className="px-4 py-2.5 rounded-xl bg-red-500/20 hover:bg-red-500/30 text-red-300 font-bold text-xs sm:text-sm border border-red-500/40 transition-all flex items-center gap-1.5"
-                  >
-                    <Trash2 size={15} />
-                    <span>Hapus</span>
-                  </button>
-                </>
+              {/* Delete Button (Owner of collection OR Admin/Owner force delete) */}
+              {(isOwner || user?.role === 'owner' || user?.role === 'admin') && (
+                <button
+                  type="button"
+                  onClick={() => setDeleteConfirmOpen(true)}
+                  className="px-4 py-2.5 rounded-xl bg-red-500/20 hover:bg-red-500/30 text-red-300 font-bold text-xs sm:text-sm border border-red-500/40 transition-all flex items-center gap-1.5 shadow-sm"
+                  title={!isOwner ? 'Hapus paksa (Hak Akses Moderator/Admin)' : 'Hapus Koleksi'}
+                >
+                  <Trash2 size={15} />
+                  <span>{!isOwner ? (user?.role === 'owner' ? 'Hapus (Owner)' : 'Hapus (Admin)') : 'Hapus'}</span>
+                </button>
               )}
             </div>
           </div>

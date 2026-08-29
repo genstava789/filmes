@@ -6,6 +6,7 @@ export interface UserProfile {
   id: string;
   username: string;
   email: string;
+  role?: 'owner' | 'admin' | 'member';
   avatar?: string;
   createdAt?: string | number;
 }
@@ -154,6 +155,7 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
           id: data.user.id,
           username: data.user.username,
           email: data.user.email,
+          role: data.user.role || 'member',
           avatar: data.user.avatar,
           createdAt: data.user.createdAt,
         };
@@ -213,6 +215,7 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
           id: data.user.id,
           username: data.user.username,
           email: data.user.email,
+          role: data.user.role || 'member',
           avatar: data.user.avatar,
           createdAt: data.user.createdAt,
         };
@@ -254,6 +257,7 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
           id: data.user.id,
           username: data.user.username,
           email: data.user.email,
+          role: data.user.role || 'member',
           avatar: data.user.avatar,
           createdAt: data.user.createdAt,
         };

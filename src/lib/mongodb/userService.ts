@@ -1,6 +1,9 @@
 import { ObjectId } from 'mongodb';
 import { getDatabase, resetMongoClient } from './client';
 import { hashPassword, verifyPassword } from '@/lib/auth/password';
+import siteConfig from '@/config';
+
+export type UserRole = 'owner' | 'admin' | 'member';
 
 export interface MongoWatchlistItem {
   contentId: string | number;
@@ -32,6 +35,7 @@ export interface MongoUser {
   email: string;
   passwordHash: string;
   salt: string;
+  role?: UserRole;
   avatar?: string;
   watchlist: MongoWatchlistItem[];
   history: MongoHistoryItem[];
@@ -103,6 +107,24 @@ export function normalizeEmail(email: string): string {
 }
 
 /**
+ * Resolves the effective role of a user.
+ * If user email matches siteConfig.owner.email, role is always 'owner'.
+ */
+export function resolveUserRole(user?: { email?: string; role?: UserRole } | null): UserRole {
+  if (!user || !user.email) return 'member';
+  const cleanEmail = normalizeEmail(user.email);
+  const ownerEmail = normalizeEmail(siteConfig.owner?.email || 'kazumiteku6@gmail.com');
+
+  if (cleanEmail === ownerEmail) {
+    return 'owner';
+  }
+  if (user.role === 'admin') {
+    return 'admin';
+  }
+  return 'member';
+}
+
+/**
  * Finds user by ObjectId string.
  */
 export async function getUserById(userId: string): Promise<MongoUser | null> {
@@ -111,7 +133,11 @@ export async function getUserById(userId: string): Promise<MongoUser | null> {
 
   return withMongoRetry(async () => {
     const col = await getUsersCollection();
-    return await col.findOne({ _id: new ObjectId(userId) });
+    const user = await col.findOne({ _id: new ObjectId(userId) });
+    if (user) {
+      user.role = resolveUserRole(user);
+    }
+    return user;
   });
 }
 
@@ -124,9 +150,13 @@ export async function getUserByUsernameOrEmail(identifier: string): Promise<Mong
 
   return withMongoRetry(async () => {
     const col = await getUsersCollection();
-    return await col.findOne({
+    const user = await col.findOne({
       $or: [{ username: clean }, { email: clean }],
     });
+    if (user) {
+      user.role = resolveUserRole(user);
+    }
+    return user;
   });
 }
 
@@ -161,12 +191,14 @@ export async function createUser(data: {
 
     const { salt, hash } = hashPassword(data.password);
     const now = Date.now();
+    const role = resolveUserRole({ email: cleanEmail });
 
     const newUser: MongoUser = {
       username: cleanUsername,
       email: cleanEmail,
       passwordHash: hash,
       salt,
+      role,
       avatar: `https://api.dicebear.com/7.x/identicon/svg?seed=${encodeURIComponent(cleanUsername)}`,
       watchlist: [],
       history: [],
@@ -181,19 +213,143 @@ export async function createUser(data: {
 }
 
 /**
- * Authenticates user credentials.
+ * Authenticates user credentials with support for Owner credentials.
  */
 export async function authenticateUser(
   identifier: string,
   password: string
 ): Promise<MongoUser | null> {
-  const user = await getUserByUsernameOrEmail(identifier);
+  const cleanIdentifier = identifier.trim().toLowerCase();
+  const ownerEmail = normalizeEmail(siteConfig.owner?.email || 'kazumiteku6@gmail.com');
+  const ownerPassword = siteConfig.owner?.password || 'admin';
+
+  // Check if logging in with owner credentials
+  if (cleanIdentifier === ownerEmail && password === ownerPassword) {
+    let ownerUser = await getUserByUsernameOrEmail(ownerEmail);
+    if (!ownerUser) {
+      // Auto-provision owner user in MongoDB
+      try {
+        ownerUser = await createUser({
+          username: 'owner',
+          email: ownerEmail,
+          password: ownerPassword,
+        });
+      } catch {
+        ownerUser = await getUserByUsernameOrEmail(ownerEmail);
+      }
+    }
+    if (ownerUser) {
+      ownerUser.role = 'owner';
+      return ownerUser;
+    }
+  }
+
+  const user = await getUserByUsernameOrEmail(cleanIdentifier);
   if (!user || !user.passwordHash || !user.salt) return null;
 
   const isValid = verifyPassword(password, user.salt, user.passwordHash);
-  if (!isValid) return null;
+  if (!isValid) {
+    // If user is owner email and matched config owner password
+    if (normalizeEmail(user.email) === ownerEmail && password === ownerPassword) {
+      user.role = 'owner';
+      return user;
+    }
+    return null;
+  }
 
+  user.role = resolveUserRole(user);
   return user;
+}
+
+/**
+ * Fetches all registered users for Admin/Owner management.
+ */
+export async function getAllUsers(operatorUserId: string): Promise<
+  Array<{
+    id: string;
+    username: string;
+    email: string;
+    role: UserRole;
+    avatar?: string;
+    createdAt: number;
+  }>
+> {
+  const operator = await getUserById(operatorUserId);
+  if (!operator) {
+    throw new Error('Akses ditolak');
+  }
+
+  const operatorRole = resolveUserRole(operator);
+  if (operatorRole !== 'owner' && operatorRole !== 'admin') {
+    throw new Error('Hanya Administrator atau Owner yang dapat melihat daftar pengguna');
+  }
+
+  return withMongoRetry(async () => {
+    const col = await getUsersCollection();
+    const rawUsers = await col
+      .find({})
+      .sort({ createdAt: -1 })
+      .project({ passwordHash: 0, salt: 0, watchlist: 0, history: 0 })
+      .toArray();
+
+    return rawUsers.map((u) => {
+      const role = resolveUserRole({ email: u.email, role: u.role });
+      return {
+        id: u._id.toString(),
+        username: u.username,
+        email: u.email,
+        role,
+        avatar: u.avatar || `https://api.dicebear.com/7.x/identicon/svg?seed=${encodeURIComponent(u.username)}`,
+        createdAt: u.createdAt,
+      };
+    });
+  });
+}
+
+/**
+ * Updates a user's role (Owner only).
+ */
+export async function updateUserRole(
+  operatorUserId: string,
+  targetUserId: string,
+  newRole: 'admin' | 'member'
+): Promise<{ success: boolean; user: { id: string; username: string; role: UserRole } }> {
+  const operator = await getUserById(operatorUserId);
+  if (!operator) {
+    throw new Error('Akses ditolak');
+  }
+
+  const operatorRole = resolveUserRole(operator);
+  if (operatorRole !== 'owner') {
+    throw new Error('Hanya Owner yang memiliki izin untuk mengubah Role pengguna');
+  }
+
+  const target = await getUserById(targetUserId);
+  if (!target) {
+    throw new Error('Pengguna tidak ditemukan');
+  }
+
+  const currentRole = resolveUserRole(target);
+  if (currentRole === 'owner') {
+    throw new Error('Role Owner tidak dapat diubah');
+  }
+
+  return withMongoRetry(async () => {
+    const col = await getUsersCollection();
+    await col.updateOne(
+      { _id: new ObjectId(targetUserId) },
+      { $set: { role: newRole, updatedAt: Date.now() } }
+    );
+
+    return {
+      success: true,
+      user: {
+        id: targetUserId,
+        username: target.username,
+        role: newRole,
+      },
+    };
+  });
 }
 
 // ─────────────────────────────────────────────────────────────────────────────
@@ -210,7 +366,7 @@ export async function getUserWatchlist(userId: string): Promise<MongoWatchlistIt
 
 /**
  * Toggles an item in the user's watchlist.
- * Returns true if added, false if removed.
+ * Returns { added, watchlist }.
  */
 export async function toggleUserWatchlist(
   userId: string,
@@ -222,45 +378,50 @@ export async function toggleUserWatchlist(
     backdropPath?: string | null;
     rating?: number;
     releaseDate?: string;
-    urlPath?: string;
+    urlPath: string;
   }
 ): Promise<{ added: boolean; watchlist: MongoWatchlistItem[] }> {
+  ensureUserIndexesBackground();
+  if (!ObjectId.isValid(userId)) throw new Error('Invalid user ID');
+
   return withMongoRetry(async () => {
     const col = await getUsersCollection();
-    const user = await getUserById(userId);
+    const user = await col.findOne({ _id: new ObjectId(userId) });
     if (!user) throw new Error('User not found');
 
-    const currentList = user.watchlist || [];
-    const normalizedId = String(item.contentId);
-    const exists = currentList.some((w) => String(w.contentId) === normalizedId);
-
-    let updatedList: MongoWatchlistItem[];
+    const watchlist = user.watchlist || [];
+    const exists = watchlist.some((w) => String(w.contentId) === String(item.contentId));
 
     if (exists) {
-      // Remove
-      updatedList = currentList.filter((w) => String(w.contentId) !== normalizedId);
+      const updated = watchlist.filter((w) => String(w.contentId) !== String(item.contentId));
+      await col.updateOne(
+        { _id: new ObjectId(userId) },
+        {
+          $set: { watchlist: updated, updatedAt: Date.now() },
+        }
+      );
+      return { added: false, watchlist: updated };
     } else {
-      // Add to front
       const newItem: MongoWatchlistItem = {
         contentId: item.contentId,
         type: item.type,
         title: item.title,
-        posterPath: item.posterPath || null,
-        backdropPath: item.backdropPath || null,
-        rating: item.rating || 0,
-        releaseDate: item.releaseDate || '2026',
-        urlPath: item.urlPath || (item.type === 'tv' ? `/tv/${item.contentId}` : `/movie/${item.contentId}`),
+        posterPath: item.posterPath ?? null,
+        backdropPath: item.backdropPath ?? null,
+        rating: item.rating,
+        releaseDate: item.releaseDate,
+        urlPath: item.urlPath,
         addedAt: Date.now(),
       };
-      updatedList = [newItem, ...currentList];
+      const updated = [newItem, ...watchlist];
+      await col.updateOne(
+        { _id: new ObjectId(userId) },
+        {
+          $set: { watchlist: updated, updatedAt: Date.now() },
+        }
+      );
+      return { added: true, watchlist: updated };
     }
-
-    await col.updateOne(
-      { _id: new ObjectId(userId) },
-      { $set: { watchlist: updatedList, updatedAt: Date.now() } }
-    );
-
-    return { added: !exists, watchlist: updatedList };
   });
 }
 
@@ -271,23 +432,26 @@ export async function removeUserWatchlist(
   userId: string,
   contentId: string | number
 ): Promise<MongoWatchlistItem[]> {
+  ensureUserIndexesBackground();
+  if (!ObjectId.isValid(userId)) throw new Error('Invalid user ID');
+
   return withMongoRetry(async () => {
     const col = await getUsersCollection();
-    const normalizedId = String(contentId);
+    const user = await col.findOne({ _id: new ObjectId(userId) });
+    if (!user) return [];
 
-    const user = await getUserById(userId);
-    if (!user) throw new Error('User not found');
-
-    const updatedList = (user.watchlist || []).filter(
-      (w) => String(w.contentId) !== normalizedId
+    const updated = (user.watchlist || []).filter(
+      (w) => String(w.contentId) !== String(contentId)
     );
 
     await col.updateOne(
       { _id: new ObjectId(userId) },
-      { $set: { watchlist: updatedList, updatedAt: Date.now() } }
+      {
+        $set: { watchlist: updated, updatedAt: Date.now() },
+      }
     );
 
-    return updatedList;
+    return updated;
   });
 }
 
@@ -296,7 +460,7 @@ export async function removeUserWatchlist(
 // ─────────────────────────────────────────────────────────────────────────────
 
 /**
- * Retrieves the user's viewing history sorted by newest first.
+ * Retrieves the user's viewing history.
  */
 export async function getUserHistory(userId: string): Promise<MongoHistoryItem[]> {
   const user = await getUserById(userId);
@@ -304,8 +468,7 @@ export async function getUserHistory(userId: string): Promise<MongoHistoryItem[]
 }
 
 /**
- * Records content visit into user history.
- * Eliminates duplicates by bumping existing entries to the top with new timestamp.
+ * Adds an item to the user's history and returns the updated list.
  */
 export async function addUserHistory(
   userId: string,
@@ -317,68 +480,96 @@ export async function addUserHistory(
     posterPath?: string | null;
     backdropPath?: string | null;
     rating?: number;
-    urlPath?: string;
+    urlPath: string;
   }
 ): Promise<MongoHistoryItem[]> {
+  ensureUserIndexesBackground();
+  if (!ObjectId.isValid(userId)) throw new Error('Invalid user ID');
+
   return withMongoRetry(async () => {
     const col = await getUsersCollection();
-    const user = await getUserById(userId);
-    if (!user) throw new Error('User not found');
+    const user = await col.findOne({ _id: new ObjectId(userId) });
+    if (!user) return [];
 
-    const currentHistory = user.history || [];
-    const normalizedId = String(item.contentId);
-    const now = Date.now();
+    const history = user.history || [];
+    const filtered = history.filter((h) => {
+      if (item.type === 'tv' && item.episodeTitle) {
+        return !(String(h.contentId) === String(item.contentId) && h.episodeTitle === item.episodeTitle);
+      }
+      return String(h.contentId) !== String(item.contentId);
+    });
 
     const newHistoryItem: MongoHistoryItem = {
       contentId: item.contentId,
       type: item.type,
       title: item.title,
       episodeTitle: item.episodeTitle,
-      posterPath: item.posterPath || null,
-      backdropPath: item.backdropPath || null,
-      rating: item.rating || 0,
-      urlPath: item.urlPath || (item.type === 'tv' ? `/tv/${item.contentId}` : `/movie/${item.contentId}`),
-      viewedAt: now,
+      posterPath: item.posterPath ?? null,
+      backdropPath: item.backdropPath ?? null,
+      rating: item.rating,
+      urlPath: item.urlPath,
+      viewedAt: Date.now(),
     };
 
-    const filtered = currentHistory.filter((h) => String(h.contentId) !== normalizedId);
-    const updatedHistory = [newHistoryItem, ...filtered].slice(0, 50);
+    const updated = [newHistoryItem, ...filtered].slice(0, 100);
 
     await col.updateOne(
       { _id: new ObjectId(userId) },
-      { $set: { history: updatedHistory, updatedAt: now } }
+      {
+        $set: {
+          history: updated,
+          updatedAt: Date.now(),
+        },
+      }
     );
 
-    return updatedHistory;
+    return updated;
   });
 }
 
 /**
- * Deletes an item or clears entire history for a user.
+ * Removes one item or clears all items from the user's viewing history.
  */
 export async function removeUserHistory(
   userId: string,
   contentId?: string | number
 ): Promise<MongoHistoryItem[]> {
+  ensureUserIndexesBackground();
+  if (!ObjectId.isValid(userId)) throw new Error('Invalid user ID');
+
   return withMongoRetry(async () => {
     const col = await getUsersCollection();
-    const user = await getUserById(userId);
-    if (!user) throw new Error('User not found');
-
-    let updatedHistory: MongoHistoryItem[] = [];
-
-    if (contentId !== undefined && contentId !== null) {
-      const normalizedId = String(contentId);
-      updatedHistory = (user.history || []).filter((h) => String(h.contentId) !== normalizedId);
-    } else {
-      updatedHistory = [];
+    if (!contentId) {
+      await col.updateOne(
+        { _id: new ObjectId(userId) },
+        {
+          $set: { history: [], updatedAt: Date.now() },
+        }
+      );
+      return [];
     }
+
+    const user = await col.findOne({ _id: new ObjectId(userId) });
+    if (!user) return [];
+
+    const updated = (user.history || []).filter(
+      (h) => String(h.contentId) !== String(contentId)
+    );
 
     await col.updateOne(
       { _id: new ObjectId(userId) },
-      { $set: { history: updatedHistory, updatedAt: Date.now() } }
+      {
+        $set: { history: updated, updatedAt: Date.now() },
+      }
     );
 
-    return updatedHistory;
+    return updated;
   });
+}
+
+/**
+ * Clears the user's viewing history.
+ */
+export async function clearUserHistory(userId: string): Promise<void> {
+  await removeUserHistory(userId);
 }

@@ -22,6 +22,8 @@ import {
   ThumbsDown,
   ChevronLeft,
   ChevronRight,
+  Crown,
+  ShieldCheck,
 } from 'lucide-react';
 import { MongoCollection } from '@/lib/mongodb/collectionService';
 import { useAuth } from '@/context/AuthContext';
@@ -455,13 +457,24 @@ export default function CollectionsClient({
                       {/* Footer Author & Like/Dislike Info */}
                       <div className="pt-3 border-t border-white/5 flex items-center justify-between text-xs text-slate-400">
                         {/* Author Info */}
-                        <div className="flex items-center gap-2 min-w-0 mr-2">
+                        <div className="flex items-center gap-1.5 min-w-0 mr-2">
                           <div className="w-5 h-5 rounded-full bg-gradient-to-br from-cyan-500 to-purple-600 flex items-center justify-center text-[10px] font-black text-white flex-shrink-0">
                             {collection.authorName ? collection.authorName.charAt(0).toUpperCase() : 'U'}
                           </div>
                           <span className="truncate font-semibold text-slate-300">
-                            By {collection.authorName || 'Pengguna'}
+                            {collection.authorName || 'Pengguna'}
                           </span>
+                          {collection.authorRole === 'owner' ? (
+                            <span className="px-1.5 py-0.5 rounded-md text-[9px] font-black bg-amber-500/20 text-amber-300 border border-amber-500/40 flex-shrink-0 flex items-center gap-0.5 shadow-sm">
+                              <Crown size={9} className="text-amber-400 fill-amber-400" />
+                              <span>Owner</span>
+                            </span>
+                          ) : collection.authorRole === 'admin' ? (
+                            <span className="px-1.5 py-0.5 rounded-md text-[9px] font-black bg-cyan-500/20 text-cyan-300 border border-cyan-500/40 flex-shrink-0 flex items-center gap-0.5 shadow-sm">
+                              <ShieldCheck size={9} className="text-cyan-400" />
+                              <span>Admin</span>
+                            </span>
+                          ) : null}
                         </div>
 
                         {/* Interactive Like & Dislike Buttons */}

@@ -1,11 +1,23 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { getGitHubConfigFromRequest, deleteAdminContent } from '@/lib/admin/cmsService';
+import { getAuthenticatedUser } from '@/lib/auth/session';
+import { resolveUserRole } from '@/lib/mongodb/userService';
 
 export const dynamic = 'force-dynamic';
 export const revalidate = 0;
 
 async function handleDelete(request: NextRequest) {
   try {
+    const user = await getAuthenticatedUser(request).catch(() => null);
+    if (user && resolveUserRole(user) !== 'owner') {
+      return NextResponse.json(
+        {
+          error: 'Akses ditolak: Administrator tidak memiliki izin untuk menghapus konten CMS. Hanya Owner yang dapat menghapus konten.',
+        },
+        { status: 403 }
+      );
+    }
+
     const ghConfig = getGitHubConfigFromRequest(request);
     const { searchParams } = new URL(request.url);
     const pathParam = searchParams.get('path');

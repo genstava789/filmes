@@ -36,6 +36,7 @@ interface TVListViewProps {
   onToggleSelect?: (path: string) => void;
   onSelectAll?: (paths: string[]) => void;
   onClearSelection?: () => void;
+  canDelete?: boolean;
 }
 
 function TVCardSkeleton() {
@@ -118,6 +119,7 @@ export const TVListView: React.FC<TVListViewProps> = ({
   onToggleSelect,
   onSelectAll,
   onClearSelection,
+  canDelete = true,
 }) => {
   const [expandedSeasons, setExpandedSeasons] = useState<Record<string, boolean>>({});
   const [seasonPages, setSeasonPages] = useState<Record<string, number>>({});
@@ -183,12 +185,12 @@ export const TVListView: React.FC<TVListViewProps> = ({
         <h3 className="text-sm font-bold text-white mb-1">Belum Ada TV Series Ditemukan</h3>
         <p className="text-xs text-slate-400 mb-4 max-w-sm mx-auto">
           {searchQuery
-            ? 'Tidak ada TV series yang cocok dengan kata kunci pencarian Anda.'
-            : 'Mulai tambahkan TV Series baru dengan season dan episode.'}
+            ? 'Tidak ada serial TV yang cocok dengan kata kunci pencarian Anda.'
+            : 'Mulai tambahkan serial TV baru beserta episodenya.'}
         </p>
         <button
           onClick={onOpenCreate}
-          className="inline-flex items-center gap-1.5 px-4 py-2 rounded-xl text-xs font-bold bg-pink-500 hover:bg-pink-400 text-white transition-all shadow-lg shadow-pink-500/20 active:scale-95"
+          className="px-4 py-2 bg-gradient-to-r from-pink-500 to-purple-600 hover:from-pink-600 hover:to-purple-700 text-white text-xs font-bold rounded-xl transition-all shadow-md shadow-pink-500/20 active:scale-95 inline-flex items-center gap-1.5"
         >
           <Plus size={14} />
           <span>Tambah TV Series Baru</span>
@@ -198,7 +200,8 @@ export const TVListView: React.FC<TVListViewProps> = ({
   }
 
   const allVisiblePaths = tvShows.map((s) => s.relativePath);
-  const isAllCurrentSelected = allVisiblePaths.length > 0 && allVisiblePaths.every((p) => selectedPaths.includes(p));
+  const isAllCurrentSelected =
+    allVisiblePaths.length > 0 && allVisiblePaths.every((p) => selectedPaths.includes(p));
 
   const handleToggleSelectAll = () => {
     if (isAllCurrentSelected) {
@@ -212,21 +215,27 @@ export const TVListView: React.FC<TVListViewProps> = ({
     <div className="space-y-4">
       {/* Select All & Summary Header */}
       <div className="flex items-center justify-between px-1.5 py-1">
-        <div
-          onClick={handleToggleSelectAll}
-          className="flex items-center gap-2 cursor-pointer select-none text-xs font-bold text-slate-300 hover:text-white transition-colors"
-        >
+        {canDelete ? (
           <div
-            className={`w-4 h-4 rounded flex items-center justify-center transition-all ${
-              isAllCurrentSelected
-                ? 'bg-pink-500 text-white shadow-sm'
-                : 'bg-black/50 border border-white/30 hover:border-pink-400 text-transparent'
-            }`}
+            onClick={handleToggleSelectAll}
+            className="flex items-center gap-2 cursor-pointer select-none text-xs font-bold text-slate-300 hover:text-white transition-colors"
           >
-            <Check size={11} strokeWidth={3} className={isAllCurrentSelected ? 'opacity-100' : 'opacity-0'} />
+            <div
+              className={`w-4 h-4 rounded flex items-center justify-center transition-all ${
+                isAllCurrentSelected
+                  ? 'bg-pink-500 text-white shadow-sm'
+                  : 'bg-black/50 border border-white/30 hover:border-pink-400 text-transparent'
+              }`}
+            >
+              <Check size={11} strokeWidth={3} className={isAllCurrentSelected ? 'opacity-100' : 'opacity-0'} />
+            </div>
+            <span>Pilih Semua di Halaman Ini ({tvShows.length})</span>
           </div>
-          <span>Pilih Semua di Halaman Ini ({tvShows.length})</span>
-        </div>
+        ) : (
+          <span className="text-xs text-slate-400 font-medium">
+            Daftar Serial TV Terdaftar ({tvShows.length})
+          </span>
+        )}
         <span className="text-xs text-slate-400">
           Total <span className="text-pink-400 font-bold">{totalShowsCount}</span> serial TV
         </span>
@@ -255,26 +264,32 @@ export const TVListView: React.FC<TVListViewProps> = ({
               <div className="flex flex-col md:flex-row md:items-center justify-between gap-3 pb-3 border-b border-white/10 w-full">
                 <div className="flex items-start sm:items-center gap-2.5">
                   {/* Clean Selector Checkbox */}
-                  <button
-                    type="button"
-                    onClick={(e) => {
-                      e.stopPropagation();
-                      if (onToggleSelect) onToggleSelect(show.relativePath);
-                    }}
-                    className={`w-5 h-5 rounded-md flex items-center justify-center transition-all flex-shrink-0 mt-1 sm:mt-0 ${
-                      isSelected
-                        ? 'bg-pink-500 text-white shadow-md shadow-pink-500/40 ring-2 ring-pink-400/40'
-                        : 'bg-black/50 border border-white/20 hover:border-pink-400 text-transparent'
-                    }`}
-                    title={isSelected ? 'Batalkan pilihan' : 'Pilih serial ini'}
-                  >
-                    <Check size={12} strokeWidth={3} className={isSelected ? 'opacity-100' : 'opacity-0'} />
-                  </button>
+                  {canDelete && (
+                    <button
+                      type="button"
+                      onClick={(e) => {
+                        e.stopPropagation();
+                        if (onToggleSelect) onToggleSelect(show.relativePath);
+                      }}
+                      className={`w-5 h-5 rounded-md flex items-center justify-center transition-all flex-shrink-0 mt-1 sm:mt-0 ${
+                        isSelected
+                          ? 'bg-pink-500 text-white shadow-md shadow-pink-500/40 ring-2 ring-pink-400/40'
+                          : 'bg-black/50 border border-white/20 hover:border-pink-400 text-transparent'
+                      }`}
+                      title={isSelected ? 'Batalkan pilihan' : 'Pilih serial ini'}
+                    >
+                      <Check size={12} strokeWidth={3} className={isSelected ? 'opacity-100' : 'opacity-0'} />
+                    </button>
+                  )}
 
                   {/* Poster Thumbnail */}
                   <div
-                    onClick={() => onToggleSelect && onToggleSelect(show.relativePath)}
-                    className="relative w-12 sm:w-14 aspect-[2/3] min-h-[72px] sm:min-h-[84px] rounded-lg overflow-hidden bg-slate-900 flex-shrink-0 border border-white/10 shadow-sm cursor-pointer"
+                    onClick={() => {
+                      if (canDelete && onToggleSelect) onToggleSelect(show.relativePath);
+                    }}
+                    className={`relative w-12 sm:w-14 aspect-[2/3] min-h-[72px] sm:min-h-[84px] rounded-lg overflow-hidden bg-slate-900 flex-shrink-0 border border-white/10 shadow-sm ${
+                      canDelete ? 'cursor-pointer' : ''
+                    }`}
                   >
                     <SafeAdminImage src={poster} alt={title} sizes="56px" />
                   </div>
@@ -344,13 +359,15 @@ export const TVListView: React.FC<TVListViewProps> = ({
                     <span>Kelola Series</span>
                   </button>
 
-                  <button
-                    onClick={() => onDeleteShow(`tv/${show.showSlug}`, title)}
-                    className="hidden sm:inline-flex p-2 rounded-lg bg-red-500/10 hover:bg-red-500/20 text-red-400 transition-all"
-                    title="Hapus Seluruh TV Series"
-                  >
-                    <Trash2 size={13} />
-                  </button>
+                  {canDelete && (
+                    <button
+                      onClick={() => onDeleteShow(`tv/${show.showSlug}`, title)}
+                      className="hidden sm:inline-flex p-2 rounded-lg bg-red-500/10 hover:bg-red-500/20 text-red-400 transition-all"
+                      title="Hapus Seluruh TV Series"
+                    >
+                      <Trash2 size={13} />
+                    </button>
+                  )}
                 </div>
               </div>
 
@@ -500,13 +517,15 @@ export const TVListView: React.FC<TVListViewProps> = ({
                                               >
                                                 <Edit2 size={11} />
                                               </button>
-                                              <button
-                                                onClick={() => onDeleteEpisode(ep.relativePath, epTitle)}
-                                                className="p-1 rounded bg-red-500/10 hover:bg-red-500/20 text-red-400"
-                                                title="Hapus Episode"
-                                              >
-                                                <Trash2 size={11} />
-                                              </button>
+                                              {canDelete && (
+                                                <button
+                                                  onClick={() => onDeleteEpisode(ep.relativePath, epTitle)}
+                                                  className="p-1 rounded bg-red-500/10 hover:bg-red-500/20 text-red-400"
+                                                  title="Hapus Episode"
+                                                >
+                                                  <Trash2 size={11} />
+                                                </button>
+                                              )}
                                             </div>
                                           </div>
                                         </div>
