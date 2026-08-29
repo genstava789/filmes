@@ -37,6 +37,7 @@ import {
   syncMongoDBToGitHub,
   isMongoConfigured,
 } from '@/lib/mongodb/service';
+import { deleteRequestsByContent } from '@/lib/mongodb/requestService';
 import { STATIC_MOVIE_FILES, STATIC_TV_FILES } from '@/lib/staticContentRegistry';
 
 const VIDEO_DIR = path.join(process.cwd(), 'video');
@@ -1122,6 +1123,13 @@ export async function createAdminContent(body: any, ghConfig: GitHubOptions) {
         console.warn('[createAdminContent] GitHub auto-commit notice:', ghErr);
       }
     }
+
+    // 5. Auto-delete any pending requests for this fulfilled movie
+    deleteRequestsByContent({
+      tmdbId: tmdbIdNum,
+      title: frontmatterData.title || title,
+      mediaType: 'movie',
+    }).catch((err) => console.warn('[CMS auto-delete request] Error:', err));
   } else if (contentType === 'tv_show') {
     let { tmdb_id, title, desc, poster, rating, featured, showSlug, content = '', seasons = [] } = body;
 
@@ -1322,6 +1330,13 @@ export async function createAdminContent(body: any, ghConfig: GitHubOptions) {
         console.warn('[createAdminContent] MongoDB TV show save notice:', mErr);
       }
     }
+
+    // 5. Auto-delete any pending requests for this fulfilled TV show
+    deleteRequestsByContent({
+      tmdbId: tmdbIdNum,
+      title: frontmatterData.title || title || showSlug,
+      mediaType: 'tv',
+    }).catch((err) => console.warn('[CMS auto-delete request] Error:', err));
 
     selectiveRevalidateAll();
     return {

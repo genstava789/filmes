@@ -2,6 +2,7 @@
 
 import React, { useState, useEffect, useRef } from 'react';
 import Link from 'next/link';
+import { useRouter } from 'next/navigation';
 import {
   Film,
   Tv,
@@ -85,6 +86,7 @@ export default function RequestPageClient({
   movieGenres = [],
   tvGenres = [],
 }: RequestPageClientProps) {
+  const router = useRouter();
   const { user, isLoggedIn } = useAuth();
   const [mounted, setMounted] = useState(false);
 
@@ -119,6 +121,11 @@ export default function RequestPageClient({
 
   // Duplicate Alert State
   const [duplicateInfo, setDuplicateInfo] = useState<MongoMediaRequest | null>(null);
+  const [catalogMatchInfo, setCatalogMatchInfo] = useState<{
+    contentTitle: string;
+    targetUrl: string;
+    message: string;
+  } | null>(null);
 
   // Submit & Feedback States
   const [submitting, setSubmitting] = useState(false);
@@ -292,6 +299,7 @@ export default function RequestPageClient({
     setCustomTitle('');
     setSelectedGenres([]);
     setDuplicateInfo(null);
+    setCatalogMatchInfo(null);
   };
 
   const handleResetForm = () => {
@@ -303,6 +311,7 @@ export default function RequestPageClient({
     setSeasonRequest('All Seasons');
     setCustomSeason('');
     setDuplicateInfo(null);
+    setCatalogMatchInfo(null);
     setFormError(null);
   };
 
@@ -346,6 +355,18 @@ export default function RequestPageClient({
       });
 
       const data = await res.json();
+
+      if (data.alreadyInCatalog && data.targetUrl) {
+        setCatalogMatchInfo({
+          contentTitle: data.contentTitle || finalTitle,
+          targetUrl: data.targetUrl,
+          message: data.message || `Film/Series ini sudah tersedia di database Filmesia!`,
+        });
+        setTimeout(() => {
+          router.push(data.targetUrl);
+        }, 2200);
+        return;
+      }
 
       if (res.status === 409 && data.isDuplicate) {
         setDuplicateInfo(data.existingRequest);
@@ -444,6 +465,7 @@ export default function RequestPageClient({
     } else {
       setIsModalOpen(true);
       setDuplicateInfo(null);
+      setCatalogMatchInfo(null);
       setFormError(null);
     }
   };
@@ -1031,8 +1053,30 @@ export default function RequestPageClient({
                 />
               </div>
 
+              {/* Content Already In Catalog Alert & Direct Watch Button */}
+              {catalogMatchInfo && (
+                <div className="p-4 rounded-2xl bg-emerald-950/40 border border-emerald-500/50 space-y-3 animate-in fade-in">
+                  <div className="flex items-center gap-2.5 text-emerald-400">
+                    <CheckCircle2 size={18} className="flex-shrink-0" />
+                    <h4 className="font-black text-xs sm:text-sm text-white">
+                      Film / Series Ini Sudah Ada di Database!
+                    </h4>
+                  </div>
+                  <p className="text-xs text-slate-300 leading-relaxed">
+                    <strong className="text-emerald-300">{catalogMatchInfo.contentTitle}</strong> sudah tersedia di katalog Filmesia. Mengarahkan Anda ke halaman tonton...
+                  </p>
+                  <Link
+                    href={catalogMatchInfo.targetUrl}
+                    className="w-full py-2.5 rounded-xl bg-gradient-to-r from-emerald-500 via-teal-500 to-cyan-500 text-black font-extrabold text-xs shadow-lg shadow-emerald-500/25 hover:scale-[1.02] active:scale-95 transition-all flex items-center justify-center gap-2 text-center"
+                  >
+                    <span>Tonton Sekarang</span>
+                    <ArrowRight size={14} />
+                  </Link>
+                </div>
+              )}
+
               {/* Duplicate Request Alert */}
-              {duplicateInfo && (
+              {duplicateInfo && !catalogMatchInfo && (
                 <div className="p-3.5 rounded-2xl bg-amber-950/30 border border-amber-500/40 space-y-2.5 animate-in fade-in">
                   <div className="flex items-center gap-2 text-amber-400">
                     <AlertCircle size={16} className="flex-shrink-0" />

@@ -5,6 +5,7 @@ import {
   createMediaRequest,
   getMediaRequests,
   findDuplicateRequest,
+  findCatalogContent,
 } from '@/lib/mongodb/requestService';
 import { resolveUserRole } from '@/lib/mongodb/userService';
 
@@ -84,9 +85,28 @@ export async function POST(req: NextRequest) {
     const cleanTitle = title.trim();
     const cleanMediaType: 'movie' | 'tv' = mediaType === 'tv' ? 'tv' : 'movie';
     const cleanTmdbId = tmdbId ? Number(tmdbId) : null;
-    const userRole = resolveUserRole(user);
+    // 0. Check if this content already exists in Filmesia catalog
+    const catalogMatch = await findCatalogContent({
+      tmdbId: cleanTmdbId,
+      title: cleanTitle,
+      mediaType: cleanMediaType,
+    });
 
-    // 1. Check for duplicates first
+    if (catalogMatch && catalogMatch.exists) {
+      return NextResponse.json(
+        {
+          success: false,
+          alreadyInCatalog: true,
+          contentTitle: catalogMatch.title,
+          targetUrl: catalogMatch.url,
+          mediaType: catalogMatch.mediaType,
+          message: `"${catalogMatch.title}" sudah tersedia di database Filmesia! Mengarahkan Anda ke halaman tonton...`,
+        },
+        { status: 200 }
+      );
+    }
+
+    // 1. Check for duplicates in requests list first
     const duplicate = await findDuplicateRequest({
       tmdbId: cleanTmdbId,
       title: cleanTitle,
@@ -106,6 +126,7 @@ export async function POST(req: NextRequest) {
     }
 
     // 2. Save new request to MongoDB
+    const userRole = resolveUserRole(user);
     const createdRequest = await createMediaRequest({
       userId: user.id,
       authorName: user.username,

@@ -1,5 +1,5 @@
 import { ObjectId } from 'mongodb';
-import { getDatabase, resetMongoClient } from './client';
+import { getDatabase, resetMongoClient, isMongoConfigured } from './client';
 
 export interface MongoMediaRequest {
   _id?: ObjectId | string;
@@ -351,3 +351,184 @@ export async function deleteMediaRequest(
     return { success: true };
   });
 }
+
+/**
+ * Automatically deletes requests matching the provided TMDB ID or title when content is created/filled in CMS.
+ */
+export async function deleteRequestsByContent(params: {
+  tmdbId?: number | null;
+  title?: string | null;
+  mediaType?: 'movie' | 'tv';
+}): Promise<number> {
+  ensureRequestIndexesBackground();
+  return withMongoRetry(async () => {
+    const col = await getRequestsCol();
+    const targetId = params.tmdbId ? Number(params.tmdbId) : null;
+    const cleanTitle = params.title?.trim().toLowerCase() || '';
+
+    const conditions: any[] = [];
+    if (targetId) {
+      conditions.push({ tmdbId: targetId });
+    }
+    if (cleanTitle) {
+      conditions.push({
+        title: { $regex: new RegExp(`^${cleanTitle.replace(/[.*+?^${}()|[\]\\]/g, '\\$&')}$`, 'i') },
+      });
+    }
+
+    if (conditions.length === 0) return 0;
+
+    const filter: any = conditions.length === 1 ? conditions[0] : { $or: conditions };
+    if (params.mediaType) {
+      filter.mediaType = params.mediaType;
+    }
+
+    const result = await col.deleteMany(filter);
+    console.log(`[MongoDB Requests] Deleted ${result.deletedCount} request(s) matching content:`, params);
+    return result.deletedCount;
+  });
+}
+
+export interface CatalogMatch {
+  exists: boolean;
+  mediaType: 'movie' | 'tv';
+  slug: string;
+  title: string;
+  url: string;
+}
+
+/**
+ * Checks if the content (Movie / TV Show) already exists in Filmesia catalog (MongoDB or Static Registry).
+ */
+export async function findCatalogContent(params: {
+  tmdbId?: number | null;
+  title?: string | null;
+  mediaType?: 'movie' | 'tv';
+}): Promise<CatalogMatch | null> {
+  const targetId = params.tmdbId ? Number(params.tmdbId) : null;
+  const cleanTitle = params.title?.trim().toLowerCase() || '';
+
+  if (!targetId && !cleanTitle) return null;
+
+  // 1. Check MongoDB if configured
+  if (isMongoConfigured()) {
+    try {
+      const db = await getDatabase();
+      const moviesCol = db.collection('movies');
+      const tvCol = db.collection('tv_shows');
+
+      if (!params.mediaType || params.mediaType === 'movie') {
+        const movieConditions: any[] = [];
+        if (targetId) movieConditions.push({ tmdb_id: targetId });
+        if (cleanTitle) {
+          movieConditions.push({
+            title: { $regex: new RegExp(`^${cleanTitle.replace(/[.*+?^${}()|[\]\\]/g, '\\$&')}$`, 'i') },
+          });
+        }
+
+        if (movieConditions.length > 0) {
+          const movieMatch: any = await moviesCol.findOne({
+            deleted: { $ne: true },
+            ...(movieConditions.length === 1 ? movieConditions[0] : { $or: movieConditions }),
+          });
+
+          if (movieMatch) {
+            const slug = movieMatch.slug || movieMatch.tmdb_id || targetId;
+            return {
+              exists: true,
+              mediaType: 'movie',
+              slug: String(slug),
+              title: movieMatch.title || 'Movie',
+              url: `/movie/${slug}`,
+            };
+          }
+        }
+      }
+
+      if (!params.mediaType || params.mediaType === 'tv') {
+        const tvConditions: any[] = [];
+        if (targetId) tvConditions.push({ tmdb_id: targetId });
+        if (cleanTitle) {
+          tvConditions.push({
+            title: { $regex: new RegExp(`^${cleanTitle.replace(/[.*+?^${}()|[\]\\]/g, '\\$&')}$`, 'i') },
+          });
+        }
+
+        if (tvConditions.length > 0) {
+          const tvMatch: any = await tvCol.findOne({
+            deleted: { $ne: true },
+            ...(tvConditions.length === 1 ? tvConditions[0] : { $or: tvConditions }),
+          });
+
+          if (tvMatch) {
+            const slug = tvMatch.showSlug || tvMatch.tmdb_id || targetId;
+            return {
+              exists: true,
+              mediaType: 'tv',
+              slug: String(slug),
+              title: tvMatch.title || 'TV Series',
+              url: `/tv/${slug}`,
+            };
+          }
+        }
+      }
+    } catch (err) {
+      console.warn('[findCatalogContent] MongoDB check error:', err);
+    }
+  }
+
+  // 2. Check in-memory Static Content Registry
+  try {
+    const { STATIC_MOVIE_FILES, STATIC_TV_FILES } = await import('@/lib/staticContentRegistry');
+    const matter = (await import('gray-matter')).default;
+
+    if (typeof STATIC_MOVIE_FILES === 'object' && (!params.mediaType || params.mediaType === 'movie')) {
+      for (const [key, content] of Object.entries(STATIC_MOVIE_FILES)) {
+        if (!key.endsWith('.md')) continue;
+        try {
+          const parsed = matter(content);
+          const fileTmdbId = parsed.data.tmdb_id ? Number(parsed.data.tmdb_id) : null;
+          const fileTitle = (parsed.data.title || '').trim().toLowerCase();
+          const fileSlug = key.replace(/^video[\\\/]/, '').replace(/\.md$/, '');
+
+          if ((targetId && fileTmdbId === targetId) || (cleanTitle && fileTitle === cleanTitle)) {
+            return {
+              exists: true,
+              mediaType: 'movie',
+              slug: fileSlug,
+              title: parsed.data.title || fileSlug,
+              url: `/movie/${fileSlug}`,
+            };
+          }
+        } catch {}
+      }
+    }
+
+    if (typeof STATIC_TV_FILES === 'object' && (!params.mediaType || params.mediaType === 'tv')) {
+      for (const [key, content] of Object.entries(STATIC_TV_FILES)) {
+        if (!key.endsWith('_index.md')) continue;
+        try {
+          const parsed = matter(content);
+          const fileTmdbId = parsed.data.tmdb_id ? Number(parsed.data.tmdb_id) : null;
+          const fileTitle = (parsed.data.title || '').trim().toLowerCase();
+          const showSlug = key.replace(/^tv[\\\/]/, '').replace(/[\\\/]_index\.md$/, '');
+
+          if ((targetId && fileTmdbId === targetId) || (cleanTitle && fileTitle === cleanTitle)) {
+            return {
+              exists: true,
+              mediaType: 'tv',
+              slug: showSlug,
+              title: parsed.data.title || showSlug,
+              url: `/tv/${showSlug}`,
+            };
+          }
+        } catch {}
+      }
+    }
+  } catch (err) {
+    console.warn('[findCatalogContent] Static registry check notice:', err);
+  }
+
+  return null;
+}
+
