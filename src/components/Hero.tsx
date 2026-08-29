@@ -188,7 +188,7 @@ export default function Hero({
 
   return (
     <section
-      className="relative w-full max-w-full aspect-[16/9] min-h-[350px] xs:min-h-[390px] sm:min-h-[460px] md:min-h-[520px] lg:min-h-[580px] overflow-hidden select-none touch-pan-y font-outfit"
+      className="relative w-full max-w-full aspect-[16/9] min-h-[350px] xs:min-h-[390px] sm:min-h-[460px] md:min-h-[520px] lg:min-h-[580px] overflow-hidden select-none touch-pan-y font-urbanist"
       style={{ overscrollBehaviorX: 'none' }}
       onMouseEnter={() => setIsHovered(true)}
       onMouseLeave={() => setIsHovered(false)}
