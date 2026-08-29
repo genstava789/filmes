@@ -72,23 +72,17 @@ function sortLocalMovies(items: Movie[], sortOption: string): Movie[] {
   return copy;
 }
 
-type LanguageFilterType = 'all' | 'id' | 'en' | 'kr' | 'jp' | 'anime';
+type LanguageFilterType = 'all' | 'id' | 'en';
+
+const LANGUAGE_OPTIONS: { value: LanguageFilterType; label: string }[] = [
+  { value: 'all', label: 'Semua Bahasa' },
+  { value: 'id', label: 'Bahasa Indonesia (ID)' },
+  { value: 'en', label: 'English (EN)' },
+];
 
 function filterByLanguage(items: Movie[], lang: string): Movie[] {
   if (lang === 'all') return items;
   const target = lang.toUpperCase();
-  if (target === 'ANIME') {
-    return items.filter((m: any) => {
-      const l = (m.language || 'ID').toUpperCase();
-      return l === 'ANIME' || l === 'JP_ANIME' || l === 'JA_ANIME';
-    });
-  }
-  if (target === 'JP') {
-    return items.filter((m: any) => {
-      const l = (m.language || 'ID').toUpperCase();
-      return l === 'JP' || l === 'JA' || l === 'JPN';
-    });
-  }
   return items.filter((m: any) => (m.language || 'ID').toUpperCase() === target);
 }
 
@@ -118,8 +112,10 @@ export default function MoviePageClient({
   const [totalResults, setTotalResults] = useState(0);
   const [loading, setLoading] = useState(false);
   const [sortOpen, setSortOpen] = useState(false);
+  const [langOpen, setLangOpen] = useState(false);
 
   const sortRef = useRef<HTMLDivElement>(null);
+  const langRef = useRef<HTMLDivElement>(null);
 
   // Fetch genres if not provided
   useEffect(() => {
@@ -130,11 +126,14 @@ export default function MoviePageClient({
     }
   }, [genres.length]);
 
-  // Close sort dropdown when clicking outside
+  // Close dropdowns when clicking outside
   useEffect(() => {
     const handleClickOutside = (event: MouseEvent) => {
       if (sortRef.current && !sortRef.current.contains(event.target as Node)) {
         setSortOpen(false);
+      }
+      if (langRef.current && !langRef.current.contains(event.target as Node)) {
+        setLangOpen(false);
       }
     };
     document.addEventListener('mousedown', handleClickOutside);
@@ -147,7 +146,7 @@ export default function MoviePageClient({
     const s = searchParams.get('sort') || 'popularity.desc';
     const g = searchParams.get('genre') ? Number(searchParams.get('genre')) : undefined;
     const rawL = (searchParams.get('lang') || 'all').toLowerCase();
-    const validLangs: LanguageFilterType[] = ['all', 'id', 'en', 'kr', 'jp', 'anime'];
+    const validLangs: LanguageFilterType[] = ['all', 'id', 'en'];
     const l: LanguageFilterType = validLangs.includes(rawL as any) ? (rawL as LanguageFilterType) : 'all';
 
     setPage(p);
@@ -188,30 +187,38 @@ export default function MoviePageClient({
       .then((data) => {
         movieClientCache.set(cacheKey, data);
         setMovies(data.results);
-        const maxPages = Math.min(data.total_pages, 500);
-        setTotalPages(maxPages);
+        setTotalPages(Math.min(data.total_pages, 500));
         setTotalResults(data.total_results);
-        prefetchImages(data.results);
+
+        const posters = data.results.map((m) => m.poster_path).filter(Boolean);
+        prefetchImages(posters, 'w342');
       })
-      .catch(() => setMovies([]))
-      .finally(() => setLoading(false));
+      .catch((err) => {
+        console.error('Error fetching movies:', err);
+      })
+      .finally(() => {
+        setLoading(false);
+      });
   }, [page, sort, genreId, languageFilter, initialMovies]);
 
   const updateUrl = (newPage: number, newSort: string, newGenreId?: number, newLang: string = languageFilter) => {
     const params = new URLSearchParams();
+    if (newPage > 1) params.set('page', newPage.toString());
     if (newSort && newSort !== 'popularity.desc') params.set('sort', newSort);
-    if (newPage > 1) params.set('page', String(newPage));
-    if (newGenreId) params.set('genre', String(newGenreId));
+    if (newGenreId) params.set('genre', newGenreId.toString());
     if (newLang && newLang !== 'all') params.set('lang', newLang);
 
     const qs = params.toString();
+    router.push(`/movie${qs ? `?${qs}` : ''}`);
+
     if (typeof window !== 'undefined') {
-      window.history.pushState(null, '', qs ? `/movie?${qs}` : '/movie');
+      window.scrollTo({ top: 0, behavior: 'smooth' });
     }
   };
 
   const handleLanguageChange = (newLang: LanguageFilterType) => {
     setLanguageFilter(newLang);
+    setLangOpen(false);
     setPage(1);
     updateUrl(1, sort, genreId, newLang);
   };
@@ -221,33 +228,30 @@ export default function MoviePageClient({
     setPage(1);
     setSortOpen(false);
     updateUrl(1, newSort, genreId, languageFilter);
-    if (typeof window !== 'undefined') {
-      window.scrollTo({ top: 0, behavior: 'smooth' });
-    }
   };
 
   const handleGenreSelect = (gId: number) => {
+    if (genreId === gId) return;
     setGenreId(gId);
     setPage(1);
     updateUrl(1, sort, gId, languageFilter);
   };
 
   const handleAllSelect = () => {
+    if (!genreId) return;
     setGenreId(undefined);
     setPage(1);
     updateUrl(1, sort, undefined, languageFilter);
   };
 
   const handlePageChange = (newPage: number) => {
-    if (newPage === page || newPage < 1 || newPage > totalPages) return;
+    if (newPage < 1 || newPage > totalPages || newPage === page) return;
     setPage(newPage);
     updateUrl(newPage, sort, genreId, languageFilter);
-    if (typeof window !== 'undefined') {
-      window.scrollTo({ top: 0, behavior: 'smooth' });
-    }
   };
 
   const currentSortLabel = SORT_OPTIONS.find((o) => o.value === sort)?.label || 'Sort';
+  const currentLangLabel = LANGUAGE_OPTIONS.find((l) => l.value === languageFilter)?.label || 'Bahasa';
   const selectedGenreName = genres.find((g) => g.id === genreId)?.name;
 
   // Helper to build page numbers array with ellipsis
@@ -291,83 +295,61 @@ export default function MoviePageClient({
 
             {/* Right: Language Filter & Sort Controls */}
             <div className="flex items-center gap-2.5 sm:gap-3 flex-wrap">
-              {/* Language Filter Pills: All (default, left), EN, ID */}
-              <div className="flex items-center p-1 rounded-xl bg-white/[0.06] border border-white/10 text-xs font-bold shadow-sm">
-                <div className="flex items-center gap-1 px-2 text-slate-400 hidden xs:flex">
-                  <Globe size={13} />
-                  <span className="text-[11px] uppercase tracking-wider font-semibold">Bahasa:</span>
-                </div>
+              {/* Language Dropdown */}
+              <div className="relative flex-shrink-0" ref={langRef}>
                 <button
-                  onClick={() => handleLanguageChange('all')}
-                  className={`px-2.5 sm:px-3 py-1.5 rounded-lg transition-all text-xs font-bold ${
-                    languageFilter === 'all'
-                      ? 'bg-cyan-500 text-black shadow-md shadow-cyan-500/30'
-                      : 'text-slate-400 hover:text-white'
-                  }`}
-                  title="Semua Bahasa"
+                  type="button"
+                  onClick={() => setLangOpen(!langOpen)}
+                  className="flex items-center gap-1.5 sm:gap-2 px-3 py-2 sm:px-4 sm:py-2.5 rounded-xl text-xs sm:text-sm font-medium transition-all duration-200"
+                  style={{
+                    background: 'rgba(255,255,255,0.06)',
+                    border: '1px solid rgba(255,255,255,0.1)',
+                    color: '#94a3b8',
+                  }}
                 >
-                  All
+                  <Globe size={14} className="sm:w-[15px] sm:h-[15px] text-cyan-400" />
+                  <span className="whitespace-nowrap">{currentLangLabel}</span>
+                  <ChevronRight
+                    size={13}
+                    className="transition-transform duration-200"
+                    style={{ transform: langOpen ? 'rotate(90deg)' : 'rotate(0deg)' }}
+                  />
                 </button>
-                <button
-                  onClick={() => handleLanguageChange('id')}
-                  className={`px-2.5 sm:px-3 py-1.5 rounded-lg transition-all text-xs font-bold ${
-                    languageFilter === 'id'
-                      ? 'bg-cyan-500 text-black shadow-md shadow-cyan-500/30'
-                      : 'text-slate-400 hover:text-white'
-                  }`}
-                  title="Bahasa Indonesia"
-                >
-                  ID
-                </button>
-                <button
-                  onClick={() => handleLanguageChange('en')}
-                  className={`px-2.5 sm:px-3 py-1.5 rounded-lg transition-all text-xs font-bold ${
-                    languageFilter === 'en'
-                      ? 'bg-cyan-500 text-black shadow-md shadow-cyan-500/30'
-                      : 'text-slate-400 hover:text-white'
-                  }`}
-                  title="Bahasa Inggris (English)"
-                >
-                  EN
-                </button>
-                <button
-                  onClick={() => handleLanguageChange('kr')}
-                  className={`px-2.5 sm:px-3 py-1.5 rounded-lg transition-all text-xs font-bold ${
-                    languageFilter === 'kr'
-                      ? 'bg-cyan-500 text-black shadow-md shadow-cyan-500/30'
-                      : 'text-slate-400 hover:text-white'
-                  }`}
-                  title="Korea"
-                >
-                  KR
-                </button>
-                <button
-                  onClick={() => handleLanguageChange('jp')}
-                  className={`px-2.5 sm:px-3 py-1.5 rounded-lg transition-all text-xs font-bold ${
-                    languageFilter === 'jp'
-                      ? 'bg-cyan-500 text-black shadow-md shadow-cyan-500/30'
-                      : 'text-slate-400 hover:text-white'
-                  }`}
-                  title="Jepang (Live Action)"
-                >
-                  JP
-                </button>
-                <button
-                  onClick={() => handleLanguageChange('anime')}
-                  className={`px-2.5 sm:px-3 py-1.5 rounded-lg transition-all text-xs font-bold ${
-                    languageFilter === 'anime'
-                      ? 'bg-cyan-500 text-black shadow-md shadow-cyan-500/30'
-                      : 'text-slate-400 hover:text-white'
-                  }`}
-                  title="Jepang (Anime)"
-                >
-                  Anime
-                </button>
+
+                {langOpen && (
+                  <div
+                    className="absolute right-0 top-full mt-2 w-48 sm:w-52 rounded-xl overflow-hidden z-30 shadow-2xl"
+                    style={{
+                      background: '#0B1020',
+                      border: '1px solid rgba(6,182,212,0.3)',
+                      boxShadow: '0 20px 40px rgba(0,0,0,0.6)',
+                    }}
+                  >
+                    {LANGUAGE_OPTIONS.map((option) => (
+                      <button
+                        key={option.value}
+                        type="button"
+                        onClick={() => handleLanguageChange(option.value)}
+                        className="w-full px-3.5 py-2.5 sm:px-4 sm:py-3 text-left text-xs sm:text-sm transition-colors duration-150 hover:bg-white/5 flex items-center justify-between"
+                        style={{
+                          color: languageFilter === option.value ? '#06b6d4' : '#94a3b8',
+                          fontWeight: languageFilter === option.value ? 600 : 400,
+                        }}
+                      >
+                        <span>{option.label}</span>
+                        {languageFilter === option.value && (
+                          <span className="w-1.5 h-1.5 rounded-full bg-cyan-400" />
+                        )}
+                      </button>
+                    ))}
+                  </div>
+                )}
               </div>
 
               {/* Sort Dropdown */}
               <div className="relative flex-shrink-0" ref={sortRef}>
                 <button
+                  type="button"
                   onClick={() => setSortOpen(!sortOpen)}
                   className="flex items-center gap-1.5 sm:gap-2 px-3 py-2 sm:px-4 sm:py-2.5 rounded-xl text-xs sm:text-sm font-medium transition-all duration-200"
                   style={{
@@ -387,7 +369,7 @@ export default function MoviePageClient({
 
                 {sortOpen && (
                   <div
-                    className="absolute right-0 top-full mt-2 w-44 sm:w-48 rounded-xl overflow-hidden z-30"
+                    className="absolute right-0 top-full mt-2 w-44 sm:w-48 rounded-xl overflow-hidden z-30 shadow-2xl"
                     style={{
                       background: '#0B1020',
                       border: '1px solid rgba(6,182,212,0.3)',
@@ -397,14 +379,18 @@ export default function MoviePageClient({
                     {SORT_OPTIONS.map((option) => (
                       <button
                         key={option.value}
+                        type="button"
                         onClick={() => handleSortChange(option.value)}
-                        className="w-full px-3.5 py-2.5 sm:px-4 sm:py-3 text-left text-xs sm:text-sm transition-colors duration-150 hover:bg-white/5"
+                        className="w-full px-3.5 py-2.5 sm:px-4 sm:py-3 text-left text-xs sm:text-sm transition-colors duration-150 hover:bg-white/5 flex items-center justify-between"
                         style={{
                           color: sort === option.value ? '#06b6d4' : '#94a3b8',
                           fontWeight: sort === option.value ? 600 : 400,
                         }}
                       >
-                        {option.label}
+                        <span>{option.label}</span>
+                        {sort === option.value && (
+                          <span className="w-1.5 h-1.5 rounded-full bg-cyan-400" />
+                        )}
                       </button>
                     ))}
                   </div>
@@ -455,30 +441,13 @@ export default function MoviePageClient({
                 ? `Film dengan genre "${selectedGenreName}" belum tersedia di katalog kami. Anda dapat me-request film favorit Anda untuk ditambahkan segera.`
                 : `Tidak ada film yang sesuai dengan filter yang dipilih.`}
             </p>
-            <div className="flex items-center gap-3 flex-wrap justify-center">
-              {genreId && (
-                <button
-                  onClick={handleAllSelect}
-                  className="inline-flex items-center gap-2 px-4 py-2.5 rounded-xl text-xs font-bold transition-all shadow-md active:scale-95 bg-cyan-500 hover:bg-cyan-400 text-black shadow-cyan-500/20"
-                >
-                  <span>Lihat Semua Film</span>
-                </button>
-              )}
-              {languageFilter !== 'all' && (
-                <button
-                  onClick={() => handleLanguageChange('all')}
-                  className="inline-flex items-center gap-2 px-4 py-2.5 rounded-xl text-xs font-bold transition-all bg-white/10 hover:bg-white/20 text-white border border-white/10"
-                >
-                  <Globe size={14} />
-                  <span>Semua Bahasa</span>
-                </button>
-              )}
+            <div className="flex items-center justify-center">
               <Link
                 href="/request"
-                className="inline-flex items-center gap-2 px-4 py-2.5 rounded-xl text-xs font-bold transition-all bg-white/5 hover:bg-white/10 text-cyan-300 border border-cyan-500/30 hover:border-cyan-500/50"
+                className="inline-flex items-center gap-2 px-6 py-2.5 rounded-xl text-xs sm:text-sm font-bold transition-all shadow-lg active:scale-95 bg-gradient-to-r from-cyan-500 to-blue-600 hover:opacity-90 text-white shadow-cyan-500/20"
               >
-                <MessageSquarePlus size={14} />
-                <span>Request Film Ini</span>
+                <MessageSquarePlus size={15} />
+                <span>Request</span>
               </Link>
             </div>
           </div>

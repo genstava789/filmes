@@ -264,40 +264,42 @@ export default function MobileHeader({ genres = [] }: MobileHeaderProps) {
             })}
           </div>
 
-          {/* Section 2: Quick Popular Genres (Pill Row) */}
+          {/* Section 2: Quick Popular Searches (Quick Keyword Navigation to /search) */}
           <div className="pt-3 border-t border-white/[0.08]">
             <div className="flex items-center gap-1.5 mb-2.5 px-1">
-              <Sparkles size={12} className="text-cyan-400" />
+              <Search size={13} className="text-cyan-400" />
               <span className="text-[11px] font-extrabold uppercase tracking-wider text-slate-400">
-                Popular Genres
+                Popular Searches
               </span>
             </div>
 
             <div className="flex flex-wrap gap-1.5">
-              {quickGenres.map((genre) => {
-                const active = pathname === genre.href;
-                const Icon = genre.icon;
-                return (
-                  <Link
-                    key={genre.href}
-                    href={genre.href}
-                    onClick={() => setMenuOpen(false)}
-                    className="flex items-center gap-1.5 px-3 py-1.5 rounded-xl text-xs font-semibold transition-all duration-150 hover:scale-105 active:scale-95"
-                    style={{
-                      background: active
-                        ? 'linear-gradient(135deg, rgba(6, 182, 212, 0.25), rgba(124, 58, 237, 0.25))'
-                        : 'rgba(255, 255, 255, 0.05)',
-                      border: active
-                        ? '1px solid rgba(6, 182, 212, 0.5)'
-                        : '1px solid rgba(255, 255, 255, 0.08)',
-                      color: active ? '#06b6d4' : '#cbd5e1',
-                    }}
-                  >
-                    <Icon size={12} className={active ? 'text-cyan-400' : 'text-slate-400'} />
-                    <span>{genre.label}</span>
-                  </Link>
-                );
-              })}
+              {[
+                'Action',
+                'Anime',
+                'Marvel',
+                'Drakor',
+                'Horror',
+                'Indonesia',
+                'Netflix',
+                'Romance',
+                'Sci-Fi',
+                'Thriller',
+              ].map((keyword) => (
+                <Link
+                  key={keyword}
+                  href={`/search?q=${encodeURIComponent(keyword)}`}
+                  onClick={() => setMenuOpen(false)}
+                  className="flex items-center gap-1.5 px-3 py-1.5 rounded-xl text-xs font-semibold transition-all duration-150 hover:scale-105 active:scale-95 text-slate-300 hover:text-cyan-300"
+                  style={{
+                    background: 'rgba(255, 255, 255, 0.05)',
+                    border: '1px solid rgba(255, 255, 255, 0.08)',
+                  }}
+                >
+                  <Search size={11} className="text-cyan-400/70" />
+                  <span>{keyword}</span>
+                </Link>
+              ))}
             </div>
           </div>
 

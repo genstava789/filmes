@@ -54,7 +54,15 @@ export default function GenrePageClient({
   const [sort, setSort] = useState(initialSort);
   const [page, setPage] = useState(initialPage);
   const [sortOpen, setSortOpen] = useState(false);
+  const [langOpen, setLangOpen] = useState(false);
   const sortRef = useRef<HTMLDivElement>(null);
+  const langRef = useRef<HTMLDivElement>(null);
+
+  const LANGUAGE_OPTIONS: { value: 'all' | 'en' | 'id'; label: string }[] = [
+    { value: 'all', label: 'Semua Bahasa' },
+    { value: 'id', label: 'Bahasa Indonesia (ID)' },
+    { value: 'en', label: 'English (EN)' },
+  ];
 
   // Active genre metadata
   const currentGenre = useMemo(() => {
@@ -64,11 +72,14 @@ export default function GenrePageClient({
     return allGenres.find((g) => g.id === activeGenreId) || genre;
   }, [allGenres, activeGenreId, genre]);
 
-  // Close sort dropdown on click outside
+  // Close dropdowns on click outside
   useEffect(() => {
     const handleClickOutside = (event: MouseEvent) => {
       if (sortRef.current && !sortRef.current.contains(event.target as Node)) {
         setSortOpen(false);
+      }
+      if (langRef.current && !langRef.current.contains(event.target as Node)) {
+        setLangOpen(false);
       }
     };
     document.addEventListener('mousedown', handleClickOutside);
@@ -139,16 +150,17 @@ export default function GenrePageClient({
       ? `/genre/${newGenreId}${queryString ? `?${queryString}` : ''}`
       : `/genre/all${queryString ? `?${queryString}` : ''}`;
 
+    router.push(targetUrl);
     if (typeof window !== 'undefined') {
-      window.history.pushState(null, '', targetUrl);
+      window.scrollTo({ top: 0, behavior: 'smooth' });
     }
   };
 
   // Instant client-side genre switching
-  const handleGenreSelect = (genreId: number) => {
-    setActiveGenreId(genreId);
+  const handleGenreSelect = (newGenreId: number) => {
+    setActiveGenreId(newGenreId);
     setPage(1);
-    updateUrl(genreId, languageFilter, sort);
+    updateUrl(newGenreId, languageFilter, sort);
   };
 
   const handleAllSelect = () => {
@@ -159,6 +171,7 @@ export default function GenrePageClient({
 
   const handleLanguageChange = (newLang: 'all' | 'en' | 'id') => {
     setLanguageFilter(newLang);
+    setLangOpen(false);
     setPage(1);
     updateUrl(activeGenreId, newLang, sort);
   };
@@ -171,7 +184,7 @@ export default function GenrePageClient({
   };
 
   const handlePageChange = (newPage: number) => {
-    if (newPage === page || newPage < 1 || newPage > totalPages) return;
+    if (newPage < 1 || newPage > totalPages || newPage === page) return;
     setPage(newPage);
     if (typeof window !== 'undefined') {
       window.scrollTo({ top: 0, behavior: 'smooth' });
@@ -179,6 +192,7 @@ export default function GenrePageClient({
   };
 
   const currentSortLabel = sortOptions.find((o) => o.value === sort)?.label || 'Sort';
+  const currentLangLabel = LANGUAGE_OPTIONS.find((l) => l.value === languageFilter)?.label || 'Bahasa';
 
   // Helper to build page numbers array with ellipsis
   const getPageNumbers = () => {
@@ -195,87 +209,93 @@ export default function GenrePageClient({
   };
 
   return (
-    <div className="min-h-screen pt-20 sm:pt-24 pb-8 sm:pb-12" style={{ background: '#050816' }}>
+    <div className="min-h-screen pt-20 sm:pt-24 pb-4 sm:pb-6" style={{ background: '#050816' }}>
       <div className="w-full px-4 sm:px-6 md:px-8 lg:px-10 xl:px-12 2xl:px-14">
-        {/* Header with Title & Filter Controls */}
+        
+        {/* Page Header: Title on Left, Language & Sort Controls on Right */}
         <div className="mb-6 sm:mb-8">
           <div className="flex flex-col md:flex-row md:items-center justify-between gap-4">
-            {/* Left: Title & Count */}
             <div className="flex-1 min-w-0">
               <h1 className="text-xl sm:text-3xl md:text-4xl font-black truncate sm:whitespace-normal mb-1">
                 <span
                   style={{
                     background: isTV
-                      ? 'linear-gradient(135deg, #ec4899, #7c3aed)'
+                      ? 'linear-gradient(135deg, #ec4899, #8b5cf6)'
                       : 'linear-gradient(135deg, #06b6d4, #7c3aed)',
                     WebkitBackgroundClip: 'text',
                     WebkitTextFillColor: 'transparent',
                     backgroundClip: 'text',
                   }}
                 >
-                  {currentGenre.name}
-                </span>{' '}
-                <span style={{ color: '#f1f5f9' }}>{isTV ? 'TV Series' : 'Movies'}</span>
+                  {isTV ? 'TV Series' : 'Movies'} — {currentGenre.name}
+                </span>
               </h1>
-              <p className="text-xs sm:text-sm font-medium text-slate-400">
-                <span className="font-bold text-white">{totalResults}</span> {isTV ? 'serial TV' : 'film'} tersedia di database lokal
+              <p className="text-xs sm:text-sm font-medium" style={{ color: '#94a3b8' }}>
+                Jelajahi <span className={isTV ? 'text-pink-400 font-bold' : 'text-cyan-400 font-bold'}>{totalResults.toLocaleString()}</span> {isTV ? 'series' : 'movie'} untuk ditonton
               </p>
             </div>
 
             {/* Right: Language Filter & Sort Controls */}
             <div className="flex items-center gap-2.5 sm:gap-3 flex-wrap">
-              {/* Language Filter Pills: All (default, left), EN, ID */}
-              <div className="flex items-center p-1 rounded-xl bg-white/[0.06] border border-white/10 text-xs font-bold shadow-sm">
-                <div className="flex items-center gap-1 px-2 text-slate-400 hidden xs:flex">
-                  <Globe size={13} />
-                  <span className="text-[11px] uppercase tracking-wider font-semibold">Bahasa:</span>
-                </div>
+              {/* Language Dropdown */}
+              <div className="relative flex-shrink-0" ref={langRef}>
                 <button
-                  onClick={() => handleLanguageChange('all')}
-                  className={`px-3 py-1.5 rounded-lg transition-all text-xs font-bold ${
-                    languageFilter === 'all'
-                      ? isTV
-                        ? 'bg-pink-500 text-white shadow-md shadow-pink-500/30'
-                        : 'bg-cyan-500 text-black shadow-md shadow-cyan-500/30'
-                      : 'text-slate-400 hover:text-white'
-                  }`}
-                  title="Semua Bahasa"
+                  type="button"
+                  onClick={() => setLangOpen(!langOpen)}
+                  className="flex items-center gap-1.5 sm:gap-2 px-3 py-2 sm:px-4 sm:py-2.5 rounded-xl text-xs sm:text-sm font-medium transition-all duration-200"
+                  style={{
+                    background: 'rgba(255,255,255,0.06)',
+                    border: '1px solid rgba(255,255,255,0.1)',
+                    color: '#94a3b8',
+                  }}
                 >
-                  All
+                  <Globe size={14} className={`sm:w-[15px] sm:h-[15px] ${isTV ? 'text-pink-400' : 'text-cyan-400'}`} />
+                  <span className="whitespace-nowrap">{currentLangLabel}</span>
+                  <ChevronRight
+                    size={13}
+                    className="transition-transform duration-200"
+                    style={{ transform: langOpen ? 'rotate(90deg)' : 'rotate(0deg)' }}
+                  />
                 </button>
-                <button
-                  onClick={() => handleLanguageChange('en')}
-                  className={`px-3 py-1.5 rounded-lg transition-all text-xs font-bold ${
-                    languageFilter === 'en'
-                      ? isTV
-                        ? 'bg-pink-500 text-white shadow-md shadow-pink-500/30'
-                        : 'bg-cyan-500 text-black shadow-md shadow-cyan-500/30'
-                      : 'text-slate-400 hover:text-white'
-                  }`}
-                  title="Bahasa Inggris (English)"
-                >
-                  EN
-                </button>
-                <button
-                  onClick={() => handleLanguageChange('id')}
-                  className={`px-3 py-1.5 rounded-lg transition-all text-xs font-bold ${
-                    languageFilter === 'id'
-                      ? isTV
-                        ? 'bg-pink-500 text-white shadow-md shadow-pink-500/30'
-                        : 'bg-cyan-500 text-black shadow-md shadow-cyan-500/30'
-                      : 'text-slate-400 hover:text-white'
-                  }`}
-                  title="Bahasa Indonesia"
-                >
-                  ID
-                </button>
+
+                {langOpen && (
+                  <div
+                    className="absolute right-0 top-full mt-2 w-48 sm:w-52 rounded-xl overflow-hidden z-30 shadow-2xl"
+                    style={{
+                      background: '#0B1020',
+                      border: isTV
+                        ? '1px solid rgba(236,72,153,0.3)'
+                        : '1px solid rgba(6,182,212,0.3)',
+                      boxShadow: '0 20px 40px rgba(0,0,0,0.6)',
+                    }}
+                  >
+                    {LANGUAGE_OPTIONS.map((option) => (
+                      <button
+                        key={option.value}
+                        type="button"
+                        onClick={() => handleLanguageChange(option.value)}
+                        className="w-full px-3.5 py-2.5 sm:px-4 sm:py-3 text-left text-xs sm:text-sm transition-colors duration-150 hover:bg-white/5 flex items-center justify-between"
+                        style={{
+                          color: languageFilter === option.value ? (isTV ? '#ec4899' : '#06b6d4') : '#94a3b8',
+                          fontWeight: languageFilter === option.value ? 600 : 400,
+                        }}
+                      >
+                        <span>{option.label}</span>
+                        {languageFilter === option.value && (
+                          <span className={`w-1.5 h-1.5 rounded-full ${isTV ? 'bg-pink-400' : 'bg-cyan-400'}`} />
+                        )}
+                      </button>
+                    ))}
+                  </div>
+                )}
               </div>
 
               {/* Sort dropdown */}
               <div className="relative flex-shrink-0" ref={sortRef}>
                 <button
+                  type="button"
                   onClick={() => setSortOpen(!sortOpen)}
-                  className="flex items-center gap-1.5 sm:gap-2 px-3 py-2 sm:px-4 sm:py-2 rounded-xl text-xs sm:text-sm font-medium transition-all duration-200"
+                  className="flex items-center gap-1.5 sm:gap-2 px-3 py-2 sm:px-4 sm:py-2.5 rounded-xl text-xs sm:text-sm font-medium transition-all duration-200"
                   style={{
                     background: 'rgba(255,255,255,0.06)',
                     border: '1px solid rgba(255,255,255,0.1)',
@@ -299,13 +319,15 @@ export default function GenrePageClient({
                       border: isTV
                         ? '1px solid rgba(236,72,153,0.3)'
                         : '1px solid rgba(6,182,212,0.3)',
+                      boxShadow: '0 20px 40px rgba(0,0,0,0.6)',
                     }}
                   >
                     {sortOptions.map((option) => (
                       <button
                         key={option.value}
+                        type="button"
                         onClick={() => handleSortChange(option.value)}
-                        className="w-full px-3.5 py-2.5 sm:px-4 sm:py-3 text-left text-xs sm:text-sm transition-colors duration-150 hover:bg-white/5"
+                        className="w-full px-3.5 py-2.5 sm:px-4 sm:py-3 text-left text-xs sm:text-sm transition-colors duration-150 hover:bg-white/5 flex items-center justify-between"
                         style={{
                           color:
                             sort === option.value
@@ -316,7 +338,10 @@ export default function GenrePageClient({
                           fontWeight: sort === option.value ? 600 : 400,
                         }}
                       >
-                        {option.label}
+                        <span>{option.label}</span>
+                        {sort === option.value && (
+                          <span className={`w-1.5 h-1.5 rounded-full ${isTV ? 'bg-pink-400' : 'bg-cyan-400'}`} />
+                        )}
                       </button>
                     ))}
                   </div>
@@ -363,38 +388,17 @@ export default function GenrePageClient({
                 ? `${isTV ? 'Serial TV' : 'Film'} dengan genre "${currentGenre.name}" belum tersedia di katalog kami. Anda dapat me-request judul favorit Anda untuk ditambahkan segera.`
                 : `Tidak ada ${isTV ? 'serial TV' : 'film'} yang sesuai dengan filter yang dipilih.`}
             </p>
-            <div className="flex items-center gap-3 flex-wrap justify-center">
-              {activeGenreId && (
-                <button
-                  onClick={handleAllSelect}
-                  className={`inline-flex items-center gap-2 px-4 py-2.5 rounded-xl text-xs font-bold transition-all shadow-md active:scale-95 ${
-                    isTV
-                      ? 'bg-gradient-to-r from-pink-500 to-purple-600 hover:opacity-90 text-white shadow-pink-500/20'
-                      : 'bg-cyan-500 hover:bg-cyan-400 text-black shadow-cyan-500/20'
-                  }`}
-                >
-                  <span>Lihat Semua {isTV ? 'Series' : 'Film'}</span>
-                </button>
-              )}
-              {languageFilter !== 'all' && (
-                <button
-                  onClick={() => handleLanguageChange('all')}
-                  className="inline-flex items-center gap-2 px-4 py-2.5 rounded-xl text-xs font-bold transition-all bg-white/10 hover:bg-white/20 text-white border border-white/10"
-                >
-                  <Globe size={14} />
-                  <span>Semua Bahasa</span>
-                </button>
-              )}
+            <div className="flex items-center justify-center">
               <Link
                 href="/request"
-                className={`inline-flex items-center gap-2 px-4 py-2.5 rounded-xl text-xs font-bold transition-all bg-white/5 hover:bg-white/10 border ${
+                className={`inline-flex items-center gap-2 px-6 py-2.5 rounded-xl text-xs sm:text-sm font-bold transition-all text-white shadow-lg active:scale-95 ${
                   isTV
-                    ? 'text-pink-300 border-pink-500/30 hover:border-pink-500/50'
-                    : 'text-cyan-300 border-cyan-500/30 hover:border-cyan-500/50'
+                    ? 'bg-gradient-to-r from-pink-500 to-purple-600 shadow-pink-500/20'
+                    : 'bg-gradient-to-r from-cyan-500 to-blue-600 shadow-cyan-500/20'
                 }`}
               >
-                <MessageSquarePlus size={14} />
-                <span>Request {isTV ? 'Series' : 'Film'} Ini</span>
+                <MessageSquarePlus size={15} />
+                <span>Request</span>
               </Link>
             </div>
           </div>
