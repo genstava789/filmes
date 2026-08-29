@@ -412,9 +412,9 @@ export const TVListView: React.FC<TVListViewProps> = ({
                       >
                         <div
                           onClick={() => toggleSeasonAccordion(show.showSlug, seasonSlug)}
-                          className="p-3 sm:p-3.5 flex items-center justify-between gap-2.5 cursor-pointer hover:bg-white/10 active:bg-white/15 transition-all select-none min-h-[44px]"
+                          className="p-3 sm:p-3.5 flex flex-col sm:flex-row sm:items-center justify-between gap-2.5 cursor-pointer hover:bg-white/10 active:bg-white/15 transition-all select-none min-h-[44px]"
                         >
-                          <div className="flex items-center gap-2 min-w-0">
+                          <div className="flex items-center gap-2 min-w-0 flex-wrap">
                             <div className="w-5 h-5 rounded bg-white/5 flex items-center justify-center flex-shrink-0 text-slate-300">
                               {isExpanded ? (
                                 <ChevronDown size={16} className="text-pink-400 transition-transform" />
@@ -426,20 +426,29 @@ export const TVListView: React.FC<TVListViewProps> = ({
                               {formatSeasonLabel(seasonSlug)}
                             </span>
                             <span className="px-2 py-0.5 rounded text-[10px] font-bold bg-purple-500/20 text-purple-300 border border-purple-500/30 whitespace-nowrap">
-                              {seasonEps.length} Ep
+                              Episode {seasonEps.length}
                             </span>
                           </div>
 
                           <div
-                            className="flex items-center gap-1.5 flex-shrink-0"
+                            className="flex items-center gap-1.5 flex-wrap self-start sm:self-auto"
                             onClick={(e) => e.stopPropagation()}
                           >
+                            <button
+                              onClick={() => onOpenEdit(show)}
+                              className="px-2.5 py-1 rounded-lg text-[11px] font-bold bg-pink-500/20 hover:bg-pink-500/30 text-pink-200 border border-pink-500/40 flex items-center gap-1 transition-all shadow-sm active:scale-95 capitalize"
+                              title="Kelola / Edit Season & Episode"
+                            >
+                              <Edit2 size={11} className="text-pink-300" />
+                              <span>Edit Season</span>
+                            </button>
+
                             <button
                               onClick={() => onQuickAddEpisode(show, seasonSlug)}
                               className="px-2.5 py-1 rounded-lg text-[11px] font-bold bg-purple-500/20 hover:bg-purple-500/30 text-purple-200 border border-purple-500/40 flex items-center gap-1 transition-all shadow-sm active:scale-95 capitalize"
                             >
                               <Plus size={11} className="text-purple-300" />
-                              <span>Tambah Ep</span>
+                              <span>Tambah Episode</span>
                             </button>
                           </div>
                         </div>

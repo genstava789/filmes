@@ -16,6 +16,7 @@ import {
   AlertCircle,
   ChevronDown,
   ChevronRight,
+  Lock,
 } from 'lucide-react';
 import { DraftSeason, TMDBPreviewData, MovieItem, TVShowItem } from '../types';
 import { BackdropPicker } from './BackdropPicker';
@@ -37,6 +38,10 @@ interface CreateModalProps {
   onClose: () => void;
   contentType: 'movie' | 'tv_show' | 'tv_episode';
   setContentType: (t: 'movie' | 'tv_show' | 'tv_episode') => void;
+  quickAddContext?: {
+    show: TVShowItem;
+    seasonSlug: string;
+  } | null;
   onSubmit: (payload: any) => Promise<void>;
   movies: MovieItem[];
   tvShows: TVShowItem[];
@@ -47,6 +52,7 @@ export const CreateModal: React.FC<CreateModalProps> = ({
   isOpen,
   onClose,
   contentType,
+  quickAddContext,
   onSubmit,
   tvShows,
   showToast,
@@ -137,6 +143,19 @@ export const CreateModal: React.FC<CreateModalProps> = ({
       setBatchSeasonId(null);
       setFormErrors({});
       setExpandedSeasons({});
+      if (contentType === 'tv_episode' && quickAddContext) {
+        setFormTvShowSlug(quickAddContext.show.showSlug);
+        setFormSeasonNum(quickAddContext.seasonSlug);
+        const targetSeasonSlug = quickAddContext.seasonSlug.toLowerCase();
+        const existingCount = (quickAddContext.show.episodes || []).filter(
+          (ep) => (ep.seasonFolder || 's1').toLowerCase() === targetSeasonSlug
+        ).length;
+        const nextNum = existingCount + 1;
+        setFormEpisodeNum(`e${nextNum}`);
+        setFormTitle(`Episode ${nextNum}`);
+        setFormPoster(quickAddContext.show.posterUrl || quickAddContext.show.frontmatter?.image_url || '');
+      }
+
       setFormSeasons([
         {
           id: 's1',
@@ -153,7 +172,7 @@ export const CreateModal: React.FC<CreateModalProps> = ({
         },
       ]);
     }
-  }, [isOpen, contentType]);
+  }, [isOpen, contentType, quickAddContext]);
 
   // Debounced Live TMDB Search
   useEffect(() => {
@@ -583,76 +602,94 @@ export const CreateModal: React.FC<CreateModalProps> = ({
             </div>
           )}
 
-          {/* Episode Parent Show Picker (For Single Episode only) */}
+          {/* Episode Parent Show & Locked Season Info (No Select Needed When Adding From Season) */}
           {contentType === 'tv_episode' && (
-            <div className="grid grid-cols-1 sm:grid-cols-3 gap-3">
-              <div className="sm:col-span-1">
-                <label className="block text-xs font-bold text-slate-300 mb-1.5">
-                  Pilih TV Series <span className="text-red-400">*</span>
-                </label>
-                <select
-                  value={formTvShowSlug}
-                  onChange={(e) => setFormTvShowSlug(e.target.value)}
-                  className="w-full px-3.5 py-2.5 sm:py-3 bg-black/50 border border-white/10 rounded-xl text-xs sm:text-sm text-white focus:outline-none focus:border-cyan-500 min-h-[42px]"
-                >
-                  <option value="">-- Pilih Series --</option>
-                  {tvShows.map((s) => (
-                    <option key={s.showSlug} value={s.showSlug}>
-                      {s.displayTitle || s.showSlug}
-                    </option>
-                  ))}
-                </select>
+            <div className="p-3.5 sm:p-4 rounded-2xl bg-gradient-to-r from-purple-950/40 via-black/50 to-pink-950/30 border border-purple-500/30 space-y-3 shadow-lg">
+              <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-2.5 border-b border-white/10 pb-2.5">
+                <div className="flex items-center gap-2.5 min-w-0">
+                  <div className="w-8 h-8 rounded-xl bg-pink-500/20 border border-pink-500/30 flex items-center justify-center flex-shrink-0 text-pink-400">
+                    <Tv size={16} />
+                  </div>
+                  <div className="min-w-0">
+                    <span className="text-[10px] font-extrabold uppercase tracking-wider text-pink-400 block">
+                      Serial Induk
+                    </span>
+                    <h4 className="text-xs sm:text-sm font-extrabold text-white truncate">
+                      {quickAddContext?.show?.displayTitle || quickAddContext?.show?.frontmatter?.title || formTvShowSlug || 'Series'}
+                    </h4>
+                  </div>
+                </div>
+
+                {/* Locked Season & Episode Badges */}
+                <div className="flex items-center gap-2 flex-wrap self-start sm:self-auto">
+                  <div className="px-2.5 py-1 rounded-lg text-xs font-extrabold bg-pink-500/20 text-pink-300 border border-pink-500/30 flex items-center gap-1.5 shadow-sm capitalize">
+                    <Lock size={12} className="text-pink-400" />
+                    <span>Season {formSeasonNum.replace(/\D/g, '') || formSeasonNum}</span>
+                  </div>
+                  <div className="px-2.5 py-1 rounded-lg text-xs font-extrabold bg-purple-500/20 text-purple-300 border border-purple-500/30 font-mono shadow-sm">
+                    {formEpisodeNum.toUpperCase()}
+                  </div>
+                </div>
               </div>
-              <div>
-                <label className="block text-xs font-bold text-slate-300 mb-1.5">Season</label>
-                <input
-                  type="text"
-                  value={formSeasonNum}
-                  onChange={(e) => setFormSeasonNum(e.target.value)}
-                  placeholder="s1"
-                  className="w-full px-3.5 py-2.5 sm:py-3 bg-black/50 border border-white/10 rounded-xl text-xs sm:text-sm text-white focus:outline-none focus:border-cyan-500 min-h-[42px]"
-                />
-              </div>
-              <div>
-                <label className="block text-xs font-bold text-slate-300 mb-1.5">Episode</label>
-                <input
-                  type="text"
-                  value={formEpisodeNum}
-                  onChange={(e) => setFormEpisodeNum(e.target.value)}
-                  placeholder="e1"
-                  className="w-full px-3.5 py-2.5 sm:py-3 bg-black/50 border border-white/10 rounded-xl text-xs sm:text-sm text-white focus:outline-none focus:border-cyan-500 min-h-[42px]"
-                />
+
+              <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
+                <div>
+                  <label className="block text-xs font-bold text-slate-300 mb-1.5">
+                    Nomor Episode
+                  </label>
+                  <input
+                    type="text"
+                    value={formEpisodeNum}
+                    onChange={(e) => setFormEpisodeNum(e.target.value)}
+                    placeholder="e1"
+                    className="w-full px-3.5 py-2.5 bg-black/50 border border-white/10 rounded-xl text-xs sm:text-sm text-white font-mono focus:outline-none focus:border-cyan-500 min-h-[40px]"
+                  />
+                </div>
+                <div>
+                  <label className="block text-xs font-bold text-slate-300 mb-1.5">
+                    Judul Episode <span className="text-red-400">*</span>
+                  </label>
+                  <input
+                    type="text"
+                    value={formTitle}
+                    onChange={(e) => setFormTitle(e.target.value)}
+                    placeholder="Episode 1..."
+                    className="w-full px-3.5 py-2.5 bg-black/50 border border-white/10 rounded-xl text-xs sm:text-sm text-white capitalize focus:outline-none focus:border-pink-500 min-h-[40px]"
+                  />
+                </div>
               </div>
             </div>
           )}
 
-          {/* Title & Slug */}
-          <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
-            <div>
-              <label className="block text-xs font-bold text-slate-300 mb-1.5">
-                {contentType === 'tv_show' ? 'Judul TV Series' : 'Judul Konten'}
-              </label>
-              <input
-                type="text"
-                value={formTitle}
-                onChange={(e) => setFormTitle(e.target.value)}
-                placeholder={contentType === 'tv_show' ? 'Judul TV Series' : 'Judul Film'}
-                className="w-full px-3.5 py-2.5 sm:py-3 bg-black/50 border border-white/10 rounded-xl text-xs sm:text-sm text-white placeholder-slate-500 focus:outline-none focus:border-cyan-500 min-h-[42px]"
-              />
+          {/* Title & Slug (For Movie & TV Show) */}
+          {contentType !== 'tv_episode' && (
+            <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
+              <div>
+                <label className="block text-xs font-bold text-slate-300 mb-1.5">
+                  {contentType === 'tv_show' ? 'Judul TV Series' : 'Judul Konten'}
+                </label>
+                <input
+                  type="text"
+                  value={formTitle}
+                  onChange={(e) => setFormTitle(e.target.value)}
+                  placeholder={contentType === 'tv_show' ? 'Judul TV Series' : 'Judul Film'}
+                  className="w-full px-3.5 py-2.5 sm:py-3 bg-black/50 border border-white/10 rounded-xl text-xs sm:text-sm text-white placeholder-slate-500 focus:outline-none focus:border-cyan-500 min-h-[42px]"
+                />
+              </div>
+              <div>
+                <label className="block text-xs font-bold text-slate-300 mb-1.5">
+                  Custom Slug (Opsional)
+                </label>
+                <input
+                  type="text"
+                  value={formSlug}
+                  onChange={(e) => setFormSlug(e.target.value)}
+                  placeholder="nama-slug-kustom"
+                  className="w-full px-3.5 py-2.5 sm:py-3 bg-black/50 border border-white/10 rounded-xl text-xs sm:text-sm text-white placeholder-slate-500 focus:outline-none focus:border-cyan-500 font-mono min-h-[42px]"
+                />
+              </div>
             </div>
-            <div>
-              <label className="block text-xs font-bold text-slate-300 mb-1.5">
-                Custom Slug (Opsional)
-              </label>
-              <input
-                type="text"
-                value={formSlug}
-                onChange={(e) => setFormSlug(e.target.value)}
-                placeholder="nama-slug-kustom"
-                className="w-full px-3.5 py-2.5 sm:py-3 bg-black/50 border border-white/10 rounded-xl text-xs sm:text-sm text-white placeholder-slate-500 focus:outline-none focus:border-cyan-500 font-mono min-h-[42px]"
-              />
-            </div>
-          </div>
+          )}
 
           {/* Movie / Episode Video Stream URL */}
           {contentType !== 'tv_show' && (
@@ -883,13 +920,13 @@ export const CreateModal: React.FC<CreateModalProps> = ({
                 return (
                   <div
                     key={season.id}
-                    className="p-3.5 rounded-xl bg-black/30 border border-white/5 space-y-3 transition-all"
+                    className="p-3 sm:p-3.5 rounded-xl bg-black/30 border border-white/5 space-y-3 transition-all"
                   >
                     <div
                       onClick={() => toggleSeason(season.id)}
-                      className="flex items-center justify-between cursor-pointer select-none py-0.5 px-0.5 rounded-lg hover:bg-white/5 transition-all"
+                      className="flex flex-col sm:flex-row sm:items-center justify-between gap-2.5 cursor-pointer select-none p-2 rounded-xl bg-black/40 hover:bg-white/5 border border-white/5 transition-all"
                     >
-                      <div className="flex items-center gap-2 min-w-0">
+                      <div className="flex items-center gap-2 min-w-0 flex-wrap">
                         <div className="w-5 h-5 rounded bg-white/5 flex items-center justify-center flex-shrink-0 text-slate-300">
                           {isExpanded ? (
                             <ChevronDown size={15} className="text-pink-400 transition-transform" />
@@ -905,11 +942,14 @@ export const CreateModal: React.FC<CreateModalProps> = ({
                         </span>
                       </div>
 
-                      <div className="flex items-center gap-2 flex-shrink-0" onClick={(e) => e.stopPropagation()}>
+                      <div className="flex items-center gap-2 flex-wrap self-start sm:self-auto" onClick={(e) => e.stopPropagation()}>
                         <button
                           type="button"
-                          onClick={() => setBatchSeasonId(isBatchOpen ? null : season.id)}
-                          className="text-xs font-bold text-cyan-400 hover:text-cyan-300"
+                          onClick={() => {
+                            if (!isExpanded) toggleSeason(season.id);
+                            setBatchSeasonId(isBatchOpen ? null : season.id);
+                          }}
+                          className="text-xs font-bold text-cyan-400 hover:text-cyan-300 px-2 py-1 rounded-lg bg-cyan-500/10 border border-cyan-500/20"
                         >
                           {isBatchOpen ? 'Tutup Batch Paste' : 'Batch Paste URLs'}
                         </button>
@@ -940,13 +980,13 @@ export const CreateModal: React.FC<CreateModalProps> = ({
                           className="px-2.5 py-1 rounded-lg text-xs font-bold bg-pink-500/20 hover:bg-pink-500/30 text-pink-300 border border-pink-500/30 flex items-center gap-1 transition-all capitalize active:scale-95"
                         >
                           <Plus size={11} />
-                          <span>Tambah Ep</span>
+                          <span>Tambah Episode</span>
                         </button>
                       </div>
                     </div>
 
                     {isExpanded && isBatchOpen && (
-                      <div className="p-3 rounded-lg bg-black/50 border border-cyan-500/30 space-y-2 animate-fade-in">
+                      <div className="p-3 sm:p-3.5 rounded-xl bg-black/70 border border-cyan-500/30 space-y-2.5 animate-fade-in shadow-inner">
                         <label className="block text-xs font-bold text-cyan-300">
                           Paste URL Video Stream (1 URL per baris — Baris 1 mengisi Ep 1, Baris 2 mengisi Ep 2, dst)
                         </label>
@@ -957,11 +997,11 @@ export const CreateModal: React.FC<CreateModalProps> = ({
                           placeholder={`https://server.com/s${sIdx + 1}-e1.mp4\nhttps://server.com/s${sIdx + 1}-e2.mp4\nhttps://server.com/s${sIdx + 1}-e3.mp4`}
                           className="w-full p-2.5 bg-black/60 border border-white/10 rounded-lg text-xs text-white font-mono focus:outline-none focus:border-cyan-400"
                         />
-                        <div className="flex items-center justify-between">
+                        <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-2">
                           <span className="text-[11px] text-slate-400">
                             {batchUrlsInput.split('\n').filter((l) => l.trim()).length} baris URL terdeteksi
                           </span>
-                          <div className="flex gap-2">
+                          <div className="flex gap-2 self-end sm:self-auto">
                             <button
                               type="button"
                               onClick={() => setBatchSeasonId(null)}

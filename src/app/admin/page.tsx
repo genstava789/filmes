@@ -32,6 +32,9 @@ export default function AdminPage() {
   const admin = useAdminData();
   const { user, isLoggedIn, authStatus, login, logout } = useAuth();
 
+  // Quick add episode context
+  const [quickAddContext, setQuickAddContext] = useState<{ show: any; seasonSlug: string } | null>(null);
+
   // Admin login form local state
   const [emailOrUsername, setEmailOrUsername] = useState('');
   const [password, setPassword] = useState('');
@@ -388,6 +391,7 @@ export default function AdminPage() {
             admin.setDeleteTarget({ path, title });
           }}
           onQuickAddEpisode={(show, seasonSlug) => {
+            setQuickAddContext({ show, seasonSlug });
             admin.setCreateContentType('tv_episode');
             admin.setIsCreateModalOpen(true);
           }}
@@ -401,9 +405,13 @@ export default function AdminPage() {
       {/* Create Modal */}
       <CreateModal
         isOpen={admin.isCreateModalOpen}
-        onClose={() => admin.setIsCreateModalOpen(false)}
+        onClose={() => {
+          admin.setIsCreateModalOpen(false);
+          setQuickAddContext(null);
+        }}
         contentType={admin.createContentType}
         setContentType={admin.setCreateContentType}
+        quickAddContext={quickAddContext}
         onSubmit={admin.handleCreateSubmit}
         movies={admin.movies}
         tvShows={admin.tvShows}

@@ -684,13 +684,13 @@ export const EditModal: React.FC<EditModalProps> = ({
                   return (
                     <div
                       key={season}
-                      className="p-3.5 sm:p-4 rounded-xl bg-black/40 border border-white/10 space-y-3 transition-all"
+                      className="p-3 sm:p-3.5 rounded-xl bg-black/40 border border-white/10 space-y-3 transition-all"
                     >
                       <div
                         onClick={() => toggleEditSeason(season)}
-                        className="flex flex-col sm:flex-row sm:items-center justify-between gap-2 border-b border-white/5 pb-2 cursor-pointer hover:bg-white/5 p-1 rounded-lg transition-all select-none"
+                        className="flex flex-col sm:flex-row sm:items-center justify-between gap-2.5 p-2 rounded-xl bg-black/40 hover:bg-white/5 border border-white/5 cursor-pointer transition-all select-none"
                       >
-                        <div className="flex items-center gap-2">
+                        <div className="flex items-center gap-2 min-w-0 flex-wrap">
                           <div className="w-5 h-5 rounded bg-white/5 flex items-center justify-center flex-shrink-0 text-slate-300">
                             {isExpanded ? (
                               <ChevronDown size={15} className="text-pink-400 transition-transform" />
@@ -706,15 +706,16 @@ export const EditModal: React.FC<EditModalProps> = ({
                           </span>
                         </div>
 
-                        <div className="flex items-center gap-2 flex-wrap" onClick={(e) => e.stopPropagation()}>
+                        <div className="flex items-center gap-2 flex-wrap self-start sm:self-auto" onClick={(e) => e.stopPropagation()}>
                           <button
                             type="button"
-                            onClick={() =>
-                              setBatchInputSeason(isBatchActive ? null : season)
-                            }
-                            className="text-xs font-bold text-cyan-400 hover:text-cyan-300"
+                            onClick={() => {
+                              if (!isExpanded) toggleEditSeason(season);
+                              setBatchInputSeason(isBatchActive ? null : season);
+                            }}
+                            className="text-xs font-bold text-cyan-400 hover:text-cyan-300 px-2 py-1 rounded-lg bg-cyan-500/10 border border-cyan-500/20"
                           >
-                            {isBatchActive ? 'Batal Batch Paste' : 'Batch Paste URLs'}
+                            {isBatchActive ? 'Tutup Batch Paste' : 'Batch Paste URLs'}
                           </button>
                           <button
                             type="button"
@@ -722,9 +723,10 @@ export const EditModal: React.FC<EditModalProps> = ({
                               if (!isExpanded) toggleEditSeason(season);
                               handleAddEpisodeToSeason(season);
                             }}
-                            className="px-3 py-1.5 rounded-lg text-xs font-bold bg-pink-500/20 text-pink-300 border border-pink-500/30 hover:bg-pink-500/30 flex items-center gap-1 min-h-[34px] capitalize active:scale-95"
+                            className="px-2.5 py-1 rounded-lg text-xs font-bold bg-pink-500/20 text-pink-300 border border-pink-500/30 hover:bg-pink-500/30 flex items-center gap-1 transition-all capitalize active:scale-95"
                           >
-                            <Plus size={12} /> Tambah Ep
+                            <Plus size={12} />
+                            <span>Tambah Episode</span>
                           </button>
                         </div>
                       </div>
