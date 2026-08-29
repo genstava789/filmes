@@ -87,6 +87,13 @@ export const siteConfig = {
   copyright: 'LeviStream',
   footerText: 'All rights reserved.',
 
+  // Owner user credentials (auto-provisioned & synced with role: 'owner')
+  owner: {
+    username: 'Levi',
+    email: 'kazumiteku6@gmail.com',
+    password: process.env.OWNER_PASSWORD || 'admin',
+  },
+
   // When enabled (true), video titles for generic scrapers & Rave.io use the format: "Judul (Tahun) | LeviStream"
   // When disabled (false), video titles will be: "Judul (Tahun)"
   useCreditTitleForRave: false,
@@ -339,12 +346,6 @@ export const siteConfig = {
   telegram: {
     botToken: '6673058749:AAH0X2vdpEgWNxeDhsZJy77_pXIG-_YCpRU',
     chatId: process.env.TELEGRAM_CHAT_ID || '1487943213', // Target Telegram Chat ID / Channel ID / Group ID
-  },
-
-  // Owner Credentials & Permissions
-  owner: {
-    email: process.env.OWNER_EMAIL || 'kazumiteku6@gmail.com',
-    password: process.env.OWNER_PASSWORD || 'admin',
   },
 };
 

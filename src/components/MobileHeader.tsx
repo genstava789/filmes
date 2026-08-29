@@ -190,58 +190,42 @@ export default function MobileHeader({ genres = [] }: MobileHeaderProps) {
           ) : isLoggedIn && user ? (
             <Link
               href="/profile"
-              className="px-2.5 py-1 sm:px-3 sm:py-1.5 rounded-xl text-xs font-bold text-cyan-300 transition-all duration-200 hover:scale-105 active:scale-95 flex items-center gap-2"
-              style={{
-                background:
-                  'linear-gradient(135deg, rgba(6, 182, 212, 0.18) 0%, rgba(124, 58, 237, 0.22) 100%)',
-                border: '1px solid rgba(6, 182, 212, 0.45)',
-                boxShadow: '0 0 16px rgba(6, 182, 212, 0.2), inset 0 1px 0 rgba(255, 255, 255, 0.12)',
-              }}
+              className="px-2 py-1 rounded-xl bg-white/[0.05] hover:bg-white/[0.09] border border-white/10 transition-all duration-200 active:scale-95 flex flex-col items-center justify-center min-w-[46px] max-w-[70px]"
             >
               <div
-                className="w-7 h-7 sm:w-8 sm:h-8 rounded-lg flex items-center justify-center overflow-hidden border border-cyan-400/60 shadow-[0_0_8px_rgba(6,182,212,0.4)] flex-shrink-0"
-                style={{ background: 'linear-gradient(135deg, #06b6d4, #7c3aed)' }}
+                className="w-6 h-6 rounded-full flex items-center justify-center overflow-hidden border border-white/20 bg-slate-800 flex-shrink-0"
               >
                 {user.avatar ? (
                   <img src={user.avatar} alt={user.username} className="w-full h-full object-cover" />
                 ) : (
-                  <span className="font-black text-[11px] text-white">
+                  <span className="font-bold text-[10px] text-white">
                     {user.username.charAt(0).toUpperCase()}
                   </span>
                 )}
               </div>
-              <div className="flex flex-col items-start justify-center min-w-0">
-                <span className="max-w-[75px] sm:max-w-[100px] truncate text-white font-extrabold text-[11px] sm:text-xs leading-tight capitalize">
-                  {user.username}
+              <span className="w-full truncate text-slate-200 font-bold text-[9.5px] sm:text-[10px] leading-tight capitalize text-center mt-0.5">
+                {user.username}
+              </span>
+              {user.role === 'owner' ? (
+                <span className="inline-flex items-center gap-0.5 px-1 py-0.2 rounded text-[7px] font-black bg-amber-500/20 border border-amber-500/30 text-amber-300 leading-none mt-0.5">
+                  <Crown size={7} className="text-amber-400 fill-amber-400 flex-shrink-0" />
+                  <span>OWNER</span>
                 </span>
-                {user.role === 'owner' ? (
-                  <span className="inline-flex items-center gap-0.5 px-1 py-0.2 rounded text-[7.5px] sm:text-[8px] font-black bg-gradient-to-r from-amber-500/25 to-yellow-500/25 border border-amber-500/45 text-amber-300 shadow-[0_0_6px_rgba(245,158,11,0.25)] leading-none mt-0.5">
-                    <Crown size={8} className="text-amber-400 fill-amber-400 flex-shrink-0" />
-                    <span>OWNER</span>
-                  </span>
-                ) : user.role === 'admin' ? (
-                  <span className="inline-flex items-center gap-0.5 px-1 py-0.2 rounded text-[7.5px] sm:text-[8px] font-black bg-gradient-to-r from-cyan-500/25 to-sky-500/25 border border-cyan-500/45 text-cyan-300 shadow-[0_0_6px_rgba(6,182,212,0.25)] leading-none mt-0.5">
-                    <ShieldCheck size={8} className="text-cyan-400 flex-shrink-0" />
-                    <span>ADMIN</span>
-                  </span>
-                ) : (
-                  <span className="inline-flex items-center gap-0.5 px-1 py-0.2 rounded text-[7.5px] sm:text-[8px] font-bold bg-cyan-500/15 border border-cyan-500/30 text-cyan-300 shadow-[0_0_6px_rgba(6,182,212,0.2)] leading-none mt-0.5">
-                    <ShieldCheck size={8} className="text-cyan-400 flex-shrink-0" />
-                    <span>MEMBER</span>
-                  </span>
-                )}
-              </div>
+              ) : user.role === 'admin' ? (
+                <span className="inline-flex items-center gap-0.5 px-1 py-0.2 rounded text-[7px] font-black bg-cyan-500/20 border border-cyan-500/30 text-cyan-300 leading-none mt-0.5">
+                  <ShieldCheck size={7} className="text-cyan-400 flex-shrink-0" />
+                  <span>ADMIN</span>
+                </span>
+              ) : (
+                <span className="inline-flex items-center gap-0.5 px-1 py-0.2 rounded text-[7px] font-bold bg-white/10 border border-white/15 text-slate-300 leading-none mt-0.5">
+                  <span>MEMBER</span>
+                </span>
+              )}
             </Link>
           ) : (
             <Link
               href="/login"
-              className="px-3 py-1.5 sm:px-3.5 sm:py-2 rounded-xl text-xs sm:text-sm font-bold text-cyan-300 transition-all duration-200 hover:scale-105 active:scale-95 flex items-center gap-1"
-              style={{
-                background:
-                  'linear-gradient(135deg, rgba(6, 182, 212, 0.16) 0%, rgba(124, 58, 237, 0.22) 100%)',
-                border: '1px solid rgba(6, 182, 212, 0.45)',
-                boxShadow: '0 0 18px rgba(6, 182, 212, 0.18), inset 0 1px 0 rgba(255, 255, 255, 0.12)',
-              }}
+              className="px-3 py-1.5 sm:px-3.5 sm:py-2 rounded-xl text-xs sm:text-sm font-bold text-cyan-300 bg-white/[0.06] hover:bg-white/10 border border-white/10 transition-all duration-200 active:scale-95 flex items-center gap-1.5"
             >
               <LogIn size={13} className="text-cyan-400" />
               <span>Login</span>

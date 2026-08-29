@@ -570,32 +570,21 @@ export const CreateModal: React.FC<CreateModalProps> = ({
             </div>
           )}
 
-          {/* TMDB ID & Manual Autofill */}
+          {/* TMDB ID */}
           {contentType !== 'tv_episode' && (
             <div className="space-y-1.5">
               <label className="block text-xs font-bold text-slate-300">
                 TMDB ID <span className="text-red-400">*</span>
               </label>
-              <div className="flex gap-2">
-                <input
-                  type="text"
-                  value={formTmdbId}
-                  onChange={(e) => setFormTmdbId(e.target.value)}
-                  placeholder="Contoh: 1288445"
-                  className={`flex-1 px-3.5 py-2.5 sm:py-3 bg-black/50 border rounded-xl text-xs sm:text-sm text-white placeholder-slate-500 focus:outline-none min-h-[42px] ${
-                    formErrors.formTmdbId ? 'border-red-500' : 'border-white/10 focus:border-cyan-500'
-                  }`}
-                />
-                <button
-                  type="button"
-                  onClick={handleApplyTmdbToForm}
-                  disabled={fetchingTmdb || !formTmdbId}
-                  className="px-4 py-2.5 sm:py-3 rounded-xl text-xs font-bold bg-cyan-500/20 hover:bg-cyan-500/30 text-cyan-300 border border-cyan-500/40 flex items-center gap-1.5 transition-all disabled:opacity-50 min-h-[42px]"
-                >
-                  <Sparkles size={14} className={fetchingTmdb ? 'animate-spin' : ''} />
-                  <span>{fetchingTmdb ? 'Memuat...' : 'Autofill'}</span>
-                </button>
-              </div>
+              <input
+                type="text"
+                value={formTmdbId}
+                onChange={(e) => setFormTmdbId(e.target.value)}
+                placeholder="Contoh: 1288445"
+                className={`w-full px-3.5 py-2.5 sm:py-3 bg-black/50 border rounded-xl text-xs sm:text-sm text-white placeholder-slate-500 focus:outline-none min-h-[42px] ${
+                  formErrors.formTmdbId ? 'border-red-500' : 'border-white/10 focus:border-cyan-500'
+                }`}
+              />
               {formErrors.formTmdbId && (
                 <p className="text-[10px] text-red-400">{formErrors.formTmdbId}</p>
               )}

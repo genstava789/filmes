@@ -108,14 +108,16 @@ export function normalizeEmail(email: string): string {
 
 /**
  * Resolves the effective role of a user.
- * If user email matches siteConfig.owner.email, role is always 'owner'.
+ * If user email or username matches siteConfig.owner, role is always 'owner'.
  */
-export function resolveUserRole(user?: { email?: string; role?: UserRole } | null): UserRole {
-  if (!user || !user.email) return 'member';
-  const cleanEmail = normalizeEmail(user.email);
+export function resolveUserRole(user?: { email?: string; username?: string; role?: UserRole } | null): UserRole {
+  if (!user) return 'member';
+  const cleanEmail = user.email ? normalizeEmail(user.email) : '';
+  const cleanUsername = user.username ? normalizeUsername(user.username) : '';
   const ownerEmail = normalizeEmail(siteConfig.owner?.email || 'kazumiteku6@gmail.com');
+  const ownerUsername = normalizeUsername(siteConfig.owner?.username || 'Levi');
 
-  if (cleanEmail === ownerEmail) {
+  if (cleanEmail === ownerEmail || cleanUsername === ownerUsername || user.role === 'owner') {
     return 'owner';
   }
   if (user.role === 'admin') {
@@ -136,6 +138,23 @@ export async function getUserById(userId: string): Promise<MongoUser | null> {
     const user = await col.findOne({ _id: new ObjectId(userId) });
     if (user) {
       user.role = resolveUserRole(user);
+      const ownerEmail = normalizeEmail(siteConfig.owner?.email || 'kazumiteku6@gmail.com');
+      const ownerUsername = normalizeUsername(siteConfig.owner?.username || 'Levi');
+      if (normalizeEmail(user.email) === ownerEmail && user.username !== ownerUsername) {
+        user.username = ownerUsername;
+        user.role = 'owner';
+        col.updateOne(
+          { _id: user._id },
+          {
+            $set: {
+              username: ownerUsername,
+              role: 'owner',
+              avatar: `https://api.dicebear.com/7.x/identicon/svg?seed=${encodeURIComponent(ownerUsername)}`,
+              updatedAt: Date.now(),
+            },
+          }
+        ).catch(() => {});
+      }
     }
     return user;
   });
@@ -155,6 +174,23 @@ export async function getUserByUsernameOrEmail(identifier: string): Promise<Mong
     });
     if (user) {
       user.role = resolveUserRole(user);
+      const ownerEmail = normalizeEmail(siteConfig.owner?.email || 'kazumiteku6@gmail.com');
+      const ownerUsername = normalizeUsername(siteConfig.owner?.username || 'Levi');
+      if (normalizeEmail(user.email) === ownerEmail && user.username !== ownerUsername) {
+        user.username = ownerUsername;
+        user.role = 'owner';
+        col.updateOne(
+          { _id: user._id },
+          {
+            $set: {
+              username: ownerUsername,
+              role: 'owner',
+              avatar: `https://api.dicebear.com/7.x/identicon/svg?seed=${encodeURIComponent(ownerUsername)}`,
+              updatedAt: Date.now(),
+            },
+          }
+        ).catch(() => {});
+      }
     }
     return user;
   });
@@ -191,7 +227,7 @@ export async function createUser(data: {
 
     const { salt, hash } = hashPassword(data.password);
     const now = Date.now();
-    const role = resolveUserRole({ email: cleanEmail });
+    const role = resolveUserRole({ email: cleanEmail, username: cleanUsername });
 
     const newUser: MongoUser = {
       username: cleanUsername,
@@ -221,16 +257,25 @@ export async function authenticateUser(
 ): Promise<MongoUser | null> {
   const cleanIdentifier = identifier.trim().toLowerCase();
   const ownerEmail = normalizeEmail(siteConfig.owner?.email || 'kazumiteku6@gmail.com');
+  const ownerUsername = normalizeUsername(siteConfig.owner?.username || 'Levi');
   const ownerPassword = siteConfig.owner?.password || 'admin';
 
-  // Check if logging in with owner credentials
-  if (cleanIdentifier === ownerEmail && password === ownerPassword) {
+  const isOwnerIdentifier =
+    cleanIdentifier === ownerEmail ||
+    cleanIdentifier === ownerUsername.toLowerCase() ||
+    cleanIdentifier === 'owner';
+
+  // 1. Check direct owner credentials
+  if (isOwnerIdentifier && password === ownerPassword) {
     let ownerUser = await getUserByUsernameOrEmail(ownerEmail);
     if (!ownerUser) {
-      // Auto-provision owner user in MongoDB
+      ownerUser = await getUserByUsernameOrEmail(ownerUsername);
+    }
+    if (!ownerUser) {
+      // Auto-provision owner user in MongoDB with username 'Levi'
       try {
         ownerUser = await createUser({
-          username: 'owner',
+          username: ownerUsername,
           email: ownerEmail,
           password: ownerPassword,
         });
@@ -238,26 +283,64 @@ export async function authenticateUser(
         ownerUser = await getUserByUsernameOrEmail(ownerEmail);
       }
     }
+
     if (ownerUser) {
+      if (ownerUser.username !== ownerUsername || ownerUser.role !== 'owner') {
+        ownerUser.username = ownerUsername;
+        ownerUser.role = 'owner';
+        const col = await getUsersCollection();
+        await col.updateOne(
+          { _id: ownerUser._id },
+          {
+            $set: {
+              username: ownerUsername,
+              role: 'owner',
+              avatar: `https://api.dicebear.com/7.x/identicon/svg?seed=${encodeURIComponent(ownerUsername)}`,
+              updatedAt: Date.now(),
+            },
+          }
+        );
+      }
       ownerUser.role = 'owner';
       return ownerUser;
     }
   }
 
-  const user = await getUserByUsernameOrEmail(cleanIdentifier);
+  // 2. Standard user lookup & password verification
+  let user = await getUserByUsernameOrEmail(cleanIdentifier);
+  if (!user && isOwnerIdentifier) {
+    user = await getUserByUsernameOrEmail(ownerEmail);
+  }
   if (!user || !user.passwordHash || !user.salt) return null;
 
   const isValid = verifyPassword(password, user.salt, user.passwordHash);
   if (!isValid) {
     // If user is owner email and matched config owner password
-    if (normalizeEmail(user.email) === ownerEmail && password === ownerPassword) {
+    if ((normalizeEmail(user.email) === ownerEmail || normalizeUsername(user.username) === ownerUsername) && password === ownerPassword) {
       user.role = 'owner';
+      user.username = ownerUsername;
       return user;
     }
     return null;
   }
 
   user.role = resolveUserRole(user);
+  if (normalizeEmail(user.email) === ownerEmail && user.username !== ownerUsername) {
+    user.username = ownerUsername;
+    user.role = 'owner';
+    const col = await getUsersCollection();
+    await col.updateOne(
+      { _id: user._id },
+      {
+        $set: {
+          username: ownerUsername,
+          role: 'owner',
+          avatar: `https://api.dicebear.com/7.x/identicon/svg?seed=${encodeURIComponent(ownerUsername)}`,
+          updatedAt: Date.now(),
+        },
+      }
+    );
+  }
   return user;
 }
 
