@@ -137,6 +137,27 @@ body {
   animation: shimmer 2s linear infinite;
 }
 
+/* Section title */
+.section-title {
+  font-size: 1.5rem;
+  font-weight: 700;
+  color: var(--neo-text-primary);
+  position: relative;
+  padding-left: 1rem;
+}
+
+.section-title::before {
+  content: '';
+  position: absolute;
+  left: 0;
+  top: 50%;
+  transform: translateY(-50%);
+  width: 4px;
+  height: 100%;
+  background: linear-gradient(to bottom, #06b6d4, #7c3aed);
+  border-radius: 2px;
+}
+
 /* Gradient text */
 .gradient-text-cyan-violet {
   background: linear-gradient(135deg, #06b6d4, #7c3aed);

@@ -1,5 +1,5 @@
 import type { Metadata } from 'next';
-import { Plus_Jakarta_Sans, Outfit, Poppins } from 'next/font/google';
+import { Plus_Jakarta_Sans, Outfit } from 'next/font/google';
 import './globals.css';
 import AppLayout from '@/components/AppLayout';
 import BackToTop from '@/components/BackToTop';
@@ -18,13 +18,6 @@ const outfit = Outfit({
   subsets: ['latin'],
   weight: ['300', '400', '500', '600', '700', '800', '900'],
   variable: '--font-outfit',
-  display: 'swap',
-});
-
-const poppins = Poppins({
-  subsets: ['latin'],
-  weight: ['300', '400', '500', '600', '700', '800', '900'],
-  variable: '--font-poppins',
   display: 'swap',
 });
 
@@ -67,7 +60,7 @@ export default async function RootLayout({
   }
 
   return (
-    <html lang="en" className={`${plusJakartaSans.variable} ${outfit.variable} ${poppins.variable} ${plusJakartaSans.className}`}>
+    <html lang="en" className={`${plusJakartaSans.variable} ${outfit.variable} ${plusJakartaSans.className}`}>
       <head>
         <link rel="preconnect" href="https://image.tmdb.org" crossOrigin="anonymous" />
         <link rel="dns-prefetch" href="https://image.tmdb.org" />

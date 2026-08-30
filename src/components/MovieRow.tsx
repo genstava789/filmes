@@ -160,62 +160,43 @@ export default function MovieRow({
 
   return (
     <section className="relative w-full max-w-full overflow-hidden">
-      {/* ── Section Header (Enlarged Title on Small Screens with Gradient Accent Bar) ── */}
-      <div
-        className={`flex items-center justify-between gap-2 sm:gap-4 mb-2.5 sm:mb-4 ${
-          noPadding ? 'px-0' : 'px-4 sm:px-6 md:px-8 lg:px-10 xl:px-12 2xl:px-14'
-        }`}
-      >
-        <div className="flex items-center gap-2 sm:gap-2.5 min-w-0">
-          {/* Vertical Accent Bar */}
-          <span
-            className="w-1.5 sm:w-2 h-5 sm:h-6 rounded-full flex-shrink-0"
-            style={{
-              background: isTV
-                ? 'linear-gradient(to bottom, #ec4899, #8b5cf6)'
-                : 'linear-gradient(to bottom, #06b6d4, #3b82f6)',
-              boxShadow: isTV
-                ? '0 0 12px rgba(236,72,153,0.6)'
-                : '0 0 12px rgba(6,182,212,0.6)',
-            }}
-          />
-          <h2 className="font-poppins text-base xs:text-lg sm:text-xl md:text-2xl font-extrabold text-white tracking-tight truncate leading-tight">
-            {title}
-          </h2>
-        </div>
-
+      {/* Header with section-title style (vertical gradient accent on the left) */}
+      <div className={`flex items-center justify-between mb-4 ${noPadding ? 'px-0' : 'px-4 sm:px-6 md:px-8 lg:px-10 xl:px-12 2xl:px-14'}`}>
+        <h2 className="section-title text-xl sm:text-2xl font-bold text-neo-text-primary">
+          {title}
+        </h2>
         {seeAllHref && (
           <Link
             href={seeAllHref}
-            className="font-poppins text-xs xs:text-[13px] sm:text-sm font-semibold transition-colors duration-200 hover:text-cyan-400 flex items-center gap-0.5 flex-shrink-0 text-slate-400 group/link"
+            className="text-xs sm:text-sm font-medium transition-colors duration-200 hover:text-neo-cyan flex items-center gap-1 group/link"
+            style={{ color: '#94a3b8' }}
           >
             <span className="group-hover/link:text-cyan-400 transition-colors">See All</span>
-            <ChevronRight size={15} className="group-hover/link:translate-x-0.5 transition-transform" />
+            <ChevronRight size={16} className="group-hover/link:translate-x-0.5 transition-transform" />
           </Link>
         )}
       </div>
 
-      {/* ── Scroll container with isolated row group & Glass Navigation ── */}
-      <div className="relative group/row w-full max-w-full">
+      {/* Scroll container */}
+      <div className="relative group w-full max-w-full">
         {/* Left arrow */}
         {canScrollLeft && (
           <button
             onClick={() => scroll('left')}
-            className={`absolute left-2 sm:left-4 md:left-6 top-1/2 -translate-y-1/2 z-20 w-9 h-9 sm:w-10 sm:h-10 rounded-full flex items-center justify-center transition-all duration-300 hover:scale-110 shadow-lg cursor-pointer ${
+            className={`absolute left-2 sm:left-4 md:left-6 top-1/2 -translate-y-1/2 z-20 w-10 h-10 rounded-xl flex items-center justify-center transition-all duration-300 hover:scale-110 shadow-lg cursor-pointer ${
               isScrolling
                 ? 'opacity-100 pointer-events-auto'
-                : 'opacity-0 group-hover/row:opacity-100 pointer-events-none group-hover/row:pointer-events-auto'
+                : 'opacity-0 group-hover:opacity-100 pointer-events-none group-hover:pointer-events-auto'
             }`}
             style={{
-              background: 'rgba(11, 16, 32, 0.88)',
+              background: 'rgba(11, 16, 32, 0.9)',
               backdropFilter: 'blur(12px)',
-              border: '1px solid rgba(255, 255, 255, 0.15)',
-              boxShadow: '0 4px 20px rgba(0,0,0,0.6)',
-              color: '#f1f5f9',
+              border: '1px solid rgba(6,182,212,0.4)',
+              boxShadow: '0 0 20px rgba(6,182,212,0.25), 0 4px 15px rgba(0,0,0,0.6)',
             }}
             aria-label="Scroll left"
           >
-            <ChevronLeft size={20} />
+            <ChevronLeft size={22} className="text-neo-cyan" />
           </button>
         )}
 
@@ -223,28 +204,27 @@ export default function MovieRow({
         {canScrollRight && (
           <button
             onClick={() => scroll('right')}
-            className={`absolute right-2 sm:right-4 md:right-6 top-1/2 -translate-y-1/2 z-20 w-9 h-9 sm:w-10 sm:h-10 rounded-full flex items-center justify-center transition-all duration-300 hover:scale-110 shadow-lg cursor-pointer ${
+            className={`absolute right-2 sm:right-4 md:right-6 top-1/2 -translate-y-1/2 z-20 w-10 h-10 rounded-xl flex items-center justify-center transition-all duration-300 hover:scale-110 shadow-lg cursor-pointer ${
               isScrolling
                 ? 'opacity-100 pointer-events-auto'
-                : 'opacity-0 group-hover/row:opacity-100 pointer-events-none group-hover/row:pointer-events-auto'
+                : 'opacity-0 group-hover:opacity-100 pointer-events-none group-hover:pointer-events-auto'
             }`}
             style={{
-              background: 'rgba(11, 16, 32, 0.88)',
+              background: 'rgba(11, 16, 32, 0.9)',
               backdropFilter: 'blur(12px)',
-              border: '1px solid rgba(255, 255, 255, 0.15)',
-              boxShadow: '0 4px 20px rgba(0,0,0,0.6)',
-              color: '#f1f5f9',
+              border: '1px solid rgba(6,182,212,0.4)',
+              boxShadow: '0 0 20px rgba(6,182,212,0.25), 0 4px 15px rgba(0,0,0,0.6)',
             }}
             aria-label="Scroll right"
           >
-            <ChevronRight size={20} />
+            <ChevronRight size={22} className="text-neo-cyan" />
           </button>
         )}
 
         {/* Left fade */}
         {canScrollLeft && (
           <div
-            className="absolute left-0 top-0 bottom-0 w-8 sm:w-16 md:w-20 z-[5] pointer-events-none"
+            className="absolute left-0 top-0 bottom-0 w-12 sm:w-16 md:w-20 z-[5] pointer-events-none"
             style={{
               background: 'linear-gradient(to right, #050816, transparent)',
             }}
@@ -254,7 +234,7 @@ export default function MovieRow({
         {/* Right fade */}
         {canScrollRight && (
           <div
-            className="absolute right-0 top-0 bottom-0 w-8 sm:w-16 md:w-20 z-[5] pointer-events-none"
+            className="absolute right-0 top-0 bottom-0 w-12 sm:w-16 md:w-20 z-[5] pointer-events-none"
             style={{
               background: 'linear-gradient(to left, #050816, transparent)',
             }}

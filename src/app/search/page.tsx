@@ -169,7 +169,7 @@ function SearchContent() {
           </div>
 
           {/* Heading */}
-          <h1 className="font-poppins text-3xl sm:text-4xl md:text-5xl font-extrabold text-white mb-2 tracking-tight">
+          <h1 className="text-3xl sm:text-4xl md:text-5xl font-black text-white mb-2 tracking-tight">
             <span
               style={{
                 background: 'linear-gradient(135deg, #06b6d4 0%, #a78bfa 50%, #ec4899 100%)',
