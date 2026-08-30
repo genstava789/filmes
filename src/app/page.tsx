@@ -28,7 +28,7 @@ export default async function HomePage() {
       )}
 
       {/* Content sections */}
-      <div className="relative z-10 space-y-7 sm:space-y-9 md:space-y-11 pb-10 sm:pb-14 pt-4 sm:pt-6 md:pt-8">
+      <div className="relative z-10 space-y-8 sm:space-y-10 md:space-y-12 pb-12 sm:pb-16 pt-8 sm:pt-12 md:pt-16 lg:pt-20">
         {/* Dynamic Custom & Fallback Sections ordered by weight */}
         {sections.map((section) => (
           <MovieRow
