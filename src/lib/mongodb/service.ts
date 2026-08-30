@@ -91,12 +91,11 @@ async function getCollectionsRaw() {
   return { movies, tvShows, episodes };
 }
 
-// Global initialization lock so index/seed runs only once in background
-let isInitialized = false;
-
+// Global initialization lock so index runs only once per runtime process in background
 function ensureInitialized() {
-  if (!isMongoConfigured() || isInitialized) return;
-  isInitialized = true;
+  const globalScope = globalThis as any;
+  if (!isMongoConfigured() || globalScope._serviceMongoInitialized) return;
+  globalScope._serviceMongoInitialized = true;
 
   // Run in background without blocking current request
   (async () => {
@@ -109,12 +108,6 @@ function ensureInitialized() {
         tvShows.createIndex({ tmdb_id: 1 }),
         episodes.createIndex({ showSlug: 1, seasonFolder: 1, episode: 1 }, { unique: true }),
       ]);
-
-      const movieCount = await movies.countDocuments();
-      const showCount = await tvShows.countDocuments();
-      if (movieCount === 0 && showCount === 0) {
-        await seedFromMarkdownFiles(movies, tvShows, episodes);
-      }
     } catch (e) {
       console.warn('[MongoDB] Init notice:', e);
     }

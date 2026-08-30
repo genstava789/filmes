@@ -1,16 +1,21 @@
 import { MongoClient, MongoClientOptions } from 'mongodb';
 import { MONGODB_CONFIG } from './config';
 
-const uri = MONGODB_CONFIG.uri;
-
-// Serverless-optimized options for Vercel, Netlify, and AWS Lambda
+/**
+ * Serverless & M0 Free-Tier Optimized Options
+ * - maxPoolSize: 1 ensures each serverless lambda/process takes only 1 connection slot (staying well within the 500 limit on M0)
+ * - minPoolSize: 0 ensures no unused idle sockets linger
+ * - maxIdleTimeMS: 5000 closes idle sockets within 5s so Atlas can reclaim connection slots rapidly
+ * - short timeouts prevent stalled requests from hoarding connections
+ */
 const options: MongoClientOptions = {
-  maxPoolSize: 10,
+  maxPoolSize: 1,
   minPoolSize: 0,
-  maxIdleTimeMS: 60000,
-  serverSelectionTimeoutMS: 8000,
-  connectTimeoutMS: 8000,
-  socketTimeoutMS: 15000,
+  maxIdleTimeMS: 5000,
+  serverSelectionTimeoutMS: 5000,
+  connectTimeoutMS: 5000,
+  socketTimeoutMS: 10000,
+  waitQueueTimeoutMS: 5000,
   retryReads: true,
   retryWrites: true,
   tls: true,
@@ -43,34 +48,43 @@ export function isMongoConfigured(): boolean {
   return Boolean(currentUri && currentUri.trim().startsWith('mongodb'));
 }
 
-function createNewClient(): { client: MongoClient; promise: Promise<MongoClient> } {
+/**
+ * Returns the cached or newly created MongoClient singleton promise
+ */
+export function getMongoClientPromise(): Promise<MongoClient> {
   if (!isMongoConfigured()) {
-    throw new Error('MongoDB is not configured or running in unsupported edge environment');
+    return Promise.reject(new Error('MongoDB is not configured or running in unsupported edge environment'));
   }
 
-  const currentUri = process.env.MONGODB_URI || MONGODB_CONFIG.uri;
-  const newClient = new MongoClient(currentUri, options);
-  const promise = newClient.connect().catch((err) => {
-    console.warn('[MongoDB] Connection initialization notice:', err.message);
-    global._mongoClientPromise = undefined;
-    global._mongoClientInstance = undefined;
-    throw err;
-  });
-  return { client: newClient, promise };
+  const globalScope = globalThis as any;
+  if (!globalScope._mongoClientPromise) {
+    const currentUri = process.env.MONGODB_URI || MONGODB_CONFIG.uri;
+    const client = new MongoClient(currentUri, options);
+    globalScope._mongoClientInstance = client;
+    globalScope._mongoClientPromise = client.connect().catch((err) => {
+      console.warn('[MongoDB] Connection initialization warning:', err.message);
+      globalScope._mongoClientPromise = undefined;
+      globalScope._mongoClientInstance = undefined;
+      throw err;
+    });
+  }
+
+  return globalScope._mongoClientPromise;
 }
 
 export function resetMongoClient() {
-  if (global._mongoClientInstance) {
+  const globalScope = globalThis as any;
+  if (globalScope._mongoClientInstance) {
     try {
-      global._mongoClientInstance.close(true).catch(() => {});
+      globalScope._mongoClientInstance.close(false).catch(() => {});
     } catch {}
   }
-  global._mongoClientPromise = undefined;
-  global._mongoClientInstance = undefined;
+  globalScope._mongoClientPromise = undefined;
+  globalScope._mongoClientInstance = undefined;
 }
 
 /**
- * Returns active database with automatic retry on TLS/SSL socket errors
+ * Returns active database with automatic reuse of persistent connection
  */
 export async function getDatabase() {
   if (!isMongoConfigured()) {
@@ -78,24 +92,15 @@ export async function getDatabase() {
   }
 
   try {
-    if (!global._mongoClientPromise) {
-      const { client, promise } = createNewClient();
-      global._mongoClientInstance = client;
-      global._mongoClientPromise = promise;
-    }
-
-    const connectedClient = await global._mongoClientPromise;
-    return connectedClient.db(MONGODB_CONFIG.dbName);
+    const client = await getMongoClientPromise();
+    return client.db(MONGODB_CONFIG.dbName);
   } catch (err: any) {
-    console.warn('[MongoDB] Primary connection failed, resetting and retrying:', err.message);
-    resetMongoClient();
+    // If the promise rejected previously, clear it and retry once
+    const globalScope = globalThis as any;
+    globalScope._mongoClientPromise = undefined;
+    globalScope._mongoClientInstance = undefined;
 
-    // Reconnect with fresh client
-    const { client, promise } = createNewClient();
-    global._mongoClientInstance = client;
-    global._mongoClientPromise = promise;
-
-    const freshConnectedClient = await promise;
-    return freshConnectedClient.db(MONGODB_CONFIG.dbName);
+    const freshClient = await getMongoClientPromise();
+    return freshClient.db(MONGODB_CONFIG.dbName);
   }
 }

@@ -1,6 +1,7 @@
 import { ObjectId } from 'mongodb';
-import { getDatabase, resetMongoClient } from './client';
+import { getDatabase } from './client';
 import { hashPassword, verifyPassword } from '@/lib/auth/password';
+import { memoryCache } from '@/lib/cache';
 import siteConfig from '@/config';
 
 export type UserRole = 'owner' | 'admin' | 'member';
@@ -50,11 +51,10 @@ async function getUsersCollection() {
   return db.collection<MongoUser>(USERS_COLLECTION);
 }
 
-let isUserIndexInitialized = false;
-
 function ensureUserIndexesBackground() {
-  if (isUserIndexInitialized) return;
-  isUserIndexInitialized = true;
+  const globalScope = globalThis as any;
+  if (globalScope._userIndexesInitialized) return;
+  globalScope._userIndexesInitialized = true;
   (async () => {
     try {
       const col = await getUsersCollection();
@@ -63,13 +63,13 @@ function ensureUserIndexesBackground() {
         col.createIndex({ email: 1 }, { unique: true }),
       ]);
     } catch (err) {
-      console.warn('[MongoDB] ensureUserIndexesBackground warning:', err);
+      console.warn('[MongoDB] ensureUserIndexesBackground notice:', err);
     }
   })();
 }
 
 /**
- * Executes a MongoDB operation with 1 automatic retry on SSL/connection errors
+ * Executes a MongoDB operation with 1 automatic retry on transient errors
  */
 async function withMongoRetry<T>(operation: () => Promise<T>): Promise<T> {
   try {
@@ -82,10 +82,10 @@ async function withMongoRetry<T>(operation: () => Promise<T>): Promise<T> {
       msg.includes('closed') ||
       msg.includes('topology') ||
       msg.includes('connection') ||
-      msg.includes('ECONNRESET')
+      msg.includes('ECONNRESET') ||
+      msg.includes('pool')
     ) {
-      console.warn('[MongoDB] Transient connection/SSL error detected, resetting and retrying once:', msg);
-      resetMongoClient();
+      console.warn('[MongoDB] Transient connection notice, retrying operation once:', msg);
       return await operation();
     }
     throw err;
@@ -127,37 +127,43 @@ export function resolveUserRole(user?: { email?: string; username?: string; role
 }
 
 /**
- * Finds user by ObjectId string.
+ * Finds user by ObjectId string with short-lived RAM caching (reduces repeated DB roundtrips).
  */
 export async function getUserById(userId: string): Promise<MongoUser | null> {
-  ensureUserIndexesBackground();
   if (!ObjectId.isValid(userId)) return null;
 
-  return withMongoRetry(async () => {
-    const col = await getUsersCollection();
-    const user = await col.findOne({ _id: new ObjectId(userId) });
-    if (user) {
-      user.role = resolveUserRole(user);
-      const ownerEmail = normalizeEmail(siteConfig.owner?.email || 'kazumiteku6@gmail.com');
-      const ownerUsername = normalizeUsername(siteConfig.owner?.username || 'Levi');
-      if (normalizeEmail(user.email) === ownerEmail && user.username !== ownerUsername) {
-        user.username = ownerUsername;
-        user.role = 'owner';
-        col.updateOne(
-          { _id: user._id },
-          {
-            $set: {
-              username: ownerUsername,
-              role: 'owner',
-              avatar: `https://api.dicebear.com/7.x/identicon/svg?seed=${encodeURIComponent(ownerUsername)}`,
-              updatedAt: Date.now(),
-            },
+  return memoryCache.getOrFetch<MongoUser | null>(
+    `user_id_${userId}`,
+    async () => {
+      return withMongoRetry(async () => {
+        const col = await getUsersCollection();
+        const user = await col.findOne({ _id: new ObjectId(userId) });
+        if (user) {
+          user.role = resolveUserRole(user);
+          const ownerEmail = normalizeEmail(siteConfig.owner?.email || 'kazumiteku6@gmail.com');
+          const ownerUsername = normalizeUsername(siteConfig.owner?.username || 'Levi');
+          if (normalizeEmail(user.email) === ownerEmail && user.username !== ownerUsername) {
+            user.username = ownerUsername;
+            user.role = 'owner';
+            col.updateOne(
+              { _id: user._id },
+              {
+                $set: {
+                  username: ownerUsername,
+                  role: 'owner',
+                  avatar: `https://api.dicebear.com/7.x/identicon/svg?seed=${encodeURIComponent(ownerUsername)}`,
+                  updatedAt: Date.now(),
+                },
+              }
+            ).catch(() => {});
           }
-        ).catch(() => {});
-      }
-    }
-    return user;
-  });
+        }
+        return user;
+      });
+    },
+    20_000, // 20s TTL
+    10_000  // 10s SWR
+  );
 }
 
 /**
@@ -436,6 +442,8 @@ export async function updateUserRole(
       { $set: { role: newRole, updatedAt: Date.now() } }
     );
 
+    memoryCache.invalidate(`user_id_${targetUserId}`);
+
     return {
       success: true,
       user: {
@@ -494,6 +502,8 @@ export async function deleteUserAccount(
     // 2. Delete the user document completely (clearing watchlist, history, credentials)
     const usersCol = await getUsersCollection();
     await usersCol.deleteOne({ _id: new ObjectId(targetUserId) });
+
+    memoryCache.invalidate(`user_id_${targetUserId}`);
 
     return {
       success: true,
@@ -560,6 +570,8 @@ export async function batchDeleteUserAccounts(
     // 2. Delete user documents
     const deleteResult = await usersCol.deleteMany({ _id: { $in: objectIds } });
 
+    cleanTargetIds.forEach((id) => memoryCache.invalidate(`user_id_${id}`));
+
     return {
       success: true,
       deletedCount: deleteResult.deletedCount || 0,
@@ -615,6 +627,7 @@ export async function toggleUserWatchlist(
           $set: { watchlist: updated, updatedAt: Date.now() },
         }
       );
+      memoryCache.invalidate(`user_id_${userId}`);
       return { added: false, watchlist: updated };
     } else {
       const newItem: MongoWatchlistItem = {
@@ -635,6 +648,7 @@ export async function toggleUserWatchlist(
           $set: { watchlist: updated, updatedAt: Date.now() },
         }
       );
+      memoryCache.invalidate(`user_id_${userId}`);
       return { added: true, watchlist: updated };
     }
   });
@@ -666,6 +680,7 @@ export async function removeUserWatchlist(
       }
     );
 
+    memoryCache.invalidate(`user_id_${userId}`);
     return updated;
   });
 }
@@ -738,6 +753,7 @@ export async function addUserHistory(
       }
     );
 
+    memoryCache.invalidate(`user_id_${userId}`);
     return updated;
   });
 }
@@ -761,6 +777,7 @@ export async function removeUserHistory(
           $set: { history: [], updatedAt: Date.now() },
         }
       );
+      memoryCache.invalidate(`user_id_${userId}`);
       return [];
     }
 
@@ -778,6 +795,7 @@ export async function removeUserHistory(
       }
     );
 
+    memoryCache.invalidate(`user_id_${userId}`);
     return updated;
   });
 }

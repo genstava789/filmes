@@ -1,5 +1,6 @@
 import { ObjectId } from 'mongodb';
-import { getDatabase, resetMongoClient, isMongoConfigured } from './client';
+import { getDatabase, isMongoConfigured } from './client';
+import { memoryCache } from '@/lib/cache';
 
 export interface MongoMediaRequest {
   _id?: ObjectId | string;
@@ -32,11 +33,10 @@ async function getRequestsCol() {
   return db.collection<MongoMediaRequest>(REQUESTS_COLLECTION);
 }
 
-let isRequestIndexInitialized = false;
-
 function ensureRequestIndexesBackground() {
-  if (isRequestIndexInitialized) return;
-  isRequestIndexInitialized = true;
+  const globalScope = globalThis as any;
+  if (globalScope._requestIndexesInitialized) return;
+  globalScope._requestIndexesInitialized = true;
   (async () => {
     try {
       const col = await getRequestsCol();
@@ -48,13 +48,13 @@ function ensureRequestIndexesBackground() {
         col.createIndex({ userId: 1 }),
       ]);
     } catch (err) {
-      console.warn('[MongoDB] ensureRequestIndexesBackground warning:', err);
+      console.warn('[MongoDB] ensureRequestIndexesBackground notice:', err);
     }
   })();
 }
 
 /**
- * Executes a MongoDB operation with 1 automatic retry on SSL/connection errors
+ * Executes a MongoDB operation with 1 automatic retry on transient errors
  */
 async function withMongoRetry<T>(operation: () => Promise<T>): Promise<T> {
   try {
@@ -67,10 +67,10 @@ async function withMongoRetry<T>(operation: () => Promise<T>): Promise<T> {
       msg.includes('closed') ||
       msg.includes('topology') ||
       msg.includes('connection') ||
-      msg.includes('ECONNRESET')
+      msg.includes('ECONNRESET') ||
+      msg.includes('pool')
     ) {
-      console.warn('[MongoDB] Transient connection/SSL error detected in requests, retrying once:', msg);
-      resetMongoClient();
+      console.warn('[MongoDB] Transient connection notice in requests, retrying once:', msg);
       return await operation();
     }
     throw err;
@@ -187,6 +187,7 @@ export async function createMediaRequest(params: {
   return withMongoRetry(async () => {
     const col = await getRequestsCol();
     const result = await col.insertOne(newRequest as any);
+    memoryCache.invalidate('requests_feed_');
     return {
       ...newRequest,
       _id: result.insertedId.toString(),
@@ -211,54 +212,66 @@ export async function getMediaRequests(options: {
   const { tab = 'latest', q = '', page = 1, limit = 24, currentUserId } = options;
   const skip = (page - 1) * limit;
 
-  return withMongoRetry(async () => {
-    const col = await getRequestsCol();
-    const filter: any = {};
+  // Use memory cache for search-less feed requests
+  const isCacheable = !q || !q.trim();
+  const cacheKey = `requests_feed_${tab}_${page}_${limit}`;
 
-    if (q && q.trim()) {
-      const escaped = q.trim().replace(/[.*+?^${}()|[\]\\]/g, '\\$&');
-      filter.$or = [
-        { title: { $regex: escaped, $options: 'i' } },
-        { authorName: { $regex: escaped, $options: 'i' } },
-        { message: { $regex: escaped, $options: 'i' } },
-        { genres: { $in: [new RegExp(escaped, 'i')] } },
-      ];
-    }
+  const fetchRawFeed = async () => {
+    return withMongoRetry(async () => {
+      const col = await getRequestsCol();
+      const filter: any = {};
 
-    let sort: any = { createdAt: -1 };
-    if (tab === 'popular') {
-      sort = { votes: -1, createdAt: -1 };
-    }
+      if (q && q.trim()) {
+        const escaped = q.trim().replace(/[.*+?^${}()|[\]\\]/g, '\\$&');
+        filter.$or = [
+          { title: { $regex: escaped, $options: 'i' } },
+          { authorName: { $regex: escaped, $options: 'i' } },
+          { message: { $regex: escaped, $options: 'i' } },
+          { genres: { $in: [new RegExp(escaped, 'i')] } },
+        ];
+      }
 
-    const [rawRequests, total] = await Promise.all([
-      col.find(filter).sort(sort).skip(skip).limit(limit).toArray(),
-      col.countDocuments(filter),
-    ]);
+      let sort: any = { createdAt: -1 };
+      if (tab === 'popular') {
+        sort = { votes: -1, createdAt: -1 };
+      }
 
-    const requests = rawRequests.map((doc) => {
-      const id = doc._id?.toString() || '';
-      const votedBy = Array.isArray(doc.votedBy) ? doc.votedBy : [];
-      const hasVoted = Boolean(currentUserId && votedBy.includes(currentUserId));
+      const [rawRequests, total] = await Promise.all([
+        col.find(filter).sort(sort).skip(skip).limit(limit).toArray(),
+        col.countDocuments(filter),
+      ]);
 
-      return {
-        ...doc,
-        _id: id,
-        id,
-        votedBy,
-        hasVoted,
-        votes: typeof doc.votes === 'number' ? doc.votes : votedBy.length,
-      };
+      return { rawRequests, total };
     });
+  };
 
-    const totalPages = Math.max(1, Math.ceil(total / limit));
+  const { rawRequests, total } = isCacheable
+    ? await memoryCache.getOrFetch(cacheKey, fetchRawFeed, 15_000, 5_000)
+    : await fetchRawFeed();
+
+  const requests = (rawRequests || []).map((doc: any) => {
+    const id = doc._id?.toString() || '';
+    const votedBy = Array.isArray(doc.votedBy) ? doc.votedBy : [];
+    const hasVoted = Boolean(currentUserId && votedBy.includes(currentUserId));
 
     return {
-      requests,
-      total,
-      page,
-      totalPages,
+      ...doc,
+      _id: id,
+      id,
+      votedBy,
+      hasVoted,
+      votes: typeof doc.votes === 'number' ? doc.votes : votedBy.length,
     };
   });
+
+  const totalPages = Math.max(1, Math.ceil(total / limit));
+
+  return {
+    requests,
+    total,
+    page,
+    totalPages,
+  };
 }
 
 /**
@@ -311,6 +324,8 @@ export async function voteMediaRequest(
       }
     );
 
+    memoryCache.invalidate('requests_feed_');
+
     return {
       success: true,
       votes: newVotes,
@@ -348,6 +363,7 @@ export async function deleteMediaRequest(
     }
 
     await col.deleteOne({ _id: objId });
+    memoryCache.invalidate('requests_feed_');
     return { success: true };
   });
 }
@@ -384,6 +400,9 @@ export async function deleteRequestsByContent(params: {
     }
 
     const result = await col.deleteMany(filter);
+    if (result.deletedCount && result.deletedCount > 0) {
+      memoryCache.invalidate('requests_feed_');
+    }
     console.log(`[MongoDB Requests] Deleted ${result.deletedCount} request(s) matching content:`, params);
     return result.deletedCount;
   });

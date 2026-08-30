@@ -163,7 +163,7 @@ export default function MovieRow({
       {/* ── Section Header (Enlarged Title on Small Screens with Gradient Accent Bar) ── */}
       <div
         className={`flex items-center justify-between gap-2 sm:gap-4 mb-2.5 sm:mb-4 ${
-          noPadding ? 'px-0' : 'px-3 sm:px-6 md:px-8 lg:px-10 xl:px-12 2xl:px-14'
+          noPadding ? 'px-0' : 'px-4 sm:px-6 md:px-8 lg:px-10 xl:px-12 2xl:px-14'
         }`}
       >
         <div className="flex items-center gap-2 sm:gap-2.5 min-w-0">
@@ -267,14 +267,14 @@ export default function MovieRow({
           onTouchStart={triggerScrollState}
           onTouchMove={handleScroll}
           style={{ overscrollBehaviorX: 'contain' }}
-          className={`flex gap-2.5 sm:gap-3.5 md:gap-4.5 overflow-x-auto hide-scrollbar ${
-            noPadding ? 'px-0' : 'px-3 sm:px-6 md:px-8 lg:px-10 xl:px-12 2xl:px-14'
-          } pb-2.5 sm:pb-3`}
+          className={`flex gap-3 sm:gap-4 md:gap-5 overflow-x-auto hide-scrollbar ${
+            noPadding ? 'px-0' : 'px-4 sm:px-6 md:px-8 lg:px-10 xl:px-12 2xl:px-14'
+          } pb-3`}
         >
           {items.map((item) => (
             <div
               key={item.id}
-              className="flex-shrink-0 w-[148px] xs:w-[162px] sm:w-[180px] md:w-[198px] lg:w-[218px] xl:w-[235px]"
+              className="flex-shrink-0 w-[160px] xs:w-[178px] sm:w-[195px] md:w-[215px] lg:w-[230px] xl:w-[245px]"
             >
               <MovieCard item={item} type={type} />
             </div>

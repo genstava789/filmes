@@ -1,5 +1,6 @@
 import { ObjectId } from 'mongodb';
-import { getDatabase, resetMongoClient } from './client';
+import { getDatabase } from './client';
+import { memoryCache } from '@/lib/cache';
 
 export interface CollectionItem {
   id: number | string;
@@ -46,11 +47,10 @@ async function getCollectionsCol() {
   return db.collection<MongoCollection>(COLLECTIONS_COLLECTION);
 }
 
-let isCollectionIndexInitialized = false;
-
 function ensureCollectionIndexesBackground() {
-  if (isCollectionIndexInitialized) return;
-  isCollectionIndexInitialized = true;
+  const globalScope = globalThis as any;
+  if (globalScope._collectionIndexesInitialized) return;
+  globalScope._collectionIndexesInitialized = true;
   (async () => {
     try {
       const col = await getCollectionsCol();
@@ -62,13 +62,13 @@ function ensureCollectionIndexesBackground() {
         col.createIndex({ createdAt: -1 }),
       ]);
     } catch (err) {
-      console.warn('[MongoDB] ensureCollectionIndexesBackground warning:', err);
+      console.warn('[MongoDB] ensureCollectionIndexesBackground notice:', err);
     }
   })();
 }
 
 /**
- * Executes a MongoDB operation with 1 automatic retry on SSL/connection errors
+ * Executes a MongoDB operation with 1 automatic retry on transient errors
  */
 async function withMongoRetry<T>(operation: () => Promise<T>): Promise<T> {
   try {
@@ -81,10 +81,10 @@ async function withMongoRetry<T>(operation: () => Promise<T>): Promise<T> {
       msg.includes('closed') ||
       msg.includes('topology') ||
       msg.includes('connection') ||
-      msg.includes('ECONNRESET')
+      msg.includes('ECONNRESET') ||
+      msg.includes('pool')
     ) {
-      console.warn('[MongoDB] Transient connection/SSL error detected in collections, retrying once:', msg);
-      resetMongoClient();
+      console.warn('[MongoDB] Transient connection notice in collections, retrying once:', msg);
       return await operation();
     }
     throw err;
@@ -172,67 +172,77 @@ export async function getPublicCollections(params: {
   page?: number;
   limit?: number;
 }): Promise<{ collections: MongoCollection[]; total: number }> {
-  ensureCollectionIndexesBackground();
+  const { search = '', filter = 'latest', userId, page = 1, limit = 24 } = params;
 
-  return withMongoRetry(async () => {
-    const col = await getCollectionsCol();
-    const { search = '', filter = 'latest', userId, page = 1, limit = 24 } = params;
+  // Use memory cache for search-less and public filter requests
+  const isCacheable = (!search || !search.trim()) && filter !== 'my';
+  const cacheKey = `collections_feed_${filter}_${page}_${limit}`;
 
-    const query: any = { isPublic: true };
+  const fetchRawCollections = async () => {
+    return withMongoRetry(async () => {
+      const col = await getCollectionsCol();
+      const query: any = { isPublic: true };
 
-    if (filter === 'my' && userId) {
-      delete query.isPublic; // User can see all their own collections
-      query.userId = userId;
-    }
-
-    if (search.trim()) {
-      const regex = new RegExp(search.trim().replace(/[.*+?^${}()|[\]\\]/g, '\\$&'), 'i');
-      query.$or = [
-        { title: { $regex: regex } },
-        { description: { $regex: regex } },
-        { authorName: { $regex: regex } },
-      ];
-    }
-
-    let sortOption: any = { createdAt: -1 };
-    if (filter === 'popular') {
-      // Populer now sorts by most likes!
-      sortOption = { likes: -1, createdAt: -1 };
-    } else if (filter === 'latest') {
-      sortOption = { createdAt: -1 };
-    }
-
-    const skip = Math.max(0, (page - 1) * limit);
-
-    const [rawCollections, total] = await Promise.all([
-      col.find(query).sort(sortOption).skip(skip).limit(limit).toArray(),
-      col.countDocuments(query),
-    ]);
-
-    const collections = rawCollections.map((c) => {
-      let userVote: 'like' | 'dislike' | null = null;
-      if (userId) {
-        if (Array.isArray(c.likedBy) && c.likedBy.includes(userId)) {
-          userVote = 'like';
-        } else if (Array.isArray(c.dislikedBy) && c.dislikedBy.includes(userId)) {
-          userVote = 'dislike';
-        }
+      if (filter === 'my' && userId) {
+        delete query.isPublic; // User can see all their own collections
+        query.userId = userId;
       }
 
-      return {
-        ...c,
-        _id: c._id ? c._id.toString() : undefined,
-        likes: typeof c.likes === 'number' ? c.likes : (c.likedBy?.length || 0),
-        dislikes: typeof c.dislikes === 'number' ? c.dislikes : (c.dislikedBy?.length || 0),
-        userVote,
-        // Do not expose full likedBy/dislikedBy arrays to public listing to save payload
-        likedBy: undefined,
-        dislikedBy: undefined,
-      };
-    }) as any[];
+      if (search.trim()) {
+        const regex = new RegExp(search.trim().replace(/[.*+?^${}()|[\]\\]/g, '\\$&'), 'i');
+        query.$or = [
+          { title: { $regex: regex } },
+          { description: { $regex: regex } },
+          { authorName: { $regex: regex } },
+        ];
+      }
 
-    return { collections, total };
-  });
+      let sortOption: any = { createdAt: -1 };
+      if (filter === 'popular') {
+        // Populer now sorts by most likes!
+        sortOption = { likes: -1, createdAt: -1 };
+      } else if (filter === 'latest') {
+        sortOption = { createdAt: -1 };
+      }
+
+      const skip = Math.max(0, (page - 1) * limit);
+
+      const [rawCollections, total] = await Promise.all([
+        col.find(query).sort(sortOption).skip(skip).limit(limit).toArray(),
+        col.countDocuments(query),
+      ]);
+
+      return { rawCollections, total };
+    });
+  };
+
+  const { rawCollections, total } = isCacheable
+    ? await memoryCache.getOrFetch(cacheKey, fetchRawCollections, 15_000, 5_000)
+    : await fetchRawCollections();
+
+  const collections = (rawCollections || []).map((c: any) => {
+    let userVote: 'like' | 'dislike' | null = null;
+    if (userId) {
+      if (Array.isArray(c.likedBy) && c.likedBy.includes(userId)) {
+        userVote = 'like';
+      } else if (Array.isArray(c.dislikedBy) && c.dislikedBy.includes(userId)) {
+        userVote = 'dislike';
+      }
+    }
+
+    return {
+      ...c,
+      _id: c._id ? c._id.toString() : undefined,
+      likes: typeof c.likes === 'number' ? c.likes : (c.likedBy?.length || 0),
+      dislikes: typeof c.dislikes === 'number' ? c.dislikes : (c.dislikedBy?.length || 0),
+      userVote,
+      // Do not expose full likedBy/dislikedBy arrays to public listing to save payload
+      likedBy: undefined,
+      dislikedBy: undefined,
+    };
+  }) as any[];
+
+  return { collections, total };
 }
 
 /**
@@ -334,6 +344,7 @@ export async function createCollection(params: {
     };
 
     const res = await col.insertOne(newDoc as any);
+    memoryCache.invalidate('collections_feed_');
     return { ...newDoc, _id: res.insertedId.toString() as any };
   });
 }
@@ -389,6 +400,7 @@ export async function updateCollection(
     }
 
     await col.updateOne({ _id: existing._id }, { $set: updateFields });
+    memoryCache.invalidate('collections_feed_');
     const updated = await col.findOne({ _id: existing._id });
     if (!updated) return null;
     return {
@@ -468,6 +480,8 @@ export async function voteCollection(
       }
     );
 
+    memoryCache.invalidate('collections_feed_');
+
     return {
       likes: likesCount,
       dislikes: dislikesCount,
@@ -511,6 +525,7 @@ export async function deleteCollection(
     }
 
     const res = await col.deleteOne(query);
+    memoryCache.invalidate('collections_feed_');
     return (res.deletedCount || 0) > 0;
   });
 }

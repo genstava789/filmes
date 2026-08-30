@@ -65,21 +65,21 @@ export default function MovieCard({ item, type, priority = false }: MovieCardPro
         )}
 
         {/* ── IMDb-Style Yellow Rating Badge (Top-Right) ── */}
-        <div className="absolute top-1.5 right-1.5 sm:top-2 sm:right-2 z-10 flex items-center gap-1 px-1.5 py-0.5 sm:px-2 sm:py-0.5 rounded-md bg-[#f5c518] text-black font-black text-[9px] xs:text-[9.5px] sm:text-[11.5px] shadow-lg shadow-black/50 tracking-tight">
-          <Star size={10} fill="currentColor" stroke="none" className="text-black sm:w-[11px] sm:h-[11px]" />
+        <div className="absolute top-2 right-2 z-10 flex items-center gap-1 px-1.5 py-0.5 sm:px-2 sm:py-0.5 rounded-md bg-[#f5c518] text-black font-black text-[10px] sm:text-[11.5px] shadow-lg shadow-black/50 tracking-tight">
+          <Star size={11} fill="currentColor" stroke="none" className="text-black" />
           <span>{rating > 0 ? rating.toFixed(1) : 'NR'}</span>
         </div>
 
         {/* ── Media Type Badge (Top-Left: Series / Movie) ── */}
-        <div className="absolute top-1.5 left-1.5 sm:top-2 sm:left-2 z-10 flex items-center gap-1 px-1.5 py-0.5 rounded-md bg-black/75 backdrop-blur-md border border-white/15 text-slate-200 font-bold text-[8.5px] xs:text-[9px] sm:text-[10px] uppercase tracking-wider shadow-md">
+        <div className="absolute top-2 left-2 z-10 flex items-center gap-1 px-1.5 py-0.5 rounded-md bg-black/75 backdrop-blur-md border border-white/15 text-slate-200 font-bold text-[9px] sm:text-[10px] uppercase tracking-wider shadow-md">
           {resolvedType === 'tv' ? (
             <>
-              <Tv size={9} className="text-cyan-400 sm:w-[10px] sm:h-[10px]" />
+              <Tv size={10} className="text-cyan-400" />
               <span>Series</span>
             </>
           ) : (
             <>
-              <Film size={9} className="text-cyan-400 sm:w-[10px] sm:h-[10px]" />
+              <Film size={10} className="text-cyan-400" />
               <span>Movie</span>
             </>
           )}
@@ -87,14 +87,14 @@ export default function MovieCard({ item, type, priority = false }: MovieCardPro
       </div>
 
       {/* ── Info Outside Below Poster ── */}
-      <div className="pt-2 sm:pt-2.5 px-0.5 space-y-0.5 sm:space-y-1">
+      <div className="pt-2 sm:pt-2.5 px-0.5 space-y-1">
         <h3
           title={title}
-          className="font-bold text-white text-[13px] xs:text-[13.5px] sm:text-sm md:text-[14.5px] leading-snug line-clamp-1 xs:line-clamp-2 group-hover/card:text-cyan-400 transition-colors tracking-tight"
+          className="font-bold text-white text-xs sm:text-[13.5px] leading-snug line-clamp-2 group-hover/card:text-cyan-400 transition-colors"
         >
           {title}
         </h3>
-        <div className="flex items-center gap-1.5 text-[11px] sm:text-xs text-slate-400 font-medium">
+        <div className="flex items-center text-[11px] sm:text-xs text-slate-400 font-medium">
           <span>{year || '2025'}</span>
         </div>
       </div>
