@@ -136,20 +136,22 @@ export default function MovieRow({
 
   if (!items || items.length === 0) return null;
 
+  const isTV = type === 'tv';
+
   return (
     <section className="relative w-full max-w-full overflow-hidden">
-      {/* Header with section-title style (vertical gradient accent on the left) */}
+      {/* Header with section-title style (vertical gradient accent on the left, TV pink-violet theme when isTV) */}
       <div className={`flex items-center justify-between mb-4 ${noPadding ? 'px-0' : 'px-4 sm:px-6 md:px-8 lg:px-10 xl:px-12 2xl:px-14'}`}>
-        <h2 className="section-title text-xl sm:text-2xl font-bold text-neo-text-primary">
+        <h2 className={`section-title ${isTV ? 'section-title-tv' : ''} text-xl sm:text-2xl font-bold text-neo-text-primary`}>
           {title}
         </h2>
         {seeAllHref && (
           <Link
             href={seeAllHref}
-            className="text-xs sm:text-sm font-medium transition-colors duration-200 hover:text-neo-cyan flex items-center gap-1 group/link"
+            className={`text-xs sm:text-sm font-medium transition-colors duration-200 ${isTV ? 'hover:text-pink-400' : 'hover:text-neo-cyan'} flex items-center gap-1 group/link`}
             style={{ color: '#94a3b8' }}
           >
-            <span className="group-hover/link:text-cyan-400 transition-colors">See All</span>
+            <span className={`${isTV ? 'group-hover/link:text-pink-400' : 'group-hover/link:text-cyan-400'} transition-colors`}>See All</span>
             <ChevronRight size={16} className="group-hover/link:translate-x-0.5 transition-transform" />
           </Link>
         )}

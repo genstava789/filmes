@@ -158,6 +158,11 @@ body {
   border-radius: 2px;
 }
 
+.section-title-tv::before {
+  background: linear-gradient(to bottom, #ec4899, #8b5cf6) !important;
+  box-shadow: 0 0 10px rgba(236, 72, 153, 0.45) !important;
+}
+
 /* Gradient text */
 .gradient-text-cyan-violet {
   background: linear-gradient(135deg, #06b6d4, #7c3aed);

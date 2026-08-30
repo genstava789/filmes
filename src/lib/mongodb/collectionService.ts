@@ -252,42 +252,49 @@ export async function getCollectionByIdOrSlug(
   idOrSlug: string,
   currentUserId?: string
 ): Promise<MongoCollection | null> {
-  ensureCollectionIndexesBackground();
+  const cacheKey = `collection_detail_${idOrSlug}`;
 
-  return withMongoRetry(async () => {
-    const col = await getCollectionsCol();
-    let query: any = { slug: idOrSlug };
+  const fetchRawCollection = async () => {
+    return withMongoRetry(async () => {
+      const col = await getCollectionsCol();
+      let query: any = { slug: idOrSlug };
 
-    if (ObjectId.isValid(idOrSlug)) {
-      query = {
-        $or: [{ _id: new ObjectId(idOrSlug) }, { slug: idOrSlug }],
-      };
-    }
-
-    const collection = await col.findOne(query);
-    if (collection) {
-      let userVote: 'like' | 'dislike' | null = null;
-      if (currentUserId) {
-        if (Array.isArray(collection.likedBy) && collection.likedBy.includes(currentUserId)) {
-          userVote = 'like';
-        } else if (Array.isArray(collection.dislikedBy) && collection.dislikedBy.includes(currentUserId)) {
-          userVote = 'dislike';
-        }
+      if (ObjectId.isValid(idOrSlug)) {
+        query = {
+          $or: [{ _id: new ObjectId(idOrSlug) }, { slug: idOrSlug }],
+        };
       }
+
+      const collection = await col.findOne(query);
+      if (!collection) return null;
 
       return {
         ...collection,
-        _id: collection._id ? (collection._id.toString() as any) : undefined,
-        likes: typeof collection.likes === 'number' ? collection.likes : (collection.likedBy?.length || 0),
-        dislikes: typeof collection.dislikes === 'number' ? collection.dislikes : (collection.dislikedBy?.length || 0),
-        userVote,
-        likedBy: undefined,
-        dislikedBy: undefined,
+        _id: collection._id ? collection._id.toString() : undefined,
       };
-    }
+    });
+  };
 
-    return null;
-  });
+  const raw = await memoryCache.getOrFetch(cacheKey, fetchRawCollection, 30_000, 10_000);
+  if (!raw) return null;
+
+  let userVote: 'like' | 'dislike' | null = null;
+  if (currentUserId) {
+    if (Array.isArray(raw.likedBy) && raw.likedBy.includes(currentUserId)) {
+      userVote = 'like';
+    } else if (Array.isArray(raw.dislikedBy) && raw.dislikedBy.includes(currentUserId)) {
+      userVote = 'dislike';
+    }
+  }
+
+  return {
+    ...raw,
+    likes: typeof raw.likes === 'number' ? raw.likes : (raw.likedBy?.length || 0),
+    dislikes: typeof raw.dislikes === 'number' ? raw.dislikes : (raw.dislikedBy?.length || 0),
+    userVote,
+    likedBy: undefined,
+    dislikedBy: undefined,
+  };
 }
 
 /**
@@ -401,6 +408,7 @@ export async function updateCollection(
 
     await col.updateOne({ _id: existing._id }, { $set: updateFields });
     memoryCache.invalidate('collections_feed_');
+    memoryCache.invalidate('collection_detail_');
     const updated = await col.findOne({ _id: existing._id });
     if (!updated) return null;
     return {
@@ -481,6 +489,7 @@ export async function voteCollection(
     );
 
     memoryCache.invalidate('collections_feed_');
+    memoryCache.invalidate('collection_detail_');
 
     return {
       likes: likesCount,
@@ -526,6 +535,7 @@ export async function deleteCollection(
 
     const res = await col.deleteOne(query);
     memoryCache.invalidate('collections_feed_');
+    memoryCache.invalidate('collection_detail_');
     return (res.deletedCount || 0) > 0;
   });
 }

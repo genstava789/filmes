@@ -391,6 +391,7 @@ export default function CollectionsClient({
                   <Link
                     key={collection.slug || collection._id?.toString()}
                     href={`/collections/${collection.slug || collection._id}`}
+                    prefetch={true}
                     className="group relative rounded-3xl bg-[#090e21] border border-white/10 hover:border-cyan-500/50 p-4 sm:p-5 flex flex-col justify-between transition-all duration-300 hover:scale-[1.02] hover:shadow-[0_0_30px_rgba(6,182,212,0.2)] overflow-hidden"
                   >
                     {/* Backdrop Collage / Preview Posters Stack */}
